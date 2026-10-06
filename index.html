@@ -306,7 +306,7 @@ function saveAdv(){
   adv.updated = Date.now();
   LS.set("lan.adv." + adv.id, adv);
   const last = [...adv.actions].reverse().find(a => a.type === "ai" && !a.hidden);
-  const entry = { id: adv.id, title: adv.title, updated: adv.updated, spent: adv.spent || 0, preview: visible(last ? last.text : adv.actions[0]?.text || "").slice(-160), hasCover: !!adv.hasCover };
+  const entry = { id: adv.id, title: adv.title, updated: adv.updated, spent: adv.spent || 0, preview: visible(last ? last.text : adv.actions[0]?.text || "").slice(-160), hasCover: !!adv.hasCover, coverPos: adv.coverPos ?? 50 };
   index = index.filter(x => x.id !== adv.id); index.unshift(entry);
   LS.set("lan.index", index);
 }
@@ -416,16 +416,29 @@ function btn(body, text, cls, onClick){
 function sec(body, text){ const d = el("div", "sec"); d.textContent = text; body.appendChild(d); }
 function hint(body, html){ const d = el("div", "hint", html); body.appendChild(d); return d; }
 function hueOf(s){ let h = 0; for(const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
-function coverEl(cls, id, title){
+function coverEl(cls, id, title, pos){
   const d = el("div", "cover " + cls);
   const img = id ? getCover(id) : null;
-  if(img) d.style.backgroundImage = `url(${img})`;
+  if(img){ d.style.backgroundImage = `url(${img})`; d.style.backgroundPosition = `center ${pos ?? 50}%`; }
   else {
     const h = hueOf(title || "?");
     d.style.background = `linear-gradient(135deg, hsl(${h} 32% 26%), hsl(${(h + 50) % 360} 30% 13%))`;
     d.appendChild(el("div", "ph", esc((visible(title) || "?").charAt(0).toUpperCase())));
   }
   return d;
+}
+function coverFramer(b, getImg, getPos, setPos){
+  const img = getImg();
+  const pc = el("button", "pickcover" + (img ? " has" : ""), img ? "" : "＋ Image de couverture");
+  if(img){ pc.style.backgroundImage = `url(${img})`; pc.style.backgroundSize = "cover"; pc.style.backgroundPosition = `center ${getPos() ?? 50}%`; pc.style.height = "150px"; }
+  b.appendChild(pc);
+  if(img){
+    const d = el("div", "sl", `<div class="top"><b>Cadrage</b><output>haut ↕ bas</output></div><div class="hint">Glisse pour choisir la partie de l'image qui reste visible.</div><input type="range" min="0" max="100" step="1" value="${getPos() ?? 50}">`);
+    const r = d.querySelector("input");
+    r.oninput = () => { setPos(Number(r.value)); pc.style.backgroundPosition = `center ${r.value}%`; };
+    b.appendChild(d);
+  }
+  return pc;
 }
 function pickImage(){
   return new Promise((resolve) => {
@@ -453,6 +466,7 @@ function ago(t){
 
 /* ================= Library ================= */
 function setHeaderTitle(text, withLogo){ $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>`; }
+const TAGLINES = ["Prêt pour l'aventure ?", "Qui seras-tu aujourd'hui ?", "Un monde t'attend. À toi de jouer.", "Où est-ce qu'on part ?", "Le donjon est ouvert."];
 function showLibrary(){
   stopGen(); adv = null;
   applyStyle(DEFAULT_STYLE);
@@ -462,7 +476,7 @@ function showLibrary(){
   setHeaderTitle("Lanterne", true);
   const lib = $("#lib"); lib.innerHTML = "";
   const hr = new Date().getHours();
-  const hero = el("div", "hero", `<div class="greet">${hr < 5 || hr >= 18 ? "Bonsoir." : hr < 12 ? "Bonjour." : "Bon après-midi."}</div><div class="sub">Quelle histoire aujourd'hui ?</div>`);
+  const hero = el("div", "hero", `<div class="greet">${hr < 5 || hr >= 18 ? "Bonsoir." : hr < 12 ? "Bonjour." : "Bon après-midi."}</div><div class="sub">${TAGLINES[Math.floor(Math.random() * TAGLINES.length)]}</div>`);
   lib.appendChild(hero);
   btn(hero, "+ Nouvelle aventure", "wide", () => adventureWizard()).style.marginTop = "16px";
   const list = index.sort((a, b) => b.updated - a.updated);
@@ -478,7 +492,7 @@ function showLibrary(){
   const [first, ...rest] = list;
   lib.appendChild(el("div", "secT", "Reprendre"));
   const f = el("button", "feat");
-  f.appendChild(coverEl("", first.hasCover ? first.id : null, first.title));
+  f.appendChild(coverEl("", first.hasCover ? first.id : null, first.title, first.coverPos));
   f.appendChild(el("div", "in", `<div class="t">${esc(first.title)}</div><div class="s">${esc(first.preview)}</div><div class="go">Continuer l'histoire →</div>`));
   f.onclick = () => openAdventure(first.id);
   lib.appendChild(f);
@@ -486,7 +500,7 @@ function showLibrary(){
     lib.appendChild(el("div", "secT", "Toutes les aventures"));
     rest.forEach(x => {
       const it = el("button", "item");
-      it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title));
+      it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos));
       it.appendChild(el("div", "grow", `<div class="t">${esc(x.title)}</div><div class="m">${ago(x.updated)}${x.spent ? " · " + money(x.spent) : ""}</div>`));
       it.onclick = () => openAdventure(x.id);
       lib.appendChild(it);
@@ -614,10 +628,9 @@ function adventureWizard(){
   let idea = "", genOpen = false, wish = "";
   const render = (b) => {
     b.innerHTML = "";
-    const pc = el("button", "pickcover" + (d.cover ? " has" : ""), d.cover ? "" : "＋ Image de couverture (optionnel)");
-    if(d.cover){ pc.style.backgroundImage = `url(${d.cover})`; pc.style.backgroundSize = "cover"; pc.style.backgroundPosition = "center"; }
-    pc.onclick = async () => { const img = await pickImage(); if(img){ d.cover = img; render(b); } };
-    b.appendChild(pc);
+    const pc = coverFramer(b, () => d.cover, () => d.coverPos, v => d.coverPos = v);
+    if(!d.cover) pc.textContent = "＋ Image de couverture (optionnel)";
+    pc.onclick = async () => { const img = await pickImage(); if(img){ d.cover = img; d.coverPos = 50; render(b); } };
 
     const gbt = btn(b, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer avec l'IA", "ghost small", () => { genOpen = !genOpen; render(b); });
     gbt.style.marginBottom = "14px";
@@ -660,7 +673,7 @@ function adventureWizard(){
       const a = blankAdventure();
       a.title = d.title.trim() || "Nouvelle aventure";
       Object.assign(a, { essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions, cards: d.cards, scripts: d.scripts });
-      if(d.cover){ if(LS.set("lan.cover." + a.id, d.cover)) a.hasCover = true; }
+      if(d.cover){ if(LS.set("lan.cover." + a.id, d.cover)){ a.hasCover = true; a.coverPos = d.coverPos ?? 50; } }
       if(d.opening.trim()) a.actions.push({ id: uid(), type: "ai", text: d.opening.trim() });
       adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
     }).style.marginTop = "18px";
@@ -708,10 +721,7 @@ function openAdventure(id){
   renderBanner();
   renderStory(true);
 }
-function renderBanner(){
-  const h = $("#bannerHost"); h.innerHTML = "";
-  if(adv?.hasCover && getCover(adv.id)) h.appendChild(coverEl("banner", adv.id, adv.title));
-}
+function renderBanner(){ $("#bannerHost").innerHTML = ""; }
 const scriptsOn = () => !!(adv && (adv.scripts.ac || adv.scripts.is));
 function renderStory(scroll){
   const s = $("#story"); s.innerHTML = "";
@@ -1059,10 +1069,9 @@ function renderLookTab(body){
   });
   slider(body, "Taille du texte", "size", 14, 24, 1, null, adv.style, save);
   sec(body, "Image de couverture");
-  const pc = el("button", "pickcover" + (adv.hasCover ? " has" : ""), adv.hasCover ? "" : "＋ Choisir une image");
-  if(adv.hasCover){ const c = getCover(adv.id); if(c){ pc.style.backgroundImage = `url(${c})`; pc.style.backgroundSize = "cover"; pc.style.backgroundPosition = "center"; } }
-  pc.onclick = async () => { const img = await pickImage(); if(img && LS.set("lan.cover." + adv.id, img)){ adv.hasCover = true; saveAdv(); renderBanner(); openAdventureSheet("look"); } };
-  body.appendChild(pc);
+  const pc = coverFramer(body, () => adv.hasCover ? getCover(adv.id) : null, () => adv.coverPos, v => { adv.coverPos = v; saveAdv(); });
+  if(!adv.hasCover) pc.textContent = "＋ Choisir une image";
+  pc.onclick = async () => { const img = await pickImage(); if(img && LS.set("lan.cover." + adv.id, img)){ adv.hasCover = true; adv.coverPos = 50; saveAdv(); openAdventureSheet("look"); } };
   if(adv.hasCover) btn(body, "Retirer l'image", "ghost small", () => { LS.del("lan.cover." + adv.id); adv.hasCover = false; saveAdv(); renderBanner(); openAdventureSheet("look"); });
 }
 function renderMiscTab(body){

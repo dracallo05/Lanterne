@@ -172,6 +172,37 @@ details.fold .in{padding:0 14px 4px}
 .menu{position:fixed;z-index:30;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:170px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 .menu button{display:block;width:100%;text-align:left;padding:12px 16px}
 .menu button:active{background:var(--bg3)}
+.alts{display:flex;align-items:center;gap:4px;font-family:var(--sans);font-size:12px;color:var(--tx3);margin:2px 0 6px}
+.alts button{width:30px;height:26px;border-radius:8px;color:var(--tx2);font-size:15px}
+.alts button:active{background:var(--bg3)}
+.alts button:disabled{opacity:.3}
+.ideas{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.idea{text-align:left;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:14px;color:var(--tx)}
+.idea:active{background:var(--bg3)}
+.ideas .ih{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx3)}
+.act.flash{animation:flash 1.6s ease-out}
+@keyframes flash{0%,30%{background:color-mix(in srgb,var(--acc) 25%,transparent)}100%{background:transparent}}
+mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+.res{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;width:100%;text-align:left;font-family:var(--serif);font-size:14px;line-height:1.5;color:var(--tx2)}
+.res .rk{font-family:var(--sans);font-size:11px;color:var(--tx3);margin-bottom:2px}
+.ob{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.ob .box{background:var(--bg);border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:760px;padding:22px 20px calc(18px + env(safe-area-inset-bottom))}
+.ob .em{font-size:34px}
+.ob h3{margin:8px 0 6px;font-size:20px;font-family:var(--serif);font-weight:500}
+.ob p{color:var(--tx2);line-height:1.5;margin:0 0 16px;font-size:15px}
+.ob .dots{display:flex;gap:6px}
+.ob .dots i{width:7px;height:7px;border-radius:50%;background:var(--bg3)}
+.ob .dots i.on{background:var(--acc)}
+.bars{margin:6px 0 16px}
+.bars .br{display:grid;grid-template-columns:62px 1fr auto;gap:8px;align-items:center;font-size:12px;color:var(--tx3);margin-bottom:6px}
+.bars .bt{height:10px;background:var(--bg3);border-radius:99px;overflow:hidden}
+.bars .bt i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.bars .bv{color:var(--tx2);font-variant-numeric:tabular-nums}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.kpis div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.kpis b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.kpis span{font-size:12px;color:var(--tx3)}
+.tool{padding:4px 4px}
 </style>
 </head>
 <body>
@@ -179,6 +210,7 @@ details.fold .in{padding:0 14px 4px}
   <header>
     <button class="ib hidden" id="backBtn" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
     <h1 id="title"></h1>
+    <button class="ib hidden" id="searchBtn" aria-label="Rechercher"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button>
     <button class="ib hidden" id="advBtn" aria-label="Aventure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 012-2h13v16H6a2 2 0 00-2 2.5zM4 19.5A2.5 2.5 0 016.5 22H19"/><path d="M9 7h6M9 11h6"/></svg></button>
     <button class="ib" id="setBtn" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
   </header>
@@ -187,10 +219,12 @@ details.fold .in{padding:0 14px 4px}
 
   <main id="storyView" class="hidden"><div id="bannerHost"></div><div class="story" id="story"></div></main>
   <div class="bar hidden" id="bar">
+    <div class="ideas hidden" id="ideas"></div>
     <div class="modes" id="modes">
       <button class="mode on" data-m="do">Faire</button>
       <button class="mode" data-m="say">Dire</button>
       <button class="mode" data-m="story">Histoire</button>
+      <button class="mode" data-m="guide">Guide</button>
     </div>
     <div class="inrow">
       <textarea id="inp" rows="1" placeholder="Que fais-tu ?"></textarea>
@@ -201,6 +235,8 @@ details.fold .in{padding:0 14px 4px}
       <button class="tool" id="retryBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12a9 9 0 109-9 9.5 9.5 0 00-6.7 2.8L3 8"/><path d="M3 3v5h5"/></svg>Réessayer</button>
       <button class="tool" id="undoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 010 10h-3"/></svg>Annuler</button>
       <button class="tool" id="redoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 000 10h3"/></svg>Rétablir</button>
+      <button class="tool" id="ideaBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/></svg>Idées</button>
+      <button class="tool" id="ttsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13"/></svg><span>Écouter</span></button>
     </div>
   </div>
 </div>
@@ -253,11 +289,13 @@ const DEFAULT_SETTINGS = {
   provider: "openrouter", baseUrl: "", apiKey: "", model: "deepseek/deepseek-v4-pro",
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
-  contextTokens: 16000, cardScanDepth: 4, requireParams: false, noReasoning: true,
+  contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, requireParams: false, noReasoning: true,
   currency: "EUR"
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
-let stats = Object.assign({ total: 0, since: Date.now() }, LS.get("lan.stats", {}));
+let stats = Object.assign({ total: 0, since: Date.now(), turns: 0, words: 0, playerWords: 0, byMonth: {}, byModel: {}, days: {} }, LS.get("lan.stats", {}));
+const monthKey = () => new Date().toISOString().slice(0, 7);
+const wordCount = t => (visible(t).match(/[\p{L}\p{N}’'-]+/gu) || []).length;
 let fx = LS.get("lan.fx", { rate: 0.86, t: 0 });
 let index = LS.get("lan.index", []);
 let adv = null;
@@ -287,16 +325,25 @@ const nf = (v, d) => v.toLocaleString("fr-FR", { minimumFractionDigits: 0, maxim
 function money(usd){
   const eur = settings.currency !== "USD";
   const v = (usd || 0) * (eur ? fx.rate : 1);
-  const sym = eur ? "€" : "$";
-  if(v === 0) return "0 " + sym;
-  if(v >= 0.01) return v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + sym;
-  const c = v * 100;
-  return nf(c, c < 0.1 ? 3 : 2) + (eur ? " centime" : " cent") + (c >= 2 ? "s" : "");
+  const d = v === 0 ? 2 : v < 0.0001 ? 5 : v < 1 ? 4 : 2;
+  const n = v.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+  return eur ? n + " €" : "$" + n.replace(",", ".");
+}
+const centimes = money;
+function recordTurn(aiText, playerText){
+  stats.turns++; stats.words += wordCount(aiText); stats.playerWords += wordCount(playerText || "");
+  (stats.byModel[settings.model] ||= { turns: 0, usd: 0 }).turns++;
+  stats.days[new Date().toISOString().slice(0, 10)] = 1;
+  LS.set("lan.stats", stats);
+  if(adv){ adv.turns = (adv.turns || 0) + 1; adv.words = (adv.words || 0) + wordCount(aiText) + wordCount(playerText || ""); }
 }
 function saveSettings(){ LS.set("lan.settings", settings); }
 function addCost(c){
   if(!(c > 0)) return;
-  stats.total += c; LS.set("lan.stats", stats);
+  stats.total += c;
+  const mk = monthKey(); stats.byMonth[mk] = (stats.byMonth[mk] || 0) + c;
+  const md = (stats.byModel[settings.model] ||= { turns: 0, usd: 0 }); md.usd += c;
+  LS.set("lan.stats", stats);
   if(adv){ adv.spent = (adv.spent || 0) + c; }
 }
 
@@ -306,7 +353,7 @@ function saveAdv(){
   adv.updated = Date.now();
   LS.set("lan.adv." + adv.id, adv);
   const last = [...adv.actions].reverse().find(a => a.type === "ai" && !a.hidden);
-  const entry = { id: adv.id, title: adv.title, updated: adv.updated, spent: adv.spent || 0, preview: visible(last ? last.text : adv.actions[0]?.text || "").slice(-160), hasCover: !!adv.hasCover, coverPos: adv.coverPos ?? 50 };
+  const entry = { id: adv.id, title: adv.title, updated: adv.updated, spent: adv.spent || 0, summary: visible(adv.summary).slice(0, 220), hasCover: !!adv.hasCover, coverPos: adv.coverPos ?? 50 };
   index = index.filter(x => x.id !== adv.id); index.unshift(entry);
   LS.set("lan.index", index);
 }
@@ -472,7 +519,7 @@ function showLibrary(){
   applyStyle(DEFAULT_STYLE);
   $("#libView").classList.remove("hidden");
   $("#storyView").classList.add("hidden"); $("#bar").classList.add("hidden");
-  $("#backBtn").classList.add("hidden"); $("#advBtn").classList.add("hidden");
+  $("#backBtn").classList.add("hidden"); $("#advBtn").classList.add("hidden"); $("#searchBtn").classList.add("hidden"); hideIdeas(); stopSpeaking();
   setHeaderTitle("Lanterne", true);
   const lib = $("#lib"); lib.innerHTML = "";
   const hr = new Date().getHours();
@@ -493,7 +540,7 @@ function showLibrary(){
   lib.appendChild(el("div", "secT", "Reprendre"));
   const f = el("button", "feat");
   f.appendChild(coverEl("", first.hasCover ? first.id : null, first.title, first.coverPos));
-  f.appendChild(el("div", "in", `<div class="t">${esc(first.title)}</div><div class="s">${esc(first.preview)}</div><div class="go">Continuer l'histoire →</div>`));
+  f.appendChild(el("div", "in", `<div class="t">${esc(first.title)}</div>${first.summary ? `<div class="s">${esc(first.summary)}</div>` : ""}<div class="go">Continuer l'histoire →</div>`));
   f.onclick = () => openAdventure(first.id);
   lib.appendChild(f);
   if(rest.length){
@@ -601,7 +648,7 @@ async function generateCardEntry(card, ctx){
 Story context:
 ${ctx || "(none)"}
 Card: ${card.title || "(invent a name)"} — type: ${card.type}${card.entry ? "\nNotes from the player to keep: " + card.entry : ""}
-Return ONLY JSON: {"title": "...", "keys": "comma, separated, trigger words incl. the name", "entry": "2-4 factual sentences: appearance, personality, motives, secrets"}
+Return ONLY JSON: {"title": "...", "keys": "comma, separated, trigger words incl. the name", "entry": "concise factual description: appearance, personality, motives, secrets — STRICTLY under ${Math.round(settings.cardLimit * 0.9)} characters"}
 Write in the language of the context (French if unsure).`;
   return parseJSON(await complete(prompt, 600));
 }
@@ -622,9 +669,9 @@ Return ONLY the instructions, no preamble.`;
 }
 
 /* ================= Adventure wizard ================= */
-function adventureWizard(){
-  const d = { title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [], cover: null,
-    scripts: { ac: false, is: false, names: "", player: "" } };
+function adventureWizard(pre){
+  const d = Object.assign({ title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [], cover: null,
+    scripts: { ac: false, is: false, names: "", player: "" } }, pre || {});
   let idea = "", genOpen = false, wish = "";
   const render = (b) => {
     b.innerHTML = "";
@@ -632,8 +679,9 @@ function adventureWizard(){
     if(!d.cover) pc.textContent = "＋ Image de couverture (optionnel)";
     pc.onclick = async () => { const img = await pickImage(); if(img){ d.cover = img; d.coverPos = 50; render(b); } };
 
-    const gbt = btn(b, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer avec l'IA", "ghost small", () => { genOpen = !genOpen; render(b); });
-    gbt.style.marginBottom = "14px";
+    const gr = el("div", "row"); gr.style.cssText = "flex-wrap:wrap;margin-bottom:14px"; b.appendChild(gr);
+    btn(gr, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer", "ghost small", () => { genOpen = !genOpen; render(b); });
+    btn(gr, "📥 Importer un scénario", "ghost small", () => { closeSheet(); importScenarioFile(); });
     if(genOpen){
       const g = el("div", "genbox", `<div class="hint" style="margin:0 0 8px">Décris une envie en une phrase, ou laisse vide pour une surprise. L'IA remplit le titre, l'ouverture, les essentiels et la note d'auteur.</div>`);
       b.appendChild(g);
@@ -673,6 +721,7 @@ function adventureWizard(){
       const a = blankAdventure();
       a.title = d.title.trim() || "Nouvelle aventure";
       Object.assign(a, { essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions, cards: d.cards, scripts: d.scripts });
+      if(d.style) a.style = Object.assign({}, DEFAULT_STYLE, d.style);
       if(d.cover){ if(LS.set("lan.cover." + a.id, d.cover)){ a.hasCover = true; a.coverPos = d.coverPos ?? 50; } }
       if(d.opening.trim()) a.actions.push({ id: uid(), type: "ai", text: d.opening.trim() });
       adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
@@ -716,7 +765,7 @@ function openAdventure(id){
   applyStyle(adv.style);
   $("#libView").classList.add("hidden");
   $("#storyView").classList.remove("hidden"); $("#bar").classList.remove("hidden");
-  $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.remove("hidden");
+  $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.remove("hidden"); $("#searchBtn").classList.remove("hidden");
   setHeaderTitle(adv.title, false);
   renderBanner();
   renderStory(true);
@@ -732,6 +781,16 @@ function renderStory(scroll){
     d.textContent = visible(a.text);
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
+    if(a.type === "ai" && a.alts?.length > 1){
+      const i = a.altIdx ?? a.alts.length - 1;
+      const nav = el("div", "alts", `<button data-d="-1" ${i <= 0 ? "disabled" : ""} aria-label="Précédente">‹</button><span>version ${i + 1} / ${a.alts.length}</span><button data-d="1" ${i >= a.alts.length - 1 ? "disabled" : ""} aria-label="Suivante">›</button>`);
+      nav.onclick = ev => {
+        const b = ev.target.closest("button"); if(!b || generating) return;
+        const n = Math.max(0, Math.min(a.alts.length - 1, i + Number(b.dataset.d)));
+        a.altIdx = n; a.text = a.alts[n]; saveAdv(); renderStory(false);
+      };
+      s.appendChild(nav);
+    }
   });
   if(!shown.length) s.appendChild(el("div", "empty", `<span style="font-family:var(--sans)">L'histoire est vide. Écris une action, ou passe en mode <b>Histoire</b> pour poser la scène.</span>`));
   const m = el("div", "meta");
@@ -744,6 +803,7 @@ function updateTools(){
   const busy = !!generating;
   const vis = adv ? adv.actions.filter(a => !a.hidden) : [];
   $("#undoBtn").disabled = busy || !vis.length;
+  $("#ideaBtn").disabled = busy;
   $("#redoBtn").disabled = busy || !redoStack.length;
   $("#retryBtn").disabled = busy || !vis.some(a => a.type === "ai");
   $("#contBtn").disabled = busy;
@@ -758,7 +818,7 @@ function actionMenu(a, ev){
   document.querySelectorAll(".menu").forEach(m => m.remove());
   document.querySelectorAll(".act.sel").forEach(m => m.classList.remove("sel"));
   const e = ev.currentTarget; e.classList.add("sel");
-  const m = el("div", "menu", `<button data-a="edit">Modifier</button><button data-a="del">Supprimer</button><button data-a="cut">Supprimer à partir d'ici</button>`);
+  const m = el("div", "menu", `<button data-a="edit">Modifier</button><button data-a="tts">Écouter</button><button data-a="del">Supprimer</button><button data-a="cut">Supprimer à partir d'ici</button>`);
   document.body.appendChild(m);
   const r = e.getBoundingClientRect();
   m.style.left = Math.min(ev.clientX, innerWidth - 190) + "px";
@@ -769,6 +829,7 @@ function actionMenu(a, ev){
   m.onclick = x => {
     const act = x.target.dataset.a; if(!act) return; close();
     if(act === "edit") editAction(a);
+    if(act === "tts") speak(a.text);
     if(act === "del"){ adv.actions = adv.actions.filter(y => y.id !== a.id); redoStack = []; saveAdv(); renderStory(); }
     if(act === "cut"){ const i = adv.actions.findIndex(y => y.id === a.id); if(confirm("Supprimer ce passage et tout ce qui suit ?")){ adv.actions = adv.actions.slice(0, i); redoStack = []; saveAdv(); renderStory(); } }
   };
@@ -795,7 +856,7 @@ function triggeredCards(){
   return adv.cards.filter(c => c.enabled !== false && !isSystem(c) && !isBrain(c) && visible(c.entry) &&
     (c.keys || "").split(",").map(k => k.trim().toLowerCase()).filter(Boolean).some(k => recent.includes(k)));
 }
-function buildMessages(){
+function buildMessages(guide){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
@@ -820,10 +881,12 @@ function buildMessages(){
   if(!msgs.length || msgs[msgs.length - 1].role === "assistant") push("user", "(Continue the story.)");
   if(msgs[0].role === "assistant") msgs.unshift({ role: "user", content: "(Begin.)" });
   if(an){ const last = msgs[msgs.length - 1]; last.content = an + "\n\n" + last.content; }
+  if(guide){ const last = msgs[msgs.length - 1]; last.content += "\n\n" + guideNote(guide); }
   return [{ role: "system", content: system }, ...msgs];
 }
 /* AI Dungeon–style single-text context, used when scripts are enabled */
 const ctxCharLimit = () => Math.max(6000, Math.floor((settings.contextTokens - settings.max_tokens) * 3.5));
+const guideNote = g => `[Direction from the player for what happens next — follow it naturally, never mention it: ${g.trim()}]`;
 function buildAIDContext(){
   const limit = ctxCharLimit();
   const top = [];
@@ -945,21 +1008,26 @@ function placeholder(){
   const v = $("#storyView"); v.scrollTop = v.scrollHeight;
   return { el: d, setStatus: t => { const w = d.querySelector(".wstat"); if(w) w.textContent = t || ""; } };
 }
-async function generate(input){
+async function generate(input, opts = {}){
   if(!settings.apiKey){ toast("Ajoute ta clé API dans les réglages"); openSettings(); return; }
+  hideIdeas(); stopSpeaking();
   generating = new AbortController(); updateTools();
   const signal = generating.signal;
-  let errMsg = null, final = null;
+  let errMsg = null, final = null, finalAction = null;
+  const guide = input?.kind === "guide" ? input.raw.trim() : (opts.guide || "");
+  if(input?.kind === "guide") input = null;
+  const playerText = input ? input.raw : "";
   try{
     if(!scriptsOn()){
       if(input) adv.actions.push({ id: uid(), type: input.kind === "story" ? "story" : "player", kind: input.kind, text: formatPlayer(input.kind, input.raw) });
       renderStory(true);
       const ph = placeholder();
+      if(guide) ph.setStatus("🧭 guidé");
       let started = false, partial = "";
       const view = $("#storyView");
       let r;
       try{
-        r = await callModel(buildMessages(), { signal, onDelta: delta => {
+        r = await callModel(buildMessages(guide), { signal, onDelta: delta => {
           partial += delta;
           if(!started){ delta = delta.replace(/^\s+/, ""); if(!delta) return; started = true; ph.el.innerHTML = ""; }
           const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
@@ -969,7 +1037,7 @@ async function generate(input){
       }catch(e){ if(e.name === "AbortError") r = { text: partial, cost: 0 }; else throw e; }
       lastCost = r.cost || 0;
       final = cleanOutput(r.text);
-      if(final) adv.actions.push({ id: uid(), type: "ai", text: final });
+      if(final){ finalAction = { id: uid(), type: "ai", text: final }; adv.actions.push(finalAction); }
     } else {
       if(input){
         const ri = await runHook("input", formatPlayer(input.kind, input.raw));
@@ -984,9 +1052,10 @@ async function generate(input){
         const c = await runHook("context", buildAIDContext(), { maxChars: ctxCharLimit() });
         const agent = (adv.scriptState?.InnerSelf?.agent || "").trim();
         const gen = scriptLogs.slice(logStart).map(l => l.match(/Generating card for '([^']+)'/)).find(Boolean);
-        ph.setStatus(gen ? `✨ Création de la carte « ${gen[1]} »…` : agent ? `🎭 ${agent} réfléchit…` : loop ? "✨ Auto-Cards travaille…" : "");
+        ph.setStatus(gen ? `✨ Création de la carte « ${gen[1]} »…` : agent ? `🎭 ${agent} réfléchit…` : loop ? "✨ Auto-Cards travaille…" : guide ? "🧭 guidé" : "");
         if(c.stop) break;
-        const r = await callModel(scriptMessages(c.text), { signal, stream: true });
+        const ctxText = guide && !gen ? c.text + "\n\n" + guideNote(guide) : c.text;
+        const r = await callModel(scriptMessages(ctxText), { signal, stream: true });
         lastCost += r.cost || 0;
         const o = await runHook("output", cleanOutput(r.text));
         const out = { id: uid(), type: "ai", text: o.text || "" };
@@ -995,13 +1064,18 @@ async function generate(input){
           ph.setStatus("✨ Auto-Cards crée une carte…");
           continue;
         }
-        if(visible(out.text)){ adv.actions.push(out); final = out.text; }
+        if(visible(out.text)){ adv.actions.push(out); final = out.text; finalAction = out; }
         break;
       }
     }
   }catch(e){
     if(e.name !== "AbortError") errMsg = e.message;
   }
+  if(finalAction){
+    if(guide) finalAction.guide = guide;
+    if(opts.alts?.length){ finalAction.alts = [...opts.alts, final]; finalAction.altIdx = finalAction.alts.length - 1; }
+    recordTurn(final, playerText);
+  } else if(opts.alts?.length && opts.restore){ adv.actions.push(opts.restore); }
   generating = null;
   saveAdv();
   renderStory(false);
@@ -1011,6 +1085,47 @@ async function generate(input){
   }
   if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
   const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
+  if(final && settings.ttsAuto) speak(final);
+  if(!errMsg) maybeSummarize();
+}
+let summarizing = false;
+function windowStart(){
+  // index (in adv.actions) of the oldest action that still fits in the AI's memory
+  const head = estTok(adv.instructions) + estTok(adv.essentials) + estTok(adv.summary) + estTok(adv.authorsNote) + triggeredCards().reduce((n, c) => n + estTok(c.entry), 0);
+  let budget = settings.contextTokens - head - settings.max_tokens - 50;
+  for(let i = adv.actions.length - 1; i >= 0; i--){
+    if(adv.actions[i].hidden) continue;
+    budget -= estTok(adv.actions[i].text);
+    if(budget < 0) return i + 1;
+  }
+  return 0;
+}
+async function maybeSummarize(){
+  if(!settings.autoSummary || summarizing || !adv) return;
+  const a = adv;
+  a.summarizedUpTo ??= 0;
+  const start = windowStart();
+  const pending = a.actions.slice(a.summarizedUpTo, start).filter(x => !x.hidden);
+  if(pending.length < 6) return;
+  summarizing = true;
+  try{
+    const chunk = pending.map(x => visible(x.text)).join("\n\n").slice(-14000);
+    const prompt =
+`You maintain the long-term memory of an interactive story (second person, the player is "you").
+Current summary:
+"""
+${a.summary || "(empty)"}
+"""
+New events that just left the AI's short-term memory:
+"""
+${chunk}
+"""
+Rewrite the summary so it includes the new events. Keep important facts: what happened, decisions, relationships, promises, secrets, injuries, items, places. Drop trivial details. Chronological, concise, under 1500 characters. Write in the language of the story. Return ONLY the summary.`;
+    const out = await complete(prompt, 700);
+    if(out && adv === a){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; saveAdv(); }
+    else if(out){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; LS.set("lan.adv." + a.id, a); }
+  }catch(e){ console.warn("summary failed", e); }
+  summarizing = false;
 }
 function cleanOutput(t){
   t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s+/, "").replace(/\s+$/, "");
@@ -1029,6 +1144,157 @@ function submit(){
 function autosize(){ const t = $("#inp"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, innerHeight * 0.3) + "px"; }
 function popTrailingHidden(){ while(adv.actions.length && adv.actions[adv.actions.length - 1].hidden) adv.actions.pop(); }
 
+/* ================= Ideas ================= */
+function hideIdeas(){ const i = $("#ideas"); if(i){ i.classList.add("hidden"); i.innerHTML = ""; } }
+async function fetchIdeas(){
+  if(generating) return;
+  const box = $("#ideas");
+  box.classList.remove("hidden");
+  box.innerHTML = `<div class="ih"><span>💡 Idées d'actions…</span></div><div class="idea" style="color:var(--tx3)"><span class="wait"><i></i><i></i><i></i></span></div>`;
+  try{
+    const recent = adv.actions.filter(a => !a.hidden).slice(-8).map(a => visible(a.text)).join("\n\n").slice(-5000);
+    const prompt =
+`Interactive story (the player is "you"). Context:
+${adv.essentials ? "[Essentials] " + adv.essentials.slice(0, 1500) + "\n" : ""}[Recent story]
+${recent}
+
+Suggest 3 different, interesting actions the player could take next: one bold, one cautious or social, one surprising. Each under 12 words, written as the player's action without "you"/"tu" at the start (e.g. "fouille le bureau du capitaine"). Same language as the story.
+Return ONLY a JSON array of 3 strings.`;
+    const out = await complete(prompt, 200);
+    const a = out.slice(out.indexOf("["), out.lastIndexOf("]") + 1);
+    const list = JSON.parse(a).filter(x => typeof x === "string").slice(0, 3);
+    if(!list.length) throw new Error("aucune idée");
+    box.innerHTML = `<div class="ih"><span>💡 Touche une idée pour la reprendre</span><button class="ib" style="width:28px;height:28px" aria-label="Fermer">✕</button></div>`;
+    box.querySelector(".ib").onclick = hideIdeas;
+    list.forEach(t => { const b = el("button", "idea"); b.textContent = t; b.onclick = () => { document.querySelector('.mode[data-m="do"]').click(); $("#inp").value = t; autosize(); hideIdeas(); $("#inp").focus(); }; box.appendChild(b); });
+  }catch(e){ hideIdeas(); toast("Idées indisponibles : " + e.message); }
+}
+
+/* ================= Voice (text-to-speech) ================= */
+const synth = window.speechSynthesis;
+let voices = [];
+function loadVoices(){ voices = synth ? synth.getVoices() : []; }
+if(synth){ loadVoices(); synth.onvoiceschanged = loadVoices; }
+const voiceScore = v => (/^fr/i.test(v.lang) ? 100 : 0) + (/natural|neural|premium|enhanced|online|google/i.test(v.name) ? 10 : 0) + (v.localService ? 0 : 2);
+function sortedVoices(){ return [...voices].sort((a, b) => voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name)); }
+function pickVoice(){ return voices.find(v => v.voiceURI === settings.voiceURI) || sortedVoices()[0] || null; }
+const speaking = () => !!(synth && (synth.speaking || synth.pending));
+function setTtsBtn(on){ const b = $("#ttsBtn span"); if(b) b.textContent = on ? "Stop" : "Écouter"; }
+function stopSpeaking(){ if(synth){ synth.cancel(); } setTtsBtn(false); }
+function speak(text){
+  if(!synth){ toast("La lecture vocale n'est pas disponible ici"); return; }
+  synth.cancel();
+  const t = visible(text).replace(/^>\s*/gm, "").replace(/[«»"“”*_]/g, "");
+  const parts = t.match(/[^.!?…\n]+[.!?…]*\s*/g) || [t];
+  const chunks = []; let cur = "";
+  parts.forEach(p => { if((cur + p).length > 220 && cur){ chunks.push(cur); cur = ""; } cur += p; });
+  if(cur.trim()) chunks.push(cur);
+  const v = pickVoice();
+  chunks.forEach((c, i) => {
+    const u = new SpeechSynthesisUtterance(c.trim());
+    if(v){ u.voice = v; u.lang = v.lang; } else u.lang = "fr-FR";
+    u.rate = settings.ttsRate; u.pitch = settings.ttsPitch;
+    if(i === chunks.length - 1){ u.onend = () => setTtsBtn(false); u.onerror = () => setTtsBtn(false); }
+    synth.speak(u);
+  });
+  setTtsBtn(true);
+}
+
+/* ================= Search ================= */
+function openSearch(){
+  openSheet("Rechercher dans l'histoire", null, (_, b) => {
+    const q = el("input"); q.placeholder = "Un nom, un lieu, un mot…"; q.type = "search"; q.style.marginBottom = "12px";
+    b.appendChild(q);
+    const res = el("div"); b.appendChild(res);
+    const draw = () => {
+      res.innerHTML = "";
+      const term = q.value.trim();
+      if(term.length < 2){ hint(res, "Tape au moins 2 lettres. Touche un résultat pour y aller."); return; }
+      const norm = x => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const nt = norm(term);
+      const acts = adv.actions.filter(a => !a.hidden);
+      let n = 0;
+      for(let i = acts.length - 1; i >= 0 && n < 50; i--){
+        const t = visible(acts[i].text); const pos = norm(t).indexOf(nt);
+        if(pos < 0) continue; n++;
+        const s0 = Math.max(0, pos - 70), s1 = Math.min(t.length, pos + term.length + 90);
+        const snip = (s0 ? "…" : "") + esc(t.slice(s0, pos)) + "<mark>" + esc(t.slice(pos, pos + term.length)) + "</mark>" + esc(t.slice(pos + term.length, s1)) + (s1 < t.length ? "…" : "");
+        const r = el("button", "res", `<div class="rk">Passage ${i + 1} sur ${acts.length}${acts[i].type !== "ai" ? " · ton action" : ""}</div>${snip}`);
+        const id = acts[i].id;
+        r.onclick = () => { closeSheet(); const d = document.querySelector(`.act[data-id="${id}"]`); if(d){ d.scrollIntoView({ block: "center", behavior: "smooth" }); d.classList.remove("flash"); void d.offsetWidth; d.classList.add("flash"); } };
+        res.appendChild(r);
+      }
+      if(!n) hint(res, "Aucun résultat.");
+      else if(n >= 50) hint(res, "50 premiers résultats affichés, du plus récent au plus ancien.");
+    };
+    q.oninput = draw; draw(); setTimeout(() => q.focus(), 60);
+  });
+}
+
+/* ================= Onboarding ================= */
+function onboarding(force){
+  if(!force && (LS.get("lan.onboarded", false) || index.length)) { LS.set("lan.onboarded", true); return; }
+  const steps = [
+    ["🏮", "Bienvenue dans Lanterne", "Des aventures et du jeu de rôle avec l'IA. Tu joues, elle raconte, et tout reste sur ton téléphone."],
+    ["🔑", "Il te faut une clé API", "Crée un compte sur openrouter.ai, ajoute quelques euros de crédit, puis crée une clé et colle-la dans les réglages (icône en haut à droite). Un tour coûte une fraction de centime."],
+    ["⚔️", "Comment jouer", "<b>Faire</b> pour agir, <b>Dire</b> pour parler, <b>Histoire</b> pour écrire toi-même la suite, <b>Guide</b> pour orienter l'IA sans que ça apparaisse. Touche un passage pour le modifier, et <b>Réessayer</b> garde toutes les versions."],
+  ];
+  let i = 0;
+  const o = el("div", "ob"); document.body.appendChild(o);
+  const done = () => { LS.set("lan.onboarded", true); o.remove(); };
+  const draw = () => {
+    const [em, t, p] = steps[i];
+    o.innerHTML = `<div class="box"><div class="em">${em}</div><h3>${t}</h3><p>${p}</p><div class="row" style="justify-content:space-between"><div class="dots">${steps.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div><div class="row"><button class="btn ghost small" data-skip>${i < steps.length - 1 ? "Passer" : ""}</button><button class="btn small" data-next>${i < steps.length - 1 ? "Suivant" : "C'est parti"}</button></div></div></div>`;
+    const sk = o.querySelector("[data-skip]"); if(!sk.textContent) sk.remove(); else sk.onclick = done;
+    o.querySelector("[data-next]").onclick = () => { if(i < steps.length - 1){ i++; draw(); } else { done(); if(!settings.apiKey) openSettings(); } };
+  };
+  draw();
+}
+
+/* ================= Scenario sharing ================= */
+function scenarioOf(a){
+  const opening = a.actions.find(x => x.type === "ai" && !x.hidden);
+  return { lanterne_scenario: 1, title: a.title, opening: opening ? visible(opening.text) : "", essentials: a.essentials, authorsNote: a.authorsNote,
+    instructions: a.instructions, cards: a.cards.filter(c => !isBrain(c) && !isSystem(c)).map(c => ({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })),
+    scripts: { ac: !!a.scripts.ac, is: !!a.scripts.is, names: a.scripts.names || "", player: "" }, style: a.style,
+    cover: a.hasCover ? getCover(a.id) : undefined, coverPos: a.coverPos };
+}
+async function shareScenario(){
+  const sc = scenarioOf(adv);
+  const name = `scenario-${slug(adv.title)}.json`;
+  const blob = new Blob([JSON.stringify(sc, null, 2)], { type: "application/json" });
+  try{
+    const file = new File([blob], name, { type: "application/json" });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], title: adv.title, text: `Scénario Lanterne : ${adv.title}` });
+      return;
+    }
+  }catch(e){ if(e.name === "AbortError") return; }
+  download(name, sc);
+  toast("Fichier téléchargé : envoie-le à tes potes");
+}
+function startFromScenario(sc){
+  adventureWizard({
+    title: sc.title || "", opening: sc.opening || "", essentials: sc.essentials || "", authorsNote: sc.authorsNote || "",
+    instructions: sc.instructions || DEFAULT_INSTRUCTIONS,
+    cards: (sc.cards || []).map(c => normalizeCard({ title: c.title, type: c.type, keys: c.keys, entry: c.entry })),
+    scripts: Object.assign({ ac: false, is: false, names: "", player: "" }, sc.scripts || {}),
+    cover: sc.cover || null, coverPos: sc.coverPos ?? 50, style: sc.style
+  });
+}
+function importScenarioFile(){
+  const i = document.createElement("input"); i.type = "file"; i.accept = "application/json,.json";
+  i.onchange = async () => {
+    try{
+      const j = JSON.parse(await i.files[0].text());
+      if(j.lanterne_scenario) startFromScenario(j);
+      else if(j.adventures?.length) startFromScenario(scenarioOf(migrate(j.adventures[0])));
+      else throw new Error("ce n'est pas un scénario Lanterne");
+    }catch(e){ toast("Import impossible : " + e.message); }
+  };
+  i.click();
+}
+
 /* ================= Adventure sheet ================= */
 function openAdventureSheet(start){
   const tabs = [["plot","Intrigue"],["cards","Story Cards"],["scripts","Scripts"],["instr","Instructions"],["look","Apparence"],["misc","Aventure"]];
@@ -1037,7 +1303,7 @@ function openAdventureSheet(start){
     if(k === "plot"){
       field(body, "Plot Essentials", adv.essentials, v => { adv.essentials = v; saveAdv(); }, { multiline: true, rows: 7, hint: "Toujours envoyé à l'IA. Personnage, monde, relations, objectifs." });
       field(body, "Note d'auteur", adv.authorsNote, v => { adv.authorsNote = v; saveAdv(); }, { multiline: true, rows: 3, hint: AN_HINT, hintHtml: true });
-      field(body, "Résumé de l'histoire", adv.summary, v => { adv.summary = v; saveAdv(); }, { multiline: true, rows: 6, hint: "Mémoire longue : les événements importants qui sont sortis de la mémoire de l'IA." });
+      field(body, "Résumé de l'histoire", adv.summary, v => { adv.summary = v; saveAdv(); }, { multiline: true, rows: 6, hint: settings.autoSummary ? "Mémoire longue. Mis à jour automatiquement quand des passages sortent de la mémoire de l'IA. Tu peux le corriger à la main." : "Mémoire longue : les événements importants qui sont sortis de la mémoire de l'IA. (Résumé automatique désactivé dans les réglages.)" });
     }
     if(k === "cards") renderCardsTab(body);
     if(k === "scripts"){
@@ -1093,6 +1359,8 @@ function renderMiscTab(body){
   }).style.marginBottom = "8px";
   sec(body, "Dépenses");
   body.appendChild(el("div", "stat", `<span>Dépensé sur cette aventure</span><b>${money(adv.spent || 0)}</b>`));
+  body.appendChild(el("div", "stat", `<span>Tours joués · mots</span><b>${(adv.turns || 0).toLocaleString("fr-FR")} · ${(adv.words || 0).toLocaleString("fr-FR")}</b>`));
+  hint(body, "« Partager le scénario » envoie le début de l'aventure (ouverture, essentiels, cartes, réglages) sans ta partie jouée. Ton pote l'importe depuis « Nouvelle aventure ».");
   sec(body, "Gestion");
   const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
   btn(r, "Dupliquer", "ghost", () => {
@@ -1100,6 +1368,7 @@ function renderMiscTab(body){
     if(adv.hasCover){ const img = getCover(adv.id); if(img && !LS.set("lan.cover." + c.id, img)) c.hasCover = false; }
     adv = c; saveAdv(); closeSheet(); openAdventure(c.id); toast("Copie créée");
   });
+  btn(r, "Partager le scénario", "", shareScenario);
   btn(r, "Exporter", "ghost", () => download(`${slug(adv.title)}.json`, { lanterne: 1, adventures: [Object.assign({}, adv, { cover: adv.hasCover ? getCover(adv.id) : undefined })] }));
   btn(r, "Supprimer", "danger", () => {
     if(!confirm("Supprimer définitivement cette aventure ?")) return;
@@ -1168,13 +1437,15 @@ function editCard(c, list, ctx, done, tech){
     ci.parentElement.style.marginTop = "-6px";
     sel.onchange = () => { custom.classList.toggle("hidden", sel.value !== "autre"); d.type = sel.value === "autre" ? (ci.value.trim() || "autre") : sel.value; };
     field(body, "Mots-clés", d.keys, v => d.keys = v, { placeholder: "Ex. : Elara, la forgeronne", hint: KEYS_HINT });
-    field(body, "Contenu", d.entry, v => d.entry = v, { multiline: true, rows: 7, placeholder: "Qui ou ce que c'est : apparence, personnalité, motivations, secrets…" });
+    const lim = tech ? 100000 : settings.cardLimit;
+    const ce = field(body, "Contenu", d.entry, v => { d.entry = v; cnt.textContent = `${v.length} / ${lim}`; cnt.style.color = v.length > lim ? "var(--err)" : ""; }, { multiline: true, rows: 7, placeholder: "Qui ou ce que c'est : apparence, personnalité, motivations, secrets…" });
+    const cnt = el("div", "hint"); cnt.style.cssText = "text-align:right;margin:-12px 0 12px"; cnt.textContent = `${d.entry.length} / ${lim}`; if(!tech) ce.parentElement.after(cnt);
     if(tech || d.description) field(body, "Notes", d.description, v => d.description = v, { multiline: true, rows: 5, hint: "Utilisé par les scripts." });
     const gb = btn(body, "✨ Compléter avec l'IA", "ghost small", async () => {
       gb.disabled = true; gb.textContent = "Génération…";
       try{
         const r = await generateCardEntry(d, ctx);
-        d.title = d.title || r.title || ""; d.keys = d.keys || r.keys || d.title; d.entry = r.entry || d.entry;
+        d.title = d.title || r.title || ""; d.keys = d.keys || r.keys || d.title; d.entry = (r.entry || d.entry).slice(0, settings.cardLimit);
         render(body);
       }catch(e){ toast("Échec : " + e.message); gb.disabled = false; gb.textContent = "✨ Compléter avec l'IA"; }
     });
@@ -1182,6 +1453,7 @@ function editCard(c, list, ctx, done, tech){
     toggle(body, "Activée", "Désactive sans supprimer.", () => d.enabled !== false, v => d.enabled = v);
     const r = el("div", "row"); body.appendChild(r);
     btn(r, "Enregistrer", "", () => {
+      if(!tech && d.entry.length > settings.cardLimit) return toast(`Contenu trop long : ${d.entry.length} / ${settings.cardLimit} caractères`);
       if(!d.keys.trim() && d.title.trim()) d.keys = d.title.trim();
       if(isNew) list.push(d); else Object.assign(c, d);
       done();
@@ -1202,8 +1474,10 @@ const VENDOR_DOMAIN = {
 };
 const VSUF = "(-\\d{4,8})?$";
 const PICKS = [
-  { re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-pro" + VSUF), d: "Le meilleur rapport qualité/prix pour raconter. Prose riche, très bon en français." },
+  { re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-pro" + VSUF), d: "Le meilleur rapport qualité/prix pour raconter. Prose riche, très bon en français.", multi: 2 },
+  { re: new RegExp("^deepseek\\/deepseek-v4\\.\\d+(-chat)?" + VSUF), d: "Le « DeepSeek V4.1 » d'AI Dungeon. Efficace et économique." },
   { re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-flash" + VSUF), d: "Très rapide, presque gratuit. Idéal pour les longues sessions.", pop: true },
+  { re: new RegExp("^deepseek\\/deepseek-v3\\.2(-exp)?" + VSUF), d: "Le « DeepSeek » de base d'AI Dungeon. Stylé, fiable et très peu cher.", pop: true },
   { re: new RegExp("^z-ai\\/glm-5[\\d.]*" + VSUF), d: "Histoires cohérentes et profondes, bon avec les personnages complexes." },
   { re: new RegExp("^z-ai\\/glm-5[\\d.]*-flash" + VSUF), d: "Version rapide et très économique de GLM.", pop: true },
   { re: new RegExp("^xiaomi\\/mimo-v[\\d.]+-flash" + VSUF), d: "Rapide et peu cher, très utilisé pour le jeu de rôle.", pop: true },
@@ -1224,7 +1498,7 @@ function pickModels(all){
   const out = [];
   PICKS.forEach(p => {
     const hits = all.filter(m => p.re.test(m.id)).sort((a, b) => (b.created || 0) - (a.created || 0));
-    if(hits[0]) out.push({ m: hits[0], d: p.d, pop: p.pop });
+    hits.slice(0, p.multi || 1).forEach((m, i) => out.push({ m, d: i ? "Autre version du même modèle." : p.d, pop: p.pop }));
   });
   return out;
 }
@@ -1252,7 +1526,7 @@ function modelRow(m, desc, onPick, pop){
   b.appendChild(badge(m.id));
   const name = (m.name || m.id).replace(/^[^:]+:\s*/, "");
   const tc = turnCost(m);
-  b.appendChild(el("div", "grow", `<div class="n">${esc(name)}${pop ? `<span class="tag">populaire</span>` : ""}</div><div class="d">${esc(desc || m.id)}</div>${tc != null ? `<div class="p">≈ ${money(tc)} / tour</div>` : ""}`));
+  b.appendChild(el("div", "grow", `<div class="n">${esc(name)}${pop ? `<span class="tag">populaire</span>` : ""}</div><div class="d">${esc(desc || m.id)}</div>${tc != null ? `<div class="p">≈ ${centimes(tc)} / tour</div>` : ""}`));
   if(m.id === settings.model) b.appendChild(el("div", "chk", "✓"));
   b.onclick = () => onPick(m);
   return b;
@@ -1289,8 +1563,60 @@ function openModelPicker(back){
 }
 
 /* ================= Settings ================= */
+function renderVoiceTab(body){
+  if(!synth){ hint(body, "La lecture vocale n'est pas disponible sur cet appareil."); return; }
+  loadVoices();
+  const list = sortedVoices();
+  hint(body, "La lecture utilise les voix de ton téléphone : c'est gratuit et ça marche hors ligne. Les voix marquées ★ sont les plus naturelles.");
+  const tl = el("label", "f", `<span>Voix</span>`);
+  const sel = document.createElement("select");
+  if(!list.length){
+    const o = document.createElement("option"); o.textContent = "Chargement des voix…"; sel.appendChild(o);
+    let tries = 0;
+    const retry = () => { if(!body.isConnected) return; loadVoices(); if(voices.length){ body.innerHTML = ""; renderVoiceTab(body); } else if(++tries < 6) setTimeout(retry, 500); else o.textContent = "Aucune voix trouvée sur cet appareil"; };
+    setTimeout(retry, 500);
+  }
+  const cur = pickVoice();
+  list.forEach(v => { const o = document.createElement("option"); o.value = v.voiceURI; o.textContent = `${/natural|neural|premium|enhanced|online|google/i.test(v.name) ? "★ " : ""}${v.name} (${v.lang})`; if(cur && v.voiceURI === cur.voiceURI) o.selected = true; sel.appendChild(o); });
+  sel.onchange = () => { settings.voiceURI = sel.value; saveSettings(); };
+  tl.appendChild(sel); body.appendChild(tl);
+  slider(body, "Vitesse", "ttsRate", 0.6, 1.6, 0.05);
+  slider(body, "Hauteur de la voix", "ttsPitch", 0.7, 1.3, 0.05);
+  settingToggle(body, "Lecture automatique", "Lit chaque nouveau passage dès qu'il est écrit.", "ttsAuto");
+  const r = el("div", "row"); body.appendChild(r);
+  btn(r, "▶ Tester", "ghost", () => speak("La pluie tombe sur les remparts. Au loin, une lanterne vacille dans la nuit, et quelqu'un murmure ton nom."));
+  btn(r, "⏹ Arrêter", "ghost", stopSpeaking);
+  hint(body, "Pour de meilleures voix sur Android : Paramètres du téléphone → Accessibilité (ou Gestion globale) → Synthèse vocale → moteur Google → Installer les données vocales → Français, puis choisis une voix « haute qualité ». Elles apparaîtront ici.").style.marginTop = "16px";
+}
+function renderStatsTab(body){
+  const days = Object.keys(stats.days || {}).length;
+  body.appendChild(el("div", "kpis", `
+    <div><b>${(stats.turns || 0).toLocaleString("fr-FR")}</b><span>tours joués</span></div>
+    <div><b>${index.length}</b><span>aventures</span></div>
+    <div><b>${(stats.words || 0).toLocaleString("fr-FR")}</b><span>mots écrits par l'IA</span></div>
+    <div><b>${(stats.playerWords || 0).toLocaleString("fr-FR")}</b><span>mots écrits par toi</span></div>
+    <div><b>${money(stats.total)}</b><span>dépensé au total</span></div>
+    <div><b>${days}</b><span>jour${days > 1 ? "s" : ""} de jeu</span></div>`));
+  if((stats.turns || 0) > 0) hint(body, `Soit environ ${money(stats.total / stats.turns)} par tour en moyenne.`);
+  const months = Object.entries(stats.byMonth || {}).sort().slice(-6);
+  if(months.length){
+    sec(body, "Dépenses par mois");
+    const max = Math.max(...months.map(m => m[1]));
+    const fmtM = k => new Date(k + "-01T12:00:00").toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+    body.appendChild(el("div", "bars", months.map(([k, v]) => `<div class="br"><span>${fmtM(k)}</span><div class="bt"><i style="width:${Math.max(2, v / max * 100)}%"></i></div><span class="bv">${money(v)}</span></div>`).join("")));
+  }
+  const models = Object.entries(stats.byModel || {}).sort((a, b) => b[1].turns - a[1].turns).slice(0, 6);
+  if(models.length){
+    sec(body, "Modèles utilisés");
+    const max = Math.max(...models.map(m => m[1].turns), 1);
+    body.appendChild(el("div", "bars", models.map(([id, m]) => `<div class="br" style="grid-template-columns:110px 1fr auto"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(id.split("/").pop())}</span><div class="bt"><i style="width:${Math.max(2, m.turns / max * 100)}%"></i></div><span class="bv">${m.turns} tours</span></div>`).join("")));
+  }
+  if(!stats.turns) hint(body, "Les statistiques se remplissent au fil de tes parties.");
+}
 function openSettings(start){
-  openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Mémoire"],["data","Données"]], (k, body) => {
+  openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Mémoire"],["voice","Voix"],["stats","Stats"],["data","Données"]], (k, body) => {
+    if(k === "voice") renderVoiceTab(body);
+    if(k === "stats") renderStatsTab(body);
     if(k === "model"){
       const tl = el("label", "f", `<span>Fournisseur</span>`);
       const sel = document.createElement("select");
@@ -1331,7 +1657,9 @@ function openSettings(start){
     }
     if(k === "ctx"){
       slider(body, "Taille de la mémoire", "contextTokens", 2000, 128000, 1000, "Combien de tokens d'histoire l'IA voit à chaque tour. Plus = meilleure mémoire, mais chaque tour coûte plus.");
-      slider(body, "Profondeur des Story Cards", "cardScanDepth", 1, 20, 1, "Nombre de passages récents scannés pour déclencher les cartes.");
+      slider(body, "Profondeur des Story Cards", "cardScanDepth", 1, 20, 1, "Combien de passages récents l'app relit pour chercher les mots-clés des cartes. À 4, une carte reste active tant que son mot-clé est apparu dans les 4 derniers passages.");
+      slider(body, "Taille max d'une Story Card", "cardLimit", 300, 2000, 100, "En caractères. 1000 comme AI Dungeon : au-delà, l'IA retient moins bien les détails.");
+      settingToggle(body, "Résumé automatique", "Quand des passages sortent de la mémoire de l'IA, ils sont résumés tout seuls dans le résumé de l'histoire.", "autoSummary");
     }
     if(k === "data"){
       const tl = el("label", "f", `<span>Devise</span>`);
@@ -1341,7 +1669,7 @@ function openSettings(start){
       tl.appendChild(sel); body.appendChild(tl);
       if(settings.currency !== "USD") hint(body, `Conversion au taux du jour (1 $ ≈ ${nf(fx.rate, 3)} €). OpenRouter facture en dollars.`);
       body.appendChild(el("div", "stat", `<span>Total dépensé depuis le ${new Date(stats.since).toLocaleDateString("fr-FR")}</span><b>${money(stats.total)}</b>`));
-      btn(body, "Remettre le compteur à zéro", "ghost small", () => { if(confirm("Remettre le total dépensé à zéro ?")){ stats = { total: 0, since: Date.now() }; LS.set("lan.stats", stats); openSettings("data"); } }).style.marginBottom = "22px";
+      btn(body, "Remettre le compteur à zéro", "ghost small", () => { if(confirm("Remettre le total dépensé à zéro ?")){ stats = { total: 0, since: Date.now(), turns: 0, words: 0, playerWords: 0, byMonth: {}, byModel: {}, days: {} }; LS.set("lan.stats", stats); openSettings("data"); } }).style.marginBottom = "22px";
       sec(body, "Sauvegarde");
       hint(body, "Tout est enregistré sur ce téléphone. Exporte régulièrement une sauvegarde : si tu effaces les données de l'app, tout part avec.");
       const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
@@ -1350,6 +1678,7 @@ function openSettings(start){
         download(`lanterne-sauvegarde-${new Date().toISOString().slice(0,10)}.json`, { lanterne: 1, adventures: all });
       });
       btn(r, "Importer", "ghost", importFile);
+      btn(body, "Revoir le tutoriel", "ghost small", () => { closeSheet(); onboarding(true); }).style.marginTop = "12px";
       sec(body, "Crédits");
       hint(body, `Scripts Auto-Cards et Inner Self par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a>, sous licence MIT.`);
     }
@@ -1376,6 +1705,7 @@ function importFile(){
   i.onchange = async () => {
     try{
       const j = JSON.parse(await i.files[0].text());
+      if(j.lanterne_scenario){ closeSheet(); startFromScenario(j); return; }
       const list = j.adventures || (j.actions ? [j] : []);
       if(!list.length) throw new Error("aucune aventure trouvée");
       list.forEach(a => {
@@ -1401,10 +1731,15 @@ $("#retryBtn").onclick = () => {
   if(generating) return;
   popTrailingHidden();
   const last = adv.actions[adv.actions.length - 1];
-  if(last && last.type === "ai" && adv.actions.length > 1) adv.actions.pop();
+  let alts = null, restore = null, guide = "";
+  if(last && last.type === "ai" && adv.actions.length > 1){
+    restore = adv.actions.pop();
+    alts = restore.alts?.length ? [...restore.alts] : [restore.text];
+    guide = restore.guide || "";
+  }
   else if(!last || last.type === "ai") return toast("Rien à réessayer");
   popTrailingHidden();
-  redoStack = []; saveAdv(); generate(null);
+  redoStack = []; saveAdv(); generate(null, { alts, restore, guide });
 };
 $("#undoBtn").onclick = () => {
   if(generating) return;
@@ -1414,16 +1749,20 @@ $("#undoBtn").onclick = () => {
 };
 $("#redoBtn").onclick = () => { if(generating || !redoStack.length) return; adv.actions.push(redoStack.pop()); saveAdv(); renderStory(true); };
 $("#inp").addEventListener("input", autosize);
+$("#ideaBtn").onclick = fetchIdeas;
+$("#ttsBtn").onclick = () => { if(speaking()) stopSpeaking(); else { const a = [...adv.actions].reverse().find(x => x.type === "ai" && !x.hidden); if(a) speak(a.text); else toast("Rien à lire"); } };
+$("#searchBtn").onclick = openSearch;
 $("#inp").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey && !matchMedia("(pointer:coarse)").matches){ e.preventDefault(); submit(); } });
 document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
   mode = b.dataset.m;
   document.querySelectorAll(".mode").forEach(x => x.classList.toggle("on", x === b));
-  $("#inp").placeholder = { do: "Que fais-tu ?", say: "Que dis-tu ?", story: "Écris la suite de l'histoire..." }[mode];
+  $("#inp").placeholder = { do: "Que fais-tu ?", say: "Que dis-tu ?", story: "Écris la suite de l'histoire...", guide: "Oriente la suite (invisible dans l'histoire)…" }[mode];
 });
 window.addEventListener("beforeunload", () => saveAdv());
 
 updateTools();
 showLibrary();
+onboarding();
 loadFx().then(() => { if(!adv && !$("#sheetHost").innerHTML) showLibrary(); });
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(() => {});

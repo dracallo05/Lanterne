@@ -166,6 +166,7 @@ details.fold .in{padding:0 14px 4px}
 .mdl .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mdl .d{color:var(--tx3);font-size:13px;margin-top:2px;line-height:1.35}
 .mdl .p{color:var(--tx2);font-size:13px;margin-top:4px;font-variant-numeric:tabular-nums}
+.mdl .tg2{color:var(--acc2);font-size:12px;margin-top:2px}
 .mdl .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:99px;background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc2);margin-left:6px;vertical-align:1px}
 .mdl .chk{color:var(--acc);font-size:18px;flex:none}
 .toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:40;font-size:14px;max-width:90vw}
@@ -275,21 +276,22 @@ const THEMES = {
   papier:    { name: "Papier",    v: { bg:"#f4efe6", bg2:"#ebe4d7", bg3:"#e0d7c6", line:"#d2c7b3", tx:"#2b2620", tx2:"#5a5248", tx3:"#857b6d", acc:"#b4553a", acc2:"#a2472e", onacc:"#fff8f0" } },
 };
 const FONTS = {
-  classique: { name: "Classique", css: '"Iowan Old Style","Palatino Linotype",Palatino,"Noto Serif",Georgia,serif' },
-  literata:  { name: "Literata", g: "Literata:ital,wght@0,400;0,600;1,400", css: '"Literata",Georgia,serif' },
-  lora:      { name: "Lora", g: "Lora:ital,wght@0,400;0,600;1,400", css: '"Lora",Georgia,serif' },
-  garamond:  { name: "Garamond", g: "EB+Garamond:ital,wght@0,400;0,600;1,400", css: '"EB Garamond",Georgia,serif' },
-  moderne:   { name: "Moderne", css: 'system-ui,-apple-system,"Segoe UI",Roboto,sans-serif' },
-  douce:     { name: "Douce", g: "Nunito:ital,wght@0,400;0,600;1,400", css: '"Nunito",system-ui,sans-serif' },
-  machine:   { name: "Machine à écrire", g: "Courier+Prime:ital,wght@0,400;0,700;1,400", css: '"Courier Prime","Courier New",monospace' },
+  classique:    { name: "Georgia", css: 'Georgia,"Iowan Old Style","Noto Serif",serif' },
+  merriweather: { name: "Merriweather", g: "Merriweather:ital,wght@0,400;0,700;1,400", css: '"Merriweather",Georgia,serif' },
+  lora:         { name: "Lora", g: "Lora:ital,wght@0,400;0,600;1,400", css: '"Lora",Georgia,serif' },
+  literata:     { name: "Literata", g: "Literata:ital,wght@0,400;0,600;1,400", css: '"Literata",Georgia,serif' },
+  sourceserif:  { name: "Source Serif", g: "Source+Serif+4:ital,wght@0,400;0,600;1,400", css: '"Source Serif 4",Georgia,serif' },
+  roboto:       { name: "Roboto", g: "Roboto:ital,wght@0,400;0,500;1,400", css: 'Roboto,system-ui,sans-serif' },
+  opensans:     { name: "Open Sans", g: "Open+Sans:ital,wght@0,400;0,600;1,400", css: '"Open Sans",system-ui,sans-serif' },
+  inter:        { name: "Inter", g: "Inter:wght@400;500;600", css: 'Inter,system-ui,sans-serif' },
 };
 const DEFAULT_STYLE = { theme: "braise", font: "classique", size: 17 };
 
 const DEFAULT_SETTINGS = {
-  provider: "openrouter", baseUrl: "", apiKey: "", model: "deepseek/deepseek-v4-pro",
+  provider: "openrouter", baseUrl: "", apiKey: "", model: "deepseek/deepseek-v4-pro-0813",
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
-  contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, requireParams: false, noReasoning: true,
+  contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true,
   currency: "EUR"
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
@@ -579,14 +581,20 @@ async function callModel(messages, opts = {}){
     }
     if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
   }
-  const res = await fetch(url, {
+  const mid = body.model.toLowerCase();
+  if(/^anthropic\//.test(mid)){ delete body.top_p; delete body.top_k; delete body.min_p; delete body.presence_penalty; delete body.frequency_penalty; delete body.repetition_penalty; }
+  if(/^google\/gemini-3/.test(mid)){ delete body.temperature; delete body.top_p; delete body.top_k; delete body.min_p; delete body.presence_penalty; delete body.frequency_penalty; delete body.repetition_penalty; }
+  const send = () => fetch(url, {
     method: "POST", signal: opts.signal,
     headers: Object.assign({ "Authorization": "Bearer " + settings.apiKey.trim(), "Content-Type": "application/json" }, or ? { "X-Title": "Lanterne" } : {}),
     body: JSON.stringify(body)
   });
+  let res = await send();
   if(!res.ok){
     let j = null; try{ j = await res.json(); }catch(e){}
-    throw new Error((j && j.error && (j.error.message || j.error)) || ("HTTP " + res.status));
+    let msg = (j && j.error && (j.error.message || j.error)) || ("HTTP " + res.status);
+    if(body.reasoning && /reason|think/i.test(String(msg))){ delete body.reasoning; res = await send(); if(!res.ok){ try{ j = await res.json(); }catch(e){} msg = (j && j.error && (j.error.message || j.error)) || ("HTTP " + res.status); } }
+    if(!res.ok) throw new Error(msg);
   }
   let text = "", cost = 0, usage = null;
   if(!body.stream){
@@ -1171,28 +1179,120 @@ Return ONLY a JSON array of 3 strings.`;
 }
 
 /* ================= Voice (text-to-speech) ================= */
+const GEMINI_VOICES = { Kore: "F · ferme", Aoede: "F · légère", Leda: "F · jeune", Zephyr: "F · lumineuse", Sulafat: "F · chaleureuse", Achernar: "F · douce", Vindemiatrix: "F · posée", Despina: "F · fluide", Gacrux: "F · mûre", Erinome: "F · claire", Callirrhoe: "F · détendue", Autonoe: "F · vive", Laomedeia: "F · enjouée", Pulcherrima: "F · affirmée",
+  Charon: "H · conteur", Puck: "H · enjoué", Fenrir: "H · intense", Orus: "H · ferme", Enceladus: "H · souffle grave", Algieba: "H · velouté", Schedar: "H · égal", Algenib: "H · rauque", Iapetus: "H · clair", Umbriel: "H · décontracté", Alnilam: "H · ferme", Rasalgethi: "H · posé", Sadaltager: "H · savant", Achird: "H · amical", Zubenelgenubi: "H · familier", Sadachbia: "H · vif" };
+const TTS = {
+  mai: { name: "Microsoft MAI-Voice 2.1", model: "microsoft/mai-voice-2.1", perChar: 22e-6, speed: true, best: true,
+    desc: "Qualité studio, la plus naturelle pour la narration. Voix françaises natives.",
+    voices: { fr: ["fr-FR-Marc", "fr-FR-Soleil", "fr-FR-Grant", "fr-FR-Harper"], en: ["en-US-Harper", "en-US-Grant", "en-US-Olivia", "en-US-Ethan", "en-US-Iris", "en-US-Jasper", "en-US-Sage", "en-GB-Emily", "en-GB-Harry", "en-AU-Isla"] },
+    full: v => v + ":MAI-Voice-2.1", label: v => { const [l, r, n] = v.split("-"); return `${n} (${r})`; }, isLang: (v, l) => v.startsWith(l + "-"), short: v => v.replace(/:MAI-Voice-[\d.]+$/, "") },
+  gemini: { name: "Google Gemini 3.8 Flash TTS", model: "google/gemini-3.8-flash-tts", perChar: 21e-6,
+    desc: "Très expressive, idéale pour faire vivre les personnages. Toutes ses voix parlent français et anglais.",
+    voices: { fr: Object.keys(GEMINI_VOICES), en: Object.keys(GEMINI_VOICES) }, full: v => v, label: v => `${v} (${GEMINI_VOICES[v] || ""})`, isLang: () => true, short: v => v },
+  grok: { name: "Grok Voice", model: "x-ai/grok-voice-tts-1.0", perChar: 15e-6,
+    desc: "Naturelle et vivante, détecte la langue toute seule. 5 voix.",
+    voices: { fr: ["eve", "ara", "rex", "sal", "leo"], en: ["eve", "ara", "rex", "sal", "leo"] }, full: v => v, label: v => v[0].toUpperCase() + v.slice(1), isLang: () => true, short: v => v },
+  kokoro: { name: "Kokoro (économique)", model: "hexgrad/kokoro-82m", perChar: 0.62e-6, speed: true,
+    desc: "Presque gratuite et correcte, mais une seule voix française.",
+    voices: { fr: ["ff_siwis"], en: ["af_heart", "af_bella", "af_nicole", "am_michael", "am_fenrir", "am_onyx", "bf_emma", "bf_isabella", "bm_george", "bm_fable"] },
+    full: v => v, label: v => { const n = v.split("_")[1]; const acc = { a: "US", b: "UK", f: "FR" }[v[0]] || ""; return `${n[0].toUpperCase() + n.slice(1)} (${acc}, ${v[1] === "f" ? "F" : "H"})`; }, isLang: (v, l) => l === "fr" ? v[0] === "f" : /^[ab]/.test(v), short: v => v },
+  device: { name: "Voix du téléphone", free: true, desc: "Gratuite et hors ligne, mais robotique." },
+};
+let liveVoices = null;
+async function loadLiveVoices(){
+  if(liveVoices) return liveVoices;
+  try{
+    const r = await fetch("https://openrouter.ai/api/v1/models?output_modalities=speech");
+    const j = await r.json(); liveVoices = {};
+    (j.data || []).forEach(m => { if(Array.isArray(m.supported_voices)) liveVoices[m.id] = m.supported_voices; });
+  }catch(e){ liveVoices = {}; }
+  return liveVoices;
+}
+function engineVoices(key, lang){
+  const e = TTS[key]; if(!e || e.free) return [];
+  const live = liveVoices?.[e.model];
+  if(live?.length){
+    const l = [...new Set(live.map(e.short).filter(v => e.isLang(v, lang)))];
+    if(l.length){ const cur = e.voices[lang].filter(v => l.includes(v)); return [...cur, ...l.filter(v => !cur.includes(v))]; }
+  }
+  return e.voices[lang];
+}
+function chosenVoice(key, lang){ return settings.ttsVoices?.[key]?.[lang] || engineVoices(key, lang)[0]; }
+/* device voices (free fallback) */
 const synth = window.speechSynthesis;
 let voices = [];
 function loadVoices(){ voices = synth ? synth.getVoices() : []; }
 if(synth){ loadVoices(); synth.onvoiceschanged = loadVoices; }
-const voiceScore = v => (/^fr/i.test(v.lang) ? 100 : 0) + (/natural|neural|premium|enhanced|online|google/i.test(v.name) ? 10 : 0) + (v.localService ? 0 : 2);
-function sortedVoices(){ return [...voices].sort((a, b) => voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name)); }
-function pickVoice(){ return voices.find(v => v.voiceURI === settings.voiceURI) || sortedVoices()[0] || null; }
-const speaking = () => !!(synth && (synth.speaking || synth.pending));
+const voiceScore = v => (/^fr/i.test(v.lang) ? 100 : /^en/i.test(v.lang) ? 50 : 0) + (/natural|neural|premium|enhanced|online|google/i.test(v.name) ? 10 : 0);
+function sortedVoices(){ return [...voices].filter(v => /^(fr|en)/i.test(v.lang)).sort((a, b) => voiceScore(b) - voiceScore(a) || a.name.localeCompare(b.name)); }
+function pickVoice(lang){ const l = sortedVoices(); return l.find(v => v.voiceURI === settings.voiceURI && v.lang.startsWith(lang)) || l.find(v => v.lang.startsWith(lang)) || l[0] || null; }
+/* playback */
+const audioCache = new Map();
+let player = null, playToken = 0;
+const speaking = () => !!(player || (synth && (synth.speaking || synth.pending)));
 function setTtsBtn(on){ const b = $("#ttsBtn span"); if(b) b.textContent = on ? "Stop" : "Écouter"; }
-function stopSpeaking(){ if(synth){ synth.cancel(); } setTtsBtn(false); }
-function speak(text){
+function stopSpeaking(){
+  playToken++;
+  if(player){ try{ player.pause(); }catch(e){} player = null; }
+  if(synth) synth.cancel();
+  setTtsBtn(false);
+}
+function cleanForSpeech(text){ return visible(text).replace(/^>\s*/gm, "").replace(/[*_#~`]/g, "").replace(/\s+\n/g, "\n"); }
+function chunksOf(t, max){
+  const parts = t.match(/[^.!?…\n]+[.!?…]*["»”]?\s*/g) || [t];
+  const out = []; let cur = "";
+  parts.forEach(p => { if((cur + p).length > max && cur){ out.push(cur.trim()); cur = ""; } cur += p; });
+  if(cur.trim()) out.push(cur.trim());
+  return out;
+}
+async function ttsFetch(key, voice, text, signalToken){
+  const e = TTS[key];
+  const ck = key + "|" + voice + "|" + settings.ttsRate + "|" + text;
+  if(audioCache.has(ck)) return audioCache.get(ck);
+  const body = { model: e.model, input: text, voice: e.full(voice), response_format: "mp3" };
+  if(e.speed && settings.ttsRate !== 1) body.speed = settings.ttsRate;
+  const r = await fetch("https://openrouter.ai/api/v1/audio/speech", { method: "POST",
+    headers: { "Authorization": "Bearer " + settings.apiKey.trim(), "Content-Type": "application/json", "X-Title": "Lanterne" }, body: JSON.stringify(body) });
+  if(!r.ok){ let j = null; try{ j = await r.json(); }catch(x){} throw new Error((j && j.error && (j.error.message || j.error)) || ("HTTP " + r.status)); }
+  const url = URL.createObjectURL(await r.blob());
+  addCost(text.length * e.perChar); saveAdv();
+  audioCache.set(ck, url);
+  if(audioCache.size > 40){ const k0 = audioCache.keys().next().value; URL.revokeObjectURL(audioCache.get(k0)); audioCache.delete(k0); }
+  return url;
+}
+async function speak(text, langOverride){
+  stopSpeaking();
+  const t = cleanForSpeech(text); if(!t) return;
+  const lang = langOverride || (looksFrench(t) ? "fr" : "en");
+  const key = settings.ttsEngine || "mai";
+  if(key === "device" || !TTS[key] || !settings.apiKey || !isOR()) return speakDevice(t, lang);
+  const token = playToken; setTtsBtn(true);
+  const voice = chosenVoice(key, lang);
+  const chunks = chunksOf(t, 900);
+  try{
+    let next = ttsFetch(key, voice, chunks[0]);
+    for(let i = 0; i < chunks.length; i++){
+      const url = await next;
+      if(token !== playToken) return;
+      if(i + 1 < chunks.length) next = ttsFetch(key, voice, chunks[i + 1]);
+      await new Promise((res, rej) => {
+        const a = new Audio(url); player = a;
+        a.playbackRate = TTS[key].speed ? 1 : settings.ttsRate;
+        a.onended = res; a.onerror = () => rej(new Error("lecture audio impossible"));
+        a.play().catch(rej);
+      });
+      if(token !== playToken) return;
+    }
+  }catch(e){ if(token === playToken) toast("Voix : " + e.message); }
+  if(token === playToken){ player = null; setTtsBtn(false); }
+}
+function speakDevice(t, lang){
   if(!synth){ toast("La lecture vocale n'est pas disponible ici"); return; }
-  synth.cancel();
-  const t = visible(text).replace(/^>\s*/gm, "").replace(/[«»"“”*_]/g, "");
-  const parts = t.match(/[^.!?…\n]+[.!?…]*\s*/g) || [t];
-  const chunks = []; let cur = "";
-  parts.forEach(p => { if((cur + p).length > 220 && cur){ chunks.push(cur); cur = ""; } cur += p; });
-  if(cur.trim()) chunks.push(cur);
-  const v = pickVoice();
+  const v = pickVoice(lang);
+  const chunks = chunksOf(t, 220);
   chunks.forEach((c, i) => {
-    const u = new SpeechSynthesisUtterance(c.trim());
-    if(v){ u.voice = v; u.lang = v.lang; } else u.lang = "fr-FR";
+    const u = new SpeechSynthesisUtterance(c);
+    if(v){ u.voice = v; u.lang = v.lang; } else u.lang = lang === "fr" ? "fr-FR" : "en-US";
     u.rate = settings.ttsRate; u.pitch = settings.ttsPitch;
     if(i === chunks.length - 1){ u.onend = () => setTtsBtn(false); u.onerror = () => setTtsBtn(false); }
     synth.speak(u);
@@ -1474,18 +1574,39 @@ const VENDOR_DOMAIN = {
 };
 const VSUF = "(-\\d{4,8})?$";
 const PICKS = [
-  { re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-pro" + VSUF), d: "Le meilleur rapport qualité/prix pour raconter. Prose riche, très bon en français.", multi: 2 },
-  { re: new RegExp("^deepseek\\/deepseek-v4\\.\\d+(-chat)?" + VSUF), d: "Le « DeepSeek V4.1 » d'AI Dungeon. Efficace et économique." },
-  { re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-flash" + VSUF), d: "Très rapide, presque gratuit. Idéal pour les longues sessions.", pop: true },
-  { re: new RegExp("^deepseek\\/deepseek-v3\\.2(-exp)?" + VSUF), d: "Le « DeepSeek » de base d'AI Dungeon. Stylé, fiable et très peu cher.", pop: true },
-  { re: new RegExp("^z-ai\\/glm-5[\\d.]*" + VSUF), d: "Histoires cohérentes et profondes, bon avec les personnages complexes." },
-  { re: new RegExp("^z-ai\\/glm-5[\\d.]*-flash" + VSUF), d: "Version rapide et très économique de GLM.", pop: true },
-  { re: new RegExp("^xiaomi\\/mimo-v[\\d.]+-flash" + VSUF), d: "Rapide et peu cher, très utilisé pour le jeu de rôle.", pop: true },
-  { re: new RegExp("^moonshotai\\/kimi-k\\d[\\w.-]*" + VSUF), d: "Style littéraire, dialogues naturels et créatifs." },
-  { re: new RegExp("^mistralai\\/mistral-(medium|large)[\\w.-]*" + VSUF), d: "Modèle français, très à l'aise dans la langue." },
-  { re: new RegExp("^anthropic\\/claude-sonnet-[\\d.]+" + VSUF), d: "L'écriture la plus fine et nuancée, mais nettement plus chère." },
-  { re: new RegExp("^nousresearch\\/hermes-\\d[\\w.-]*" + VSUF), d: "Peu de refus, rythme rapide." },
+  // tier: 1 = meilleur rapport qualité/prix, 2 = milieu de gamme, 3 = premium
+  { tier: 1, re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-pro" + VSUF), multi: 2, tags: "Narration · Français · Réglable",
+    d: "Le choix par défaut. Prose riche, bonne mémoire, très bon en français. La version la plus récente (0813) est un peu meilleure et un peu plus chère." },
+  { tier: 1, re: new RegExp("^deepseek\\/deepseek-v4[\\d.]*-flash" + VSUF), pop: true, tags: "Rapide · Presque gratuit",
+    d: "Le plus utilisé en jeu de rôle sur OpenRouter. Moins fin que le Pro, mais imbattable pour les longues sessions." },
+  { tier: 1, re: new RegExp("^z-ai\\/glm-5[\\d.]*-flash" + VSUF), pop: true, tags: "Économique · Réfléchit avant d'écrire",
+    d: "Très apprécié des joueurs, cohérent et peu cher. Il réfléchit toujours avant de répondre, donc un peu plus lent." },
+  { tier: 1, re: new RegExp("^deepseek\\/deepseek-v3\\.2(-exp)?" + VSUF), tags: "Classique · Stable",
+    d: "Le « DeepSeek » de base d'AI Dungeon. Stylé et fiable, pour retrouver les sensations." },
+  { tier: 1, re: new RegExp("^deepseek\\/deepseek-v4\\.\\d+(-chat)?" + VSUF), tags: "Équilibré",
+    d: "Le « DeepSeek V4.1 » d'AI Dungeon. Efficace et économique." },
+  { tier: 1, re: new RegExp("^xiaomi\\/mimo-v[\\d.]+-flash" + VSUF), pop: true, tags: "Rapide · Économique",
+    d: "Dans le top roleplay d'OpenRouter. Bon dépannage pas cher." },
+  { tier: 2, re: new RegExp("^google\\/gemini-3[\\d.]*-flash" + VSUF), tags: "Rapide · Français · Contexte immense",
+    d: "Le modèle occidental le plus utilisé sur SillyTavern. Vif et cohérent, mais moins de réglages (température ignorée)." },
+  { tier: 2, re: new RegExp("^z-ai\\/glm-5(\\.\\d+)?" + VSUF), tags: "Personnages · Cohérence",
+    d: "La grande version de GLM. Histoires profondes, très bon avec les personnages complexes." },
+  { tier: 2, re: new RegExp("^moonshotai\\/kimi-k\\d[\\w.-]*" + VSUF), tags: "Littéraire · Dialogues",
+    d: "Style littéraire et dialogues naturels. Créatif, parfois un peu verbeux." },
+  { tier: 2, re: new RegExp("^mistralai\\/mistral-(large|medium)[\\w.-]*" + VSUF), tags: "Français natif",
+    d: "Modèle français : le plus à l'aise avec les expressions et le registre de la langue." },
+  { tier: 2, re: new RegExp("^xiaomi\\/mimo-v[\\d.]+-pro" + VSUF), tags: "Équilibré",
+    d: "La grande version de MiMo, plus nuancée que la Flash." },
+  { tier: 2, re: new RegExp("^x-ai\\/grok-4[\\d.]*" + VSUF), tags: "Audacieux · Peu de refus",
+    d: "Ton direct et peu de refus. Bon pour les histoires sombres ou décalées." },
+  { tier: 3, re: new RegExp("^openai\\/gpt-6(\\.\\d+)?-sol" + VSUF), tags: "Polyvalent · Rigoureux",
+    d: "Très solide et logique, suit bien les consignes et les règles du monde." },
+  { tier: 3, re: new RegExp("^anthropic\\/claude-sonnet-[\\d.]+" + VSUF), tags: "Plus belle prose · Personnages vivants",
+    d: "Le favori des joueurs exigeants : écriture fine, nuancée, personnages crédibles." },
+  { tier: 3, re: new RegExp("^anthropic\\/claude-opus-[\\d.]+" + VSUF), tags: "Haut de gamme",
+    d: "Le plus haut niveau d'écriture et de cohérence sur les très longues histoires. Cher." },
 ];
+const TIERS = { 1: "💰 Meilleur rapport qualité/prix", 2: "⚖️ Milieu de gamme", 3: "💎 Premium" };
 let modelCache = null;
 async function loadModels(){
   if(modelCache) return modelCache;
@@ -1498,7 +1619,7 @@ function pickModels(all){
   const out = [];
   PICKS.forEach(p => {
     const hits = all.filter(m => p.re.test(m.id)).sort((a, b) => (b.created || 0) - (a.created || 0));
-    hits.slice(0, p.multi || 1).forEach((m, i) => out.push({ m, d: i ? "Autre version du même modèle." : p.d, pop: p.pop }));
+    hits.slice(0, p.multi || 1).forEach((m, i) => { if(!out.some(o => o.m.id === m.id)) out.push({ m, d: i ? "Version précédente, un peu moins chère." : p.d, pop: p.pop, tier: p.tier, tags: p.tags }); });
   });
   return out;
 }
@@ -1521,12 +1642,12 @@ function turnCost(m){
   if(!(pin >= 0) || !(pout >= 0) || m.pricing == null) return null;
   return pin * settings.contextTokens + pout * settings.max_tokens * 0.8;
 }
-function modelRow(m, desc, onPick, pop){
+function modelRow(m, desc, onPick, pop, tags){
   const b = el("button", "mdl" + (m.id === settings.model ? " on" : ""));
   b.appendChild(badge(m.id));
   const name = (m.name || m.id).replace(/^[^:]+:\s*/, "");
   const tc = turnCost(m);
-  b.appendChild(el("div", "grow", `<div class="n">${esc(name)}${pop ? `<span class="tag">populaire</span>` : ""}</div><div class="d">${esc(desc || m.id)}</div>${tc != null ? `<div class="p">≈ ${centimes(tc)} / tour</div>` : ""}`));
+  b.appendChild(el("div", "grow", `<div class="n">${esc(name)}${pop ? `<span class="tag">populaire</span>` : ""}</div>${tags ? `<div class="tg2">${esc(tags)}</div>` : ""}<div class="d">${esc(desc || m.id)}</div>${tc != null ? `<div class="p">≈ ${centimes(tc)} / tour</div>` : ""}`));
   if(m.id === settings.model) b.appendChild(el("div", "chk", "✓"));
   b.onclick = () => onPick(m);
   return b;
@@ -1539,54 +1660,87 @@ function openModelPicker(back){
     try{ all = await loadModels(); }catch(e){ body.innerHTML = `<div class="hint">Impossible de charger la liste (hors ligne ?).</div>`; }
     if(k === "rec"){
       body.innerHTML = "";
-      hint(body, `Les meilleurs choix pour la fiction interactive. Prix en direct depuis OpenRouter. Le coût par tour est estimé avec ta mémoire de ${settings.contextTokens.toLocaleString("fr-FR")} tokens : il est plus bas en début d'histoire.`);
-      pickModels(all).forEach(({ m, d, pop }) => body.appendChild(modelRow(m, d, pick, pop)));
+      hint(body, `Sélection pour le jeu de rôle textuel, d'après ce que conseillent les joueurs (classements OpenRouter, communauté SillyTavern). Triés du meilleur rapport qualité/prix au haut de gamme. Prix en direct, coût par tour estimé avec ta mémoire de ${settings.contextTokens.toLocaleString("fr-FR")} tokens.`);
+      let lastTier = 0;
+      pickModels(all).forEach(({ m, d, pop, tier, tags }) => {
+        if(tier !== lastTier){ sec(body, TIERS[tier]); lastTier = tier; }
+        body.appendChild(modelRow(m, d, pick, pop, tags));
+      });
       sec(body, "Identifiant personnalisé");
       let custom = settings.model;
       field(body, "Modèle", settings.model, v => custom = v, { hint: "L'identifiant exact sur openrouter.ai/models." });
       btn(body, "Utiliser cet identifiant", "ghost small", () => pick({ id: custom.trim(), name: custom.trim() }));
     } else {
       body.innerHTML = "";
-      const q = el("input"); q.placeholder = "Rechercher (deepseek, glm, claude…)"; q.style.marginBottom = "12px";
+      const q = el("input"); q.placeholder = "Rechercher (deepseek, glm, claude…)"; q.style.marginBottom = "8px";
       body.appendChild(q);
+      let sortBy = "price";
+      const sr = el("div", "chips"); body.appendChild(sr);
+      const drawSort = () => { sr.innerHTML = ""; [["price", "Moins cher d'abord"], ["recent", "Plus récents"]].forEach(([k2, t]) => { const c = el("button", "chip" + (sortBy === k2 ? " acc" : "")); c.textContent = t; c.onclick = () => { sortBy = k2; drawSort(); draw(); }; sr.appendChild(c); }); };
       const list = el("div"); body.appendChild(list);
       const draw = () => {
         list.innerHTML = "";
         const s = q.value.trim().toLowerCase();
         all.filter(m => !s || m.id.toLowerCase().includes(s) || (m.name || "").toLowerCase().includes(s))
-          .sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 60)
+          .sort((a, b) => sortBy === "price" ? ((turnCost(a) ?? 1e9) - (turnCost(b) ?? 1e9)) : ((b.created || 0) - (a.created || 0))).slice(0, 80)
           .forEach(m => list.appendChild(modelRow(m, null, pick)));
       };
-      q.oninput = draw; draw();
+      q.oninput = draw; drawSort(); draw();
     }
   });
 }
 
 /* ================= Settings ================= */
 function renderVoiceTab(body){
-  if(!synth){ hint(body, "La lecture vocale n'est pas disponible sur cet appareil."); return; }
-  loadVoices();
-  const list = sortedVoices();
-  hint(body, "La lecture utilise les voix de ton téléphone : c'est gratuit et ça marche hors ligne. Les voix marquées ★ sont les plus naturelles.");
-  const tl = el("label", "f", `<span>Voix</span>`);
-  const sel = document.createElement("select");
-  if(!list.length){
-    const o = document.createElement("option"); o.textContent = "Chargement des voix…"; sel.appendChild(o);
-    let tries = 0;
-    const retry = () => { if(!body.isConnected) return; loadVoices(); if(voices.length){ body.innerHTML = ""; renderVoiceTab(body); } else if(++tries < 6) setTimeout(retry, 500); else o.textContent = "Aucune voix trouvée sur cet appareil"; };
-    setTimeout(retry, 500);
-  }
-  const cur = pickVoice();
-  list.forEach(v => { const o = document.createElement("option"); o.value = v.voiceURI; o.textContent = `${/natural|neural|premium|enhanced|online|google/i.test(v.name) ? "★ " : ""}${v.name} (${v.lang})`; if(cur && v.voiceURI === cur.voiceURI) o.selected = true; sel.appendChild(o); });
-  sel.onchange = () => { settings.voiceURI = sel.value; saveSettings(); };
-  tl.appendChild(sel); body.appendChild(tl);
-  slider(body, "Vitesse", "ttsRate", 0.6, 1.6, 0.05);
-  slider(body, "Hauteur de la voix", "ttsPitch", 0.7, 1.3, 0.05);
-  settingToggle(body, "Lecture automatique", "Lit chaque nouveau passage dès qu'il est écrit.", "ttsAuto");
-  const r = el("div", "row"); body.appendChild(r);
-  btn(r, "▶ Tester", "ghost", () => speak("La pluie tombe sur les remparts. Au loin, une lanterne vacille dans la nuit, et quelqu'un murmure ton nom."));
-  btn(r, "⏹ Arrêter", "ghost", stopSpeaking);
-  hint(body, "Pour de meilleures voix sur Android : Paramètres du téléphone → Accessibilité (ou Gestion globale) → Synthèse vocale → moteur Google → Installer les données vocales → Français, puis choisis une voix « haute qualité ». Elles apparaîtront ici.").style.marginTop = "16px";
+  const key = TTS[settings.ttsEngine] ? settings.ttsEngine : "mai";
+  hint(body, "Les voix de qualité passent par OpenRouter, avec ta clé : rien à installer. Le prix est indiqué pour un passage d'environ 1000 caractères, une réplique typique de l'IA.");
+  sec(body, "Moteur de voix");
+  Object.entries(TTS).forEach(([k, e]) => {
+    const o = el("button", "mdl" + (k === key ? " on" : ""));
+    const price = e.free ? "Gratuit" : "≈ " + money(1000 * e.perChar) + " / passage";
+    o.appendChild(el("div", "grow", `<div class="n">${esc(e.name)}${e.best ? `<span class="tag">recommandé</span>` : ""}</div><div class="d">${esc(e.desc)}</div><div class="p">${price}</div>`));
+    if(k === key) o.appendChild(el("div", "chk", "✓"));
+    o.onclick = () => { settings.ttsEngine = k; saveSettings(); stopSpeaking(); openSettings("voice"); };
+    body.appendChild(o);
+  });
+  if(key !== "device" && !isOR()) hint(body, "⚠ Ces voix demandent le fournisseur OpenRouter. En attendant, la voix du téléphone sera utilisée.");
+  sec(body, "Voix");
+  const holder = el("div"); body.appendChild(holder);
+  const drawVoices = () => {
+    holder.innerHTML = "";
+    if(key === "device"){
+      if(!synth){ hint(holder, "Pas de voix disponible sur cet appareil."); return; }
+      loadVoices();
+      const list = sortedVoices();
+      const tl = el("label", "f", `<span>Voix du téléphone</span>`);
+      const sel = document.createElement("select");
+      if(!list.length){ const o = document.createElement("option"); o.textContent = "Aucune voix trouvée"; sel.appendChild(o); }
+      list.forEach(v => { const o = document.createElement("option"); o.value = v.voiceURI; o.textContent = `${v.name} (${v.lang})`; if(v.voiceURI === settings.voiceURI) o.selected = true; sel.appendChild(o); });
+      sel.onchange = () => { settings.voiceURI = sel.value; saveSettings(); };
+      tl.appendChild(sel); holder.appendChild(tl);
+      return;
+    }
+    [["fr", "Voix française"], ["en", "Voix anglaise"]].forEach(([lang, lbl]) => {
+      const e = TTS[key];
+      const tl = el("label", "f", `<span>${lbl}</span>`);
+      const row = el("div", "row");
+      const sel = document.createElement("select");
+      const cur = chosenVoice(key, lang);
+      engineVoices(key, lang).forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = e.label(v); if(v === cur) o.selected = true; sel.appendChild(o); });
+      sel.onchange = () => { settings.ttsVoices ||= {}; (settings.ttsVoices[key] ||= {})[lang] = sel.value; saveSettings(); };
+      const tb = el("button", "btn ghost small", "▶"); tb.style.flex = "none";
+      tb.onclick = () => speak(lang === "fr" ? "La pluie tombe sur les remparts. Au loin, une lanterne vacille, et quelqu'un murmure ton nom." : "Rain falls on the ramparts. In the distance, a lantern flickers, and someone whispers your name.", lang);
+      row.appendChild(sel); row.appendChild(tb); tl.appendChild(row); holder.appendChild(tl);
+    });
+    hint(holder, "La langue est détectée automatiquement pour chaque passage.");
+  };
+  drawVoices();
+  if(key !== "device" && !liveVoices) loadLiveVoices().then(() => { if(holder.isConnected) drawVoices(); });
+  slider(body, "Vitesse", "ttsRate", 0.7, 1.4, 0.05);
+  if(key === "device") slider(body, "Hauteur de la voix", "ttsPitch", 0.7, 1.3, 0.05);
+  settingToggle(body, "Lecture automatique", "Lit chaque nouveau passage dès qu'il est écrit." + (key !== "device" ? " Attention, chaque lecture est facturée." : ""), "ttsAuto");
+  btn(body, "⏹ Arrêter la lecture", "ghost", stopSpeaking);
+  hint(body, "Les passages déjà écoutés sont gardés en mémoire pendant la session : les réécouter ne coûte rien.").style.marginTop = "12px";
 }
 function renderStatsTab(body){
   const days = Object.keys(stats.days || {}).length;

@@ -26,7 +26,8 @@ textarea{resize:vertical;min-height:90px;line-height:1.45}
 .hidden{display:none!important}
 .app{display:flex;flex-direction:column;height:100dvh;max-width:760px;margin:0 auto}
 header{display:flex;align-items:center;gap:6px;padding:10px 10px;padding-top:max(10px,env(safe-area-inset-top));border-bottom:1px solid var(--line);background:var(--bg)}
-header h1{flex:1;font-size:16px;font-weight:600;margin:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header h1{flex:1;font-size:16px;font-weight:600;margin:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:10px}
+header h1 .logo{width:28px;height:28px;border-radius:7px;flex:none}
 .ib{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:var(--tx2);flex:none}
 .ib:active{background:var(--bg3)}
 .ib svg{width:22px;height:22px}
@@ -37,24 +38,30 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .card .t{font-weight:600}
 .card .s{color:var(--tx3);font-size:13px;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .card .grow{flex:1;min-width:0}
+.card .cost{color:var(--tx3);font-size:12px;font-variant-numeric:tabular-nums;flex:none;align-self:flex-start}
 .btn{background:var(--acc);color:#1b1410;font-weight:600;border-radius:12px;padding:12px 16px}
 .btn:active{filter:brightness(.92)}
+.btn:disabled{opacity:.5}
 .btn.ghost{background:var(--bg3);color:var(--tx)}
 .btn.danger{background:transparent;color:var(--err);border:1px solid #5a3a35}
+.btn.small{padding:8px 12px;font-size:14px;border-radius:10px}
 .row{display:flex;gap:8px;align-items:center}
 .empty{color:var(--tx3);text-align:center;padding:40px 10px;line-height:1.6}
+.stat{display:flex;justify-content:space-between;align-items:center;color:var(--tx3);font-size:13px;margin:0 2px 14px}
+.stat b{color:var(--tx2);font-weight:600;font-variant-numeric:tabular-nums}
 /* Story */
 .story{padding:18px 18px 30px;font-family:var(--serif);font-size:var(--fs);line-height:1.62}
 .act{white-space:pre-wrap;word-wrap:break-word;padding:2px 0;border-radius:6px}
-.act.ai{color:var(--tx)}
 .act.player{color:var(--acc2);font-style:italic;margin:12px 0}
-.act.story-act{color:var(--tx)}
 .act.sel{background:var(--bg3)}
-.act + .act.ai{margin-top:0}
-.caret::after{content:"▍";color:var(--acc);animation:bl 1s steps(2) infinite}
-@keyframes bl{50%{opacity:0}}
+.fi{animation:fi .6s ease-out both}
+@keyframes fi{from{opacity:0;filter:blur(1.5px)}to{opacity:1;filter:none}}
+.wait{display:inline-flex;gap:5px;padding:6px 0}
+.wait i{width:6px;height:6px;border-radius:50%;background:var(--tx3);animation:wt 1.4s ease-in-out infinite}
+.wait i:nth-child(2){animation-delay:.2s}.wait i:nth-child(3){animation-delay:.4s}
+@keyframes wt{0%,100%{opacity:.25}50%{opacity:.8}}
 .err{color:var(--err);font-family:var(--sans);font-size:14px;padding:8px 0}
-.meta{color:var(--tx3);font-size:12px;font-family:var(--sans);text-align:center;padding:4px 0 0}
+.meta{color:var(--tx3);font-size:12px;font-family:var(--sans);text-align:center;padding:4px 0 0;font-variant-numeric:tabular-nums}
 /* Input bar */
 .bar{border-top:1px solid var(--line);background:var(--bg);padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
 .modes{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none}
@@ -70,18 +77,21 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .tool svg{width:20px;height:20px}
 .tool:active{background:var(--bg3)}
 .tool:disabled{opacity:.35}
-/* Sheet */
+/* Sheet — fixed height so tabs never move */
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20}
-.sheet{position:fixed;left:0;right:0;bottom:0;max-width:760px;margin:0 auto;max-height:92dvh;background:var(--bg);border-top-left-radius:20px;border-top-right-radius:20px;z-index:21;display:flex;flex-direction:column;border:1px solid var(--line);border-bottom:0}
-.sheet .sh{display:flex;align-items:center;padding:10px 10px 0 16px}
-.sheet .sh h2{flex:1;font-size:17px;margin:0}
-.tabs{display:flex;gap:4px;padding:8px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:760px;margin:0 auto;height:90dvh;background:var(--bg);border-top-left-radius:20px;border-top-right-radius:20px;z-index:21;display:flex;flex-direction:column;border:1px solid var(--line);border-bottom:0}
+.sheet .sh{display:flex;align-items:center;padding:10px 10px 0 16px;flex:none}
+.sheet .sh h2{flex:1;font-size:17px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;gap:4px;padding:8px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);flex:none}
 .tab{padding:8px 12px;border-radius:10px;color:var(--tx2);white-space:nowrap;font-size:14px}
 .tab.on{background:var(--bg3);color:var(--tx)}
-.sheet .body{overflow-y:auto;padding:14px 16px calc(24px + env(safe-area-inset-bottom))}
+.sheet .body{flex:1;overflow-y:auto;padding:14px 16px calc(24px + env(safe-area-inset-bottom))}
 label.f{display:block;margin:0 0 16px}
 label.f > span{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);margin-bottom:6px;font-weight:600}
 .hint{color:var(--tx3);font-size:13px;line-height:1.45;margin:-2px 0 8px}
+.hint em{color:var(--tx2);font-style:italic}
+.sec{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
 .sl{margin-bottom:18px}
 .sl .top{display:flex;justify-content:space-between;align-items:baseline}
 .sl .top b{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3)}
@@ -99,9 +109,25 @@ input[type=range]{padding:0;border:0;background:transparent;height:30px;accent-c
 .sc .t{font-weight:600}
 .sc .k{color:var(--acc2);font-size:12px;margin-top:2px}
 .sc .e{color:var(--tx3);font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-pre.ctx{white-space:pre-wrap;font-size:12px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--tx2);max-height:60vh;overflow:auto}
+pre.ctx{white-space:pre-wrap;font-size:12px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--tx2);overflow:auto}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 14px}
 .chip{font-size:12px;padding:5px 10px;border-radius:999px;background:var(--bg3);color:var(--tx2)}
+details.fold{background:var(--bg2);border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
+details.fold summary{padding:12px 14px;cursor:pointer;color:var(--tx2);font-size:14px;list-style:none}
+details.fold summary::before{content:"▸ ";color:var(--tx3)}
+details.fold[open] summary::before{content:"▾ "}
+details.fold .in{padding:0 14px 4px}
+.genbox{background:linear-gradient(180deg,#2c2522,var(--bg2));border:1px solid #4a3a33;border-radius:14px;padding:14px;margin-bottom:6px}
+.genbox .gt{font-weight:600;margin-bottom:4px}
+/* Models */
+.mdl{display:flex;gap:12px;align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;width:100%;text-align:left}
+.mdl.on{border-color:var(--acc)}
+.badge{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;flex:none;letter-spacing:-.02em}
+.mdl .grow{flex:1;min-width:0}
+.mdl .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdl .d{color:var(--tx3);font-size:13px;margin-top:2px;line-height:1.35}
+.mdl .p{color:var(--tx2);font-size:12px;margin-top:4px;font-variant-numeric:tabular-nums}
+.mdl .chk{color:var(--acc);font-size:18px;flex:none}
 .toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:40;font-size:14px;max-width:90vw}
 .menu{position:fixed;z-index:30;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:170px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 .menu button{display:block;width:100%;text-align:left;padding:12px 16px}
@@ -112,7 +138,7 @@ pre.ctx{white-space:pre-wrap;font-size:12px;background:var(--bg2);border:1px sol
 <div class="app">
   <header>
     <button class="ib hidden" id="backBtn" aria-label="Retour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <h1 id="title">Lanterne</h1>
+    <h1 id="title"></h1>
     <button class="ib hidden" id="advBtn" aria-label="Aventure"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 012-2h13v16H6a2 2 0 00-2 2.5zM4 19.5A2.5 2.5 0 016.5 22H19"/><path d="M9 7h6M9 11h6"/></svg></button>
     <button class="ib" id="setBtn" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
   </header>
@@ -128,7 +154,7 @@ pre.ctx{white-space:pre-wrap;font-size:12px;background:var(--bg2);border:1px sol
     </div>
     <div class="inrow">
       <textarea id="inp" rows="1" placeholder="Que fais-tu ?"></textarea>
-      <button class="send" id="sendBtn" aria-label="Envoyer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+      <button class="send" id="sendBtn" aria-label="Envoyer"></button>
     </div>
     <div class="tools">
       <button class="tool" id="contBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Continuer</button>
@@ -148,6 +174,7 @@ const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ toast("Sauvegarde impossible : " + e.message); return false; } }
 };
+const LOGO = `<svg class="logo" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#30302e"/><g transform="translate(256 262)"><path d="M-40-150h80M0-150v28" stroke="#85837b" stroke-width="18" stroke-linecap="round"/><path d="M-78-118h156l-14 196h-128z" fill="#262624" stroke="#b5b3aa" stroke-width="14" stroke-linejoin="round"/><ellipse cx="0" cy="-10" rx="36" ry="58" fill="#d97757"/><ellipse cx="0" cy="4" rx="16" ry="30" fill="#f2c4a8"/><path d="M-96 92h192" stroke="#b5b3aa" stroke-width="16" stroke-linecap="round"/></g></svg>`;
 const DEFAULT_INSTRUCTIONS =
 `You are the narrator of an interactive text adventure. The player controls the protagonist, addressed as "you".
 Lines starting with ">" are the player's actions; a quoted line after ">" is something the player says. Other player lines are narration the player wrote and should be treated as canon.
@@ -157,6 +184,7 @@ Lines starting with ">" are the player's actions; a quoted line after ">" is som
 - Show, don't tell. Vary sentence rhythm. Avoid clichés, purple prose and repeating phrases from earlier in the story.
 - Write 1 to 3 paragraphs. No meta commentary, no headings, no options lists.
 - Write in the same language as the story.`;
+const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ashlyn cache encore ses sentiments, elle reste distante. »</em>`;
 
 const DEFAULT_SETTINGS = {
   apiKey: "", model: "deepseek/deepseek-v4-pro",
@@ -166,35 +194,39 @@ const DEFAULT_SETTINGS = {
   fontSize: 17
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
-let index = LS.get("lan.index", []); // [{id,title,updated,preview}]
-let adv = null; // current adventure
+let stats = Object.assign({ total: 0, since: Date.now() }, LS.get("lan.stats", {}));
+let index = LS.get("lan.index", []);
+let adv = null;
 let redoStack = [];
 let mode = "do";
-let generating = null; // AbortController
-let lastUsage = null;
+let generating = null;
+let lastCost = null;
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const estTok = s => Math.ceil((s || "").length / 3.6);
+const money = n => "$" + (n === 0 ? "0.00" : n < 0.01 ? n.toFixed(4) : n < 1 ? n.toFixed(3) : n.toFixed(2));
 
 function saveSettings(){ LS.set("lan.settings", settings); applyFont(); }
 function applyFont(){ document.documentElement.style.setProperty("--fs", settings.fontSize + "px"); }
+function addCost(c){
+  if(!(c > 0)) return;
+  stats.total += c; LS.set("lan.stats", stats);
+  if(adv){ adv.spent = (adv.spent || 0) + c; }
+}
 function saveAdv(){
   if(!adv) return;
   adv.updated = Date.now();
   LS.set("lan.adv." + adv.id, adv);
   const last = [...adv.actions].reverse().find(a => a.type === "ai");
-  const entry = { id: adv.id, title: adv.title, updated: adv.updated, preview: (last ? last.text : adv.actions[0]?.text || "").slice(-160) };
+  const entry = { id: adv.id, title: adv.title, updated: adv.updated, spent: adv.spent || 0, preview: (last ? last.text : adv.actions[0]?.text || "").slice(-160) };
   index = index.filter(x => x.id !== adv.id); index.unshift(entry);
   LS.set("lan.index", index);
 }
-function newAdventure(title, opening){
-  return {
-    id: uid(), title: title || "Nouvelle aventure", created: Date.now(), updated: Date.now(),
-    instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "",
-    cards: [], actions: opening ? [{ id: uid(), type: "ai", text: opening.trim() }] : []
-  };
+function blankAdventure(){
+  return { id: uid(), title: "", created: Date.now(), updated: Date.now(), spent: 0,
+    instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "", cards: [], actions: [] };
 }
 
 /* ================= UI helpers ================= */
@@ -202,7 +234,7 @@ let toastT;
 function toast(msg){
   document.querySelectorAll(".toast").forEach(t => t.remove());
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t);
-  clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600);
+  clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2800);
 }
 function closeSheet(){ $("#sheetHost").innerHTML = ""; }
 function openSheet(title, tabs, renderTab, startTab){
@@ -220,10 +252,11 @@ function openSheet(title, tabs, renderTab, startTab){
   };
   host.querySelectorAll(".tab").forEach(b => b.onclick = () => show(b.dataset.tab));
   show(startTab || (tabs ? tabs[0][0] : null));
+  return body;
 }
 function field(body, label, value, onInput, opts = {}){
   const l = document.createElement("label"); l.className = "f";
-  l.innerHTML = `<span>${esc(label)}</span>${opts.hint ? `<div class="hint">${esc(opts.hint)}</div>` : ""}`;
+  l.innerHTML = `<span>${esc(label)}</span>${opts.hint ? `<div class="hint">${opts.hintHtml ? opts.hint : esc(opts.hint)}</div>` : ""}`;
   const el = document.createElement(opts.multiline ? "textarea" : "input");
   if(opts.type) el.type = opts.type;
   if(opts.rows) el.rows = opts.rows;
@@ -251,19 +284,25 @@ function btn(body, text, cls, onClick){
   const b = document.createElement("button"); b.className = "btn " + (cls || ""); b.textContent = text; b.onclick = onClick;
   body.appendChild(b); return b;
 }
+function sec(body, text){ const d = document.createElement("div"); d.className = "sec"; d.textContent = text; body.appendChild(d); }
 
 /* ================= Library ================= */
+function setHeaderTitle(text, withLogo){
+  $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>`;
+}
 function showLibrary(){
   stopGen(); adv = null;
   $("#libView").classList.remove("hidden");
   $("#storyView").classList.add("hidden"); $("#bar").classList.add("hidden");
   $("#backBtn").classList.add("hidden"); $("#advBtn").classList.add("hidden");
-  $("#title").textContent = "Lanterne";
-  const lib = $("#lib");
-  lib.innerHTML = "";
-  const top = document.createElement("div"); top.className = "row"; top.style.marginBottom = "16px";
+  setHeaderTitle("Lanterne", true);
+  const lib = $("#lib"); lib.innerHTML = "";
+  const top = document.createElement("div"); top.className = "row"; top.style.marginBottom = "12px";
   lib.appendChild(top);
-  btn(top, "+ Nouvelle aventure", "", newAdventureSheet).style.flex = "1";
+  btn(top, "+ Nouvelle aventure", "", () => adventureWizard()).style.flex = "1";
+  const st = document.createElement("div"); st.className = "stat";
+  st.innerHTML = `<span>Total dépensé</span><b>${money(stats.total)}</b>`;
+  lib.appendChild(st);
   if(!settings.apiKey){
     const w = document.createElement("div"); w.className = "card";
     w.innerHTML = `<div class="grow"><div class="t">Ajoute ta clé OpenRouter</div><div class="s">Touche ici, ou l'icône réglages en haut à droite. La clé reste sur ce téléphone.</div></div>`;
@@ -276,54 +315,152 @@ function showLibrary(){
   }
   index.sort((a, b) => b.updated - a.updated).forEach(x => {
     const c = document.createElement("div"); c.className = "card";
-    c.innerHTML = `<div class="grow"><div class="t">${esc(x.title)}</div><div class="s">${esc(x.preview)}</div></div>`;
+    c.innerHTML = `<div class="grow"><div class="t">${esc(x.title)}</div><div class="s">${esc(x.preview)}</div></div>${x.spent ? `<div class="cost">${money(x.spent)}</div>` : ""}`;
     c.onclick = () => openAdventure(x.id);
     lib.appendChild(c);
   });
 }
-function newAdventureSheet(){
-  let title = "", opening = "", essentials = "";
-  openSheet("Nouvelle aventure", null, (_, body) => {
-    field(body, "Titre", "", v => title = v, { placeholder: "La tour d'obsidienne" });
-    field(body, "Texte d'ouverture", "", v => opening = v, { multiline: true, rows: 6, hint: "Le début de l'histoire, écrit à la 2e personne. L'IA continuera à partir de là.", placeholder: "Tu es Kaelen, une mage de Conjuration en exil. La pluie tombe sur les remparts de..." });
-    field(body, "Plot Essentials", "", v => essentials = v, { multiline: true, rows: 4, hint: "Ce que l'IA doit toujours savoir : qui tu es, le monde, l'objectif. Modifiable plus tard." });
-    btn(body, "Commencer", "", () => {
-      const a = newAdventure(title.trim(), opening);
-      a.essentials = essentials;
-      adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
-    }).style.width = "100%";
+
+/* ================= Non-streamed completion (for generators) ================= */
+async function complete(messages, max_tokens){
+  if(!settings.apiKey) throw new Error("Ajoute ta clé OpenRouter dans les réglages");
+  const body = { model: settings.model.trim(), messages, max_tokens, temperature: 0.9, top_p: 0.95, usage: { include: true } };
+  if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
+  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + settings.apiKey.trim(), "Content-Type": "application/json", "X-Title": "Lanterne" },
+    body: JSON.stringify(body)
   });
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok || j.error) throw new Error(j.error?.message || ("HTTP " + r.status));
+  if(j.usage?.cost) addCost(j.usage.cost);
+  return (j.choices?.[0]?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
+function parseJSON(t){
+  t = t.replace(/```(?:json)?/gi, "");
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if(a < 0 || b < a) throw new Error("réponse illisible, réessaie");
+  return JSON.parse(t.slice(a, b + 1));
+}
+async function generateScenario(d, idea){
+  const existing = [d.title && "Title: " + d.title, d.opening && "Opening: " + d.opening, d.essentials && "Plot essentials: " + d.essentials,
+    d.cards.length && "Existing cards: " + d.cards.map(c => c.title).join(", ")].filter(Boolean).join("\n");
+  const prompt =
+`Create a scenario for an interactive text adventure (second person, the player is "you").
+Player's idea: ${idea.trim() || "none — invent something original and compelling, any genre"}
+${existing ? "Keep and build on what the player already wrote:\n" + existing + "\n" : ""}
+Write everything in ${/[àâçéèêëîïôûùüÿœ]|\b(le|la|les|une|des|et|est|dans)\b/i.test(idea + existing) || !idea.trim() ? "French" : "the same language as the player's idea"}.
+Return ONLY a JSON object, no other text:
+{
+ "title": "short evocative title",
+ "opening": "the first 2-3 paragraphs of the story, second person, ends on a moment where the player can act",
+ "essentials": "who the player is, the setting, key relationships and stakes — concise, factual, 4-8 lines",
+ "authorsNote": "one or two short sentences on tone, pacing and style",
+ "cards": [ {"title": "name", "type": "personnage|lieu|objet|faction|concept", "keys": "comma, separated, trigger words", "entry": "2-4 factual sentences: appearance, personality, motives, secrets"} ]
+}
+Give 3 to 6 cards for the important characters and places.`;
+  const out = await complete([{ role: "user", content: prompt }], 2500);
+  return parseJSON(out);
+}
+async function generateCardEntry(card, ctx){
+  const prompt =
+`Write a story card (world info entry) for an interactive story.
+Story context:
+${ctx || "(none)"}
+Card: ${card.title || "(invent a name)"} — type: ${card.type}${card.entry ? "\nNotes from the player to keep: " + card.entry : ""}
+Return ONLY JSON: {"title": "...", "keys": "comma, separated, trigger words incl. the name", "entry": "2-4 factual sentences: appearance, personality, motives, secrets"}
+Write in the language of the context (French if unsure).`;
+  return parseJSON(await complete([{ role: "user", content: prompt }], 600));
+}
+
+/* ================= Adventure wizard ================= */
+function adventureWizard(){
+  const d = { title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [] };
+  let idea = "";
+  const render = (body) => {
+    body.innerHTML = "";
+    const g = document.createElement("div"); g.className = "genbox";
+    g.innerHTML = `<div class="gt">✨ Pas d'idée ?</div><div class="hint">Décris une envie en une phrase (genre, ambiance, personnage…) ou laisse vide : l'IA crée le titre, l'ouverture, les essentiels, la note d'auteur et les Story Cards. Tu pourras tout modifier.</div>`;
+    body.appendChild(g);
+    const ii = document.createElement("textarea"); ii.rows = 2; ii.style.minHeight = "60px"; ii.value = idea;
+    ii.placeholder = "Ex. : une mage nécromancienne en fuite dans une cité portuaire corrompue"; ii.oninput = () => idea = ii.value;
+    g.appendChild(ii);
+    const gb = btn(g, "Générer le scénario", "small", async () => {
+      gb.disabled = true; gb.textContent = "Génération…";
+      try{
+        const s = await generateScenario(d, idea);
+        d.title = s.title || d.title; d.opening = s.opening || d.opening; d.essentials = s.essentials || d.essentials;
+        d.authorsNote = s.authorsNote || d.authorsNote;
+        (s.cards || []).forEach(c => d.cards.push({ id: uid(), title: c.title || "", type: c.type || "personnage", keys: c.keys || c.title || "", entry: c.entry || "", enabled: true }));
+        toast("Scénario généré, vérifie et ajuste");
+        render(body);
+      }catch(e){ toast("Échec : " + e.message); gb.disabled = false; gb.textContent = "Générer le scénario"; }
+    });
+    gb.style.marginTop = "10px";
+
+    sec(body, "L'histoire");
+    field(body, "Titre", d.title, v => d.title = v, { placeholder: "Retrouvailles compliquées" });
+    field(body, "Texte d'ouverture", d.opening, v => d.opening = v, { multiline: true, rows: 6, hint: "Le début de l'histoire, à la 2e personne. L'IA continuera à partir de là.", placeholder: "Tu es Kaelen, une mage de Conjuration en exil. La pluie tombe sur les remparts de..." });
+    field(body, "Plot Essentials", d.essentials, v => d.essentials = v, { multiline: true, rows: 5, hint: "Ce que l'IA doit toujours savoir : qui tu es, le monde, les relations, l'enjeu." });
+    field(body, "Note d'auteur", d.authorsNote, v => d.authorsNote = v, { multiline: true, rows: 2, hint: AN_HINT, hintHtml: true });
+
+    sec(body, `Story Cards (${d.cards.length})`);
+    const ch = document.createElement("div"); ch.className = "hint";
+    ch.textContent = "Personnages, lieux, objets… Chaque carte est envoyée à l'IA quand un de ses mots-clés apparaît dans l'histoire.";
+    body.appendChild(ch);
+    d.cards.forEach(c => body.appendChild(cardTile(c, () => editCard(c, d.cards, wizardCtx(d), () => reopen()))));
+    btn(body, "+ Ajouter une carte", "ghost small", () => editCard(null, d.cards, wizardCtx(d), () => reopen())).style.marginBottom = "6px";
+
+    sec(body, "Avancé");
+    const det = document.createElement("details"); det.className = "fold";
+    det.innerHTML = `<summary>Instructions de l'IA (prompt système)</summary><div class="in"></div>`;
+    body.appendChild(det);
+    const din = det.querySelector(".in");
+    const ti = field(din, "Instructions", d.instructions, v => d.instructions = v, { multiline: true, rows: 12, hint: "Les instructions par défaut marchent bien. Ajoute par exemple « Écris toujours en français »." });
+    btn(din, "Remettre par défaut", "ghost small", () => { d.instructions = DEFAULT_INSTRUCTIONS; ti.value = d.instructions; }).style.marginBottom = "12px";
+
+    const go = btn(body, "Commencer l'aventure", "", () => {
+      const a = blankAdventure();
+      a.title = d.title.trim() || "Nouvelle aventure";
+      a.essentials = d.essentials; a.authorsNote = d.authorsNote; a.instructions = d.instructions; a.cards = d.cards;
+      if(d.opening.trim()) a.actions.push({ id: uid(), type: "ai", text: d.opening.trim() });
+      adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
+    });
+    go.style.cssText = "width:100%;margin-top:18px";
+  };
+  let body;
+  const reopen = () => { body = openSheet("Nouvelle aventure", null, (_, b) => render(b)); };
+  reopen();
+}
+function wizardCtx(d){ return [d.title, d.essentials, d.opening].filter(Boolean).join("\n\n").slice(0, 3000); }
 
 /* ================= Story view ================= */
 function openAdventure(id){
   const a = LS.get("lan.adv." + id, null);
   if(!a){ toast("Aventure introuvable"); index = index.filter(x => x.id !== id); LS.set("lan.index", index); return showLibrary(); }
-  adv = a; redoStack = []; lastUsage = null;
+  adv = a; adv.spent ||= 0; adv.cards ||= []; redoStack = []; lastCost = null;
   $("#libView").classList.add("hidden");
   $("#storyView").classList.remove("hidden"); $("#bar").classList.remove("hidden");
   $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.remove("hidden");
-  $("#title").textContent = adv.title;
+  setHeaderTitle(adv.title, false);
   renderStory(true);
 }
-function actionDisplay(a){ return a.text; }
 function renderStory(scroll){
   const s = $("#story"); s.innerHTML = "";
   adv.actions.forEach(a => {
     const d = document.createElement("div");
     d.className = "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player");
     d.dataset.id = a.id;
-    d.textContent = actionDisplay(a);
+    d.textContent = a.text;
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
   });
   if(!adv.actions.length){
     s.innerHTML = `<div class="empty" style="font-family:var(--sans)">L'histoire est vide. Écris une action, ou passe en mode <b>Histoire</b> pour poser la scène.</div>`;
   }
-  if(lastUsage){
-    const m = document.createElement("div"); m.className = "meta"; m.id = "usage";
-    m.textContent = lastUsage; s.appendChild(m);
-  }
+  const m = document.createElement("div"); m.className = "meta";
+  m.textContent = (lastCost ? lastCost + " · " : "") + "aventure " + money(adv.spent || 0);
+  s.appendChild(m);
   updateTools();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
 }
@@ -363,7 +500,7 @@ function actionMenu(a, ev){
 function editAction(a){
   let txt = a.text;
   openSheet("Modifier", null, (_, body) => {
-    const t = field(body, a.type === "ai" ? "Texte de l'IA" : "Ton action", a.text, v => txt = v, { multiline: true, rows: 10 });
+    const t = field(body, a.type === "ai" ? "Texte de l'IA" : "Ton action", a.text, v => txt = v, { multiline: true, rows: 12 });
     btn(body, "Enregistrer", "", () => { a.text = txt; saveAdv(); closeSheet(); renderStory(); }).style.width = "100%";
     setTimeout(() => t.focus(), 50);
   });
@@ -388,35 +525,23 @@ function buildMessages(){
   const cards = triggeredCards("");
   if(cards.length) parts.push("[World info]\n" + cards.map(c => `- ${c.title ? c.title + ": " : ""}${c.entry.trim()}`).join("\n"));
   const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
-
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   let budget = settings.contextTokens - estTok(system) - estTok(an) - settings.max_tokens - 50;
-
-  // walk history backwards until budget is spent
   const hist = [];
   for(let i = adv.actions.length - 1; i >= 0; i--){
-    const a = adv.actions[i];
-    const t = estTok(a.text);
+    const a = adv.actions[i]; const t = estTok(a.text);
     if(budget - t < 0 && hist.length) break;
     budget -= t; hist.unshift(a);
   }
-  // map to chat roles, merging consecutive same-role turns
   const msgs = [];
   const push = (role, content) => {
     const last = msgs[msgs.length - 1];
     if(last && last.role === role) last.content += "\n\n" + content; else msgs.push({ role, content });
   };
-  hist.forEach(a => {
-    if(a.type === "ai") push("assistant", a.text);
-    else push("user", a.text);
-  });
-  // the model must answer to a user turn
+  hist.forEach(a => push(a.type === "ai" ? "assistant" : "user", a.text));
   if(!msgs.length || msgs[msgs.length - 1].role === "assistant") push("user", "(Continue the story.)");
   if(msgs[0].role === "assistant") msgs.unshift({ role: "user", content: "(Begin.)" });
-  if(an){
-    const last = msgs[msgs.length - 1];
-    last.content = an + "\n\n" + last.content;
-  }
+  if(an){ const last = msgs[msgs.length - 1]; last.content = an + "\n\n" + last.content; }
   return [{ role: "system", content: system }, ...msgs];
 }
 
@@ -428,7 +553,8 @@ async function generate(){
   const out = { id: uid(), type: "ai", text: "" };
   adv.actions.push(out);
   renderStory(true);
-  const el = $(`[data-id="${out.id}"]`); el.classList.add("caret");
+  const el = $(`[data-id="${out.id}"]`);
+  el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span>`;
   generating = new AbortController(); updateTools();
   const body = {
     model: settings.model.trim(), messages, stream: true,
@@ -442,7 +568,7 @@ async function generate(){
   if(settings.frequency_penalty) body.frequency_penalty = settings.frequency_penalty;
   if(settings.requireParams) body.provider = { require_parameters: true };
   if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
-  let errMsg = null;
+  let errMsg = null, started = false;
   try{
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST", signal: generating.signal,
@@ -465,15 +591,18 @@ async function generate(){
         const data = line.slice(5).trim(); if(data === "[DONE]") continue;
         let j; try{ j = JSON.parse(data); }catch(e){ continue; }
         if(j.error) throw new Error(j.error.message || "Erreur du fournisseur");
-        const delta = j.choices?.[0]?.delta?.content;
+        let delta = j.choices?.[0]?.delta?.content;
         if(delta){
+          if(!started){ delta = delta.replace(/^\s+/, ""); if(!delta) continue; started = true; el.innerHTML = ""; }
           const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
-          out.text += delta; el.textContent = out.text.replace(/^\s+/, "");
+          out.text += delta;
+          const sp = document.createElement("span"); sp.className = "fi"; sp.textContent = delta; el.appendChild(sp);
           if(stick) view.scrollTop = view.scrollHeight;
         }
         if(j.usage){
           const u = j.usage;
-          lastUsage = `${u.prompt_tokens ?? "?"} → ${u.completion_tokens ?? "?"} tokens` + (u.cost != null ? ` · $${Number(u.cost).toFixed(4)}` : "");
+          if(u.cost != null) addCost(Number(u.cost));
+          lastCost = `${u.prompt_tokens ?? "?"} → ${u.completion_tokens ?? "?"} tokens` + (u.cost != null ? ` · ${money(Number(u.cost))}` : "");
         }
       }
     }
@@ -483,16 +612,18 @@ async function generate(){
   generating = null;
   out.text = cleanOutput(out.text);
   if(!out.text) adv.actions = adv.actions.filter(a => a !== out);
-  saveAdv(); renderStory(false);
-  if(errMsg){
-    const d = document.createElement("div"); d.className = "err"; d.textContent = "⚠ " + errMsg;
-    $("#story").appendChild(d);
-  }
-  requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
+  saveAdv();
+  // wait for the last fade-in to finish before swapping to plain text
+  setTimeout(() => {
+    if(!adv) return;
+    renderStory(false);
+    if(errMsg){ const d = document.createElement("div"); d.className = "err"; d.textContent = "⚠ " + errMsg; $("#story").appendChild(d); }
+    const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 200) v.scrollTop = v.scrollHeight;
+  }, errMsg ? 0 : 500);
+  updateTools();
 }
 function cleanOutput(t){
   t = t.replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s+/, "").replace(/\s+$/, "");
-  // drop a dangling half sentence if the model was cut off mid-way
   const m = t.match(/^[\s\S]*[.!?…"”»*)\]]/);
   if(m && m[0].length > t.length * 0.6) t = m[0];
   return t;
@@ -515,10 +646,15 @@ function openAdventureSheet(start){
   openSheet(adv.title, tabs, (k, body) => {
     if(k === "plot"){
       field(body, "Plot Essentials", adv.essentials, v => { adv.essentials = v; saveAdv(); }, { multiline: true, rows: 7, hint: "Toujours envoyé à l'IA, en haut du contexte. Personnage, monde, objectifs." });
-      field(body, "Author's Note", adv.authorsNote, v => { adv.authorsNote = v; saveAdv(); }, { multiline: true, rows: 3, hint: "Injecté juste avant ta dernière action : très influent. Ex. « Ton sombre, rythme lent, dialogues tendus. »" });
-      field(body, "Résumé de l'histoire", adv.summary, v => { adv.summary = v; saveAdv(); }, { multiline: true, rows: 6, hint: "Mémoire longue : les événements importants qui sont sortis du contexte. (Résumé auto prévu pour la V2.)" });
+      field(body, "Note d'auteur", adv.authorsNote, v => { adv.authorsNote = v; saveAdv(); }, { multiline: true, rows: 3, hint: AN_HINT, hintHtml: true });
+      field(body, "Résumé de l'histoire", adv.summary, v => { adv.summary = v; saveAdv(); }, { multiline: true, rows: 6, hint: "Mémoire longue : les événements importants qui sont sortis du contexte. (Résumé automatique dans une prochaine version.)" });
     }
-    if(k === "cards") renderCards(body);
+    if(k === "cards"){
+      body.innerHTML = `<div class="hint">Une carte est envoyée à l'IA quand l'un de ses mots-clés apparaît dans les ${settings.cardScanDepth} derniers passages.</div>`;
+      btn(body, "+ Nouvelle carte", "", () => editCard(null, adv.cards, advCtx(), () => { saveAdv(); openAdventureSheet("cards"); })).style.cssText = "width:100%;margin-bottom:14px";
+      const active = new Set(triggeredCards("").map(c => c.id));
+      adv.cards.forEach(c => body.appendChild(cardTile(c, () => editCard(c, adv.cards, advCtx(), () => { saveAdv(); openAdventureSheet("cards"); }), active.has(c.id))));
+    }
     if(k === "instr"){
       field(body, "AI Instructions", adv.instructions, v => { adv.instructions = v; saveAdv(); }, { multiline: true, rows: 14, hint: "Le prompt système : comment l'IA doit raconter." });
       btn(body, "Remettre les instructions par défaut", "ghost", () => { adv.instructions = DEFAULT_INSTRUCTIONS; saveAdv(); openAdventureSheet("instr"); });
@@ -534,9 +670,11 @@ function openAdventureSheet(start){
       body.appendChild(pre);
     }
     if(k === "misc"){
-      field(body, "Titre", adv.title, v => { adv.title = v; $("#title").textContent = v; saveAdv(); });
+      field(body, "Titre", adv.title, v => { adv.title = v; setHeaderTitle(v, false); saveAdv(); });
+      const st = document.createElement("div"); st.className = "stat";
+      st.innerHTML = `<span>Dépensé sur cette aventure</span><b>${money(adv.spent || 0)}</b>`; body.appendChild(st);
       const r = document.createElement("div"); r.className = "row"; r.style.flexWrap = "wrap"; body.appendChild(r);
-      btn(r, "Dupliquer", "ghost", () => { const c = JSON.parse(JSON.stringify(adv)); c.id = uid(); c.title += " (copie)"; adv = c; saveAdv(); closeSheet(); openAdventure(c.id); toast("Copie créée"); });
+      btn(r, "Dupliquer", "ghost", () => { const c = JSON.parse(JSON.stringify(adv)); c.id = uid(); c.title += " (copie)"; c.spent = 0; adv = c; saveAdv(); closeSheet(); openAdventure(c.id); toast("Copie créée"); });
       btn(r, "Exporter", "ghost", () => download(`${slug(adv.title)}.json`, { lanterne: 1, adventures: [adv] }));
       btn(r, "Supprimer", "danger", () => {
         if(!confirm("Supprimer définitivement cette aventure ?")) return;
@@ -546,51 +684,145 @@ function openAdventureSheet(start){
     }
   }, start);
 }
-function renderCards(body){
-  body.innerHTML = `<div class="hint">Une carte est envoyée à l'IA quand l'un de ses mots-clés apparaît dans les ${settings.cardScanDepth} derniers passages.</div>`;
-  btn(body, "+ Nouvelle carte", "", () => editCard(null)).style.cssText = "width:100%;margin-bottom:14px";
-  const active = new Set(triggeredCards("").map(c => c.id));
-  adv.cards.forEach(c => {
-    const d = document.createElement("div"); d.className = "sc";
-    d.innerHTML = `<div class="row"><div class="t" style="flex:1">${esc(c.title || "(sans titre)")}</div>${active.has(c.id) ? `<span class="chip" style="color:var(--acc2)">active</span>` : ""}${c.enabled === false ? `<span class="chip">off</span>` : ""}</div><div class="k">${esc(c.keys)}</div><div class="e">${esc(c.entry)}</div>`;
-    d.onclick = () => editCard(c);
-    body.appendChild(d);
-  });
+function advCtx(){ return [adv.title, adv.essentials, adv.actions.slice(-3).map(a => a.text).join("\n")].filter(Boolean).join("\n\n").slice(0, 3000); }
+function cardTile(c, onClick, active){
+  const d = document.createElement("div"); d.className = "sc";
+  d.innerHTML = `<div class="row"><div class="t" style="flex:1">${esc(c.title || "(sans titre)")}</div>${active ? `<span class="chip" style="color:var(--acc2)">active</span>` : ""}${c.enabled === false ? `<span class="chip">off</span>` : ""}<span class="chip">${esc(c.type || "")}</span></div><div class="k">${esc(c.keys)}</div><div class="e">${esc(c.entry)}</div>`;
+  d.onclick = onClick;
+  return d;
 }
-function editCard(c){
+function editCard(c, list, ctx, done){
   const isNew = !c;
   const d = c ? Object.assign({}, c) : { id: uid(), title: "", type: "personnage", keys: "", entry: "", enabled: true };
-  openSheet(isNew ? "Nouvelle carte" : "Modifier la carte", null, (_, body) => {
-    field(body, "Nom", d.title, v => d.title = v, { placeholder: "Lyra" });
+  const render = (body) => {
+    body.innerHTML = "";
+    field(body, "Nom", d.title, v => d.title = v, { placeholder: "Ashlyn" });
     const tl = document.createElement("label"); tl.className = "f"; tl.innerHTML = `<span>Type</span>`;
     const sel = document.createElement("select");
     ["personnage","lieu","objet","faction","concept","autre"].forEach(t => { const o = document.createElement("option"); o.value = o.textContent = t; if(t === d.type) o.selected = true; sel.appendChild(o); });
     sel.onchange = () => d.type = sel.value; tl.appendChild(sel); body.appendChild(tl);
-    field(body, "Mots-clés", d.keys, v => d.keys = v, { placeholder: "Lyra, la prêtresse", hint: "Séparés par des virgules. Pas sensible à la casse." });
-    field(body, "Contenu", d.entry, v => d.entry = v, { multiline: true, rows: 7, placeholder: "Lyra est une prêtresse de 30 ans, froide en apparence, qui cache..." });
+    field(body, "Mots-clés", d.keys, v => d.keys = v, { placeholder: "Ashlyn, l'héroïne", hint: "Séparés par des virgules. Pas sensible à la casse." });
+    field(body, "Contenu", d.entry, v => d.entry = v, { multiline: true, rows: 7, placeholder: "Apparence, personnalité, motivations, secrets…" });
+    const gb = btn(body, "✨ Compléter avec l'IA", "ghost small", async () => {
+      gb.disabled = true; gb.textContent = "Génération…";
+      try{
+        const r = await generateCardEntry(d, ctx);
+        d.title = d.title || r.title || ""; d.keys = d.keys || r.keys || d.title; d.entry = r.entry || d.entry;
+        render(body);
+      }catch(e){ toast("Échec : " + e.message); gb.disabled = false; gb.textContent = "✨ Compléter avec l'IA"; }
+    });
+    gb.style.marginBottom = "16px";
     const sw = document.createElement("div"); sw.className = "sw";
     sw.innerHTML = `<div class="l"><b>Activée</b><small>Désactive sans supprimer.</small></div><button class="tg ${d.enabled !== false ? "on" : ""}"></button>`;
     sw.querySelector(".tg").onclick = e => { d.enabled = d.enabled === false; e.target.classList.toggle("on", d.enabled); };
     body.appendChild(sw);
     const r = document.createElement("div"); r.className = "row"; body.appendChild(r);
     btn(r, "Enregistrer", "", () => {
-      if(isNew) adv.cards.push(d); else Object.assign(c, d);
-      saveAdv(); openAdventureSheet("cards");
+      if(!d.keys.trim() && d.title.trim()) d.keys = d.title.trim();
+      if(isNew) list.push(d); else Object.assign(c, d);
+      done();
     }).style.flex = "1";
-    if(!isNew) btn(r, "Supprimer", "danger", () => { adv.cards = adv.cards.filter(x => x.id !== d.id); saveAdv(); openAdventureSheet("cards"); });
+    btn(r, isNew ? "Annuler" : "Supprimer", isNew ? "ghost" : "danger", () => {
+      if(!isNew){ const i = list.indexOf(c); if(i >= 0) list.splice(i, 1); }
+      done();
+    });
+  };
+  openSheet(isNew ? "Nouvelle carte" : "Modifier la carte", null, (_, b) => render(b));
+}
+
+/* ================= Models ================= */
+const VENDORS = {
+  deepseek: ["DS", "#4d6bfe"], "z-ai": ["GLM", "#e04e6b"], moonshotai: ["K", "#7c6cf0"], nousresearch: ["H", "#3b82f6"],
+  anthropic: ["C", "#c96442"], google: ["G", "#2f9e57"], mistralai: ["M", "#ea7a26"], qwen: ["Q", "#6d5bd0"],
+  "x-ai": ["X", "#555"], openai: ["O", "#10a37f"], "meta-llama": ["L", "#0866ff"], thedrummer: ["TD", "#9b4dca"]
+};
+const PICKS = [
+  { re: /^deepseek\/deepseek-v4[\d.]*-pro$/, d: "Le meilleur rapport qualité/prix. Prose riche, très bon en français.", fb: "deepseek/deepseek-v4-pro" },
+  { re: /^deepseek\/deepseek-v4[\d.]*-flash$/, d: "Rapide et très peu cher. Idéal pour les longues sessions.", fb: "deepseek/deepseek-v4-flash" },
+  { re: /^z-ai\/glm-5[\d.]*$/, d: "Histoires cohérentes et profondes, bon avec les personnages complexes.", fb: "z-ai/glm-5" },
+  { re: /^z-ai\/glm-5[\d.]*-flash$/, d: "Version rapide de GLM, très économique.", fb: null },
+  { re: /^moonshotai\/kimi-k\d[\w.-]*$/, d: "Style littéraire, dialogues naturels et créatifs.", fb: "moonshotai/kimi-k2" },
+  { re: /^mistralai\/mistral-(medium|large)[\w.-]*$/, d: "Modèle français, très à l'aise dans la langue.", fb: null },
+  { re: /^google\/gemini-[\d.]+-flash$/, d: "Rapide, économique, contexte immense.", fb: null },
+  { re: /^nousresearch\/hermes-\d[\w.-]*$/, d: "Peu de refus, rythme rapide, récits nuancés.", fb: "nousresearch/hermes-3-llama-3.1-405b" },
+  { re: /^anthropic\/claude-sonnet-[\d.]+$/, d: "Écriture la plus fine et nuancée, mais nettement plus cher.", fb: null },
+];
+let modelCache = null;
+async function loadModels(){
+  if(modelCache) return modelCache;
+  const r = await fetch("https://openrouter.ai/api/v1/models");
+  const j = await r.json();
+  modelCache = (j.data || []).filter(m => !/:free$/.test(m.id) && (m.architecture?.output_modalities || ["text"]).includes("text"));
+  return modelCache;
+}
+function pickModels(all){
+  const out = [];
+  PICKS.forEach(p => {
+    const hits = all.filter(m => p.re.test(m.id)).sort((a, b) => (b.created || 0) - (a.created || 0));
+    if(hits[0]) out.push({ m: hits[0], d: p.d });
+    else if(!all.length && p.fb) out.push({ m: { id: p.fb, name: p.fb }, d: p.d });
+  });
+  return out;
+}
+function badge(id){
+  const v = id.split("/")[0]; const [t, c] = VENDORS[v] || [v.slice(0, 2).toUpperCase(), "#5a5955"];
+  return `<div class="badge" style="background:${c}">${esc(t)}</div>`;
+}
+function priceLine(m){
+  const pin = Number(m.pricing?.prompt), pout = Number(m.pricing?.completion);
+  if(!(pin >= 0) || m.pricing == null) return "";
+  const turn = pin * settings.contextTokens + pout * settings.max_tokens;
+  const ctx = m.context_length ? ` · ${Math.round(m.context_length / 1000)}k ctx` : "";
+  return `$${(pin * 1e6).toFixed(2)} / $${(pout * 1e6).toFixed(2)} par M · ≈ ${money(turn)} le tour plein${ctx}`;
+}
+function modelRow(m, desc, onPick){
+  const b = document.createElement("button"); b.className = "mdl" + (m.id === settings.model ? " on" : "");
+  const name = (m.name || m.id).replace(/^[^:]+:\s*/, "");
+  b.innerHTML = `${badge(m.id)}<div class="grow"><div class="n">${esc(name)}</div>${desc ? `<div class="d">${esc(desc)}</div>` : `<div class="d">${esc(m.id)}</div>`}<div class="p">${priceLine(m)}</div></div>${m.id === settings.model ? `<div class="chk">✓</div>` : ""}`;
+  b.onclick = () => onPick(m);
+  return b;
+}
+function openModelPicker(back){
+  openSheet("Choisir un modèle", [["rec","Recommandés"],["all","Tous les modèles"]], async (k, body) => {
+    const pick = m => { settings.model = m.id; saveSettings(); toast("Modèle : " + (m.name || m.id)); back(); };
+    body.innerHTML = `<div class="hint">Chargement des modèles et des prix…</div>`;
+    let all = [];
+    try{ all = await loadModels(); }catch(e){ body.innerHTML = `<div class="hint">Impossible de charger la liste (hors ligne ?). Suggestions par défaut :</div>`; }
+    if(k === "rec"){
+      body.innerHTML = `<div class="hint">Les meilleurs choix pour la fiction interactive. Prix en direct depuis OpenRouter (entrée / sortie par million de tokens), coût estimé avec ton contexte actuel.</div>`;
+      pickModels(all).forEach(({ m, d }) => body.appendChild(modelRow(m, d, pick)));
+      sec(body, "Identifiant personnalisé");
+      let custom = settings.model;
+      field(body, "Modèle", settings.model, v => custom = v, { hint: "L'identifiant exact sur openrouter.ai/models." });
+      btn(body, "Utiliser cet identifiant", "ghost small", () => pick({ id: custom.trim(), name: custom.trim() }));
+    } else {
+      body.innerHTML = "";
+      const q = document.createElement("input"); q.placeholder = "Rechercher (deepseek, glm, claude…)"; q.style.marginBottom = "12px";
+      body.appendChild(q);
+      const list = document.createElement("div"); body.appendChild(list);
+      const draw = () => {
+        list.innerHTML = "";
+        const s = q.value.trim().toLowerCase();
+        all.filter(m => !s || m.id.toLowerCase().includes(s) || (m.name || "").toLowerCase().includes(s))
+          .sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 60)
+          .forEach(m => list.appendChild(modelRow(m, null, pick)));
+      };
+      q.oninput = draw; draw();
+    }
   });
 }
 
 /* ================= Settings ================= */
-const MODEL_SUGGESTIONS = ["deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash", "z-ai/glm-5", "moonshotai/kimi-k2", "nousresearch/hermes-3-llama-3.1-405b", "anthropic/claude-sonnet-4.5"];
-function openSettings(){
+function openSettings(start){
   openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Contexte"],["data","Données"]], (k, body) => {
     if(k === "model"){
       field(body, "Clé API OpenRouter", settings.apiKey, v => { settings.apiKey = v; saveSettings(); }, { type: "password", placeholder: "sk-or-v1-...", hint: "Stockée uniquement sur cet appareil. Envoyée seulement à openrouter.ai." });
-      const m = field(body, "Modèle", settings.model, v => { settings.model = v; saveSettings(); }, { hint: "L'identifiant exact du modèle sur openrouter.ai/models." });
-      const ch = document.createElement("div"); ch.className = "chips";
-      MODEL_SUGGESTIONS.forEach(s => { const c = document.createElement("button"); c.className = "chip"; c.textContent = s; c.onclick = () => { m.value = s; settings.model = s; saveSettings(); }; ch.appendChild(c); });
-      body.appendChild(ch);
+      sec(body, "Modèle actuel");
+      const holder = document.createElement("div"); body.appendChild(holder);
+      const cur = (modelCache || []).find(m => m.id === settings.model) || { id: settings.model, name: settings.model };
+      holder.appendChild(modelRow(cur, cur.pricing ? null : "Touche pour voir les prix et changer", () => openModelPicker(() => openSettings("model"))));
+      if(!modelCache) loadModels().then(() => { const m = modelCache.find(x => x.id === settings.model); if(m && holder.isConnected){ holder.innerHTML = ""; holder.appendChild(modelRow(m, null, () => openModelPicker(() => openSettings("model")))); } }).catch(() => {});
+      btn(body, "Changer de modèle", "ghost", () => openModelPicker(() => openSettings("model"))).style.cssText = "width:100%;margin-bottom:22px";
       toggle(body, "Désactiver le raisonnement", "Plus rapide et moins cher pour la narration. Désactive si un modèle refuse.", "noReasoning");
       toggle(body, "Exiger le support des réglages", "Seuls les fournisseurs qui respectent top K, min P, etc. sont utilisés.", "requireParams");
       btn(body, "Tester la connexion", "ghost", testKey);
@@ -604,7 +836,7 @@ function openSettings(){
       slider(body, "Repetition penalty", "repetition_penalty", 1, 2, 0.01, "Réduit les répétitions. 1 = désactivé.");
       slider(body, "Presence penalty", "presence_penalty", -2, 2, 0.05, "Pénalise les mots déjà apparus, une seule fois.");
       slider(body, "Frequency penalty", "frequency_penalty", -2, 2, 0.05, "Pénalise selon le nombre d'apparitions.");
-      btn(body, "Valeurs par défaut", "ghost", () => { ["max_tokens","temperature","top_p","top_k","min_p","repetition_penalty","presence_penalty","frequency_penalty"].forEach(k => settings[k] = DEFAULT_SETTINGS[k]); saveSettings(); openSettings(); });
+      btn(body, "Valeurs par défaut", "ghost", () => { ["max_tokens","temperature","top_p","top_k","min_p","repetition_penalty","presence_penalty","frequency_penalty"].forEach(k => settings[k] = DEFAULT_SETTINGS[k]); saveSettings(); openSettings("gen"); });
     }
     if(k === "ctx"){
       slider(body, "Taille du contexte", "contextTokens", 2000, 128000, 1000, "Combien de tokens d'histoire envoyer. Plus = meilleure mémoire, mais chaque tour coûte plus.");
@@ -612,7 +844,13 @@ function openSettings(){
       slider(body, "Taille du texte", "fontSize", 14, 24, 1);
     }
     if(k === "data"){
-      body.innerHTML = `<div class="hint">Tout est enregistré dans ce navigateur. Exporte régulièrement une sauvegarde : si tu effaces les données du navigateur, tout part avec.</div>`;
+      const st = document.createElement("div"); st.className = "stat";
+      st.innerHTML = `<span>Total dépensé depuis le ${new Date(stats.since).toLocaleDateString("fr-FR")}</span><b>${money(stats.total)}</b>`;
+      body.appendChild(st);
+      btn(body, "Remettre le compteur à zéro", "ghost small", () => { if(confirm("Remettre le total dépensé à zéro ?")){ stats = { total: 0, since: Date.now() }; LS.set("lan.stats", stats); openSettings("data"); } }).style.marginBottom = "22px";
+      const h = document.createElement("div"); h.className = "hint";
+      h.textContent = "Tout est enregistré dans ce navigateur. Exporte régulièrement une sauvegarde : si tu effaces les données du navigateur, tout part avec.";
+      body.appendChild(h);
       const r = document.createElement("div"); r.className = "row"; r.style.flexWrap = "wrap"; body.appendChild(r);
       btn(r, "Tout exporter", "ghost", () => {
         const all = index.map(x => LS.get("lan.adv." + x.id, null)).filter(Boolean);
@@ -620,7 +858,7 @@ function openSettings(){
       });
       btn(r, "Importer", "ghost", importFile);
     }
-  });
+  }, start);
 }
 async function testKey(){
   if(!settings.apiKey) return toast("Pas de clé");
@@ -647,7 +885,7 @@ function importFile(){
       if(!list.length) throw new Error("aucune aventure trouvée");
       list.forEach(a => {
         if(index.some(x => x.id === a.id)) a.id = uid();
-        a.cards ||= []; a.actions ||= []; a.instructions ??= DEFAULT_INSTRUCTIONS; a.essentials ??= ""; a.authorsNote ??= ""; a.summary ??= "";
+        a.cards ||= []; a.actions ||= []; a.instructions ??= DEFAULT_INSTRUCTIONS; a.essentials ??= ""; a.authorsNote ??= ""; a.summary ??= ""; a.spent ??= 0;
         adv = a; saveAdv();
       });
       adv = null; toast(`${list.length} aventure(s) importée(s)`); closeSheet(); showLibrary();
@@ -658,7 +896,7 @@ function importFile(){
 
 /* ================= Wiring ================= */
 $("#backBtn").onclick = showLibrary;
-$("#setBtn").onclick = openSettings;
+$("#setBtn").onclick = () => openSettings();
 $("#advBtn").onclick = () => openAdventureSheet();
 $("#sendBtn").onclick = submit;
 $("#contBtn").onclick = () => { if(!generating){ redoStack = []; generate(); } };
@@ -680,6 +918,7 @@ document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
 window.addEventListener("beforeunload", () => saveAdv());
 
 applyFont();
+updateTools();
 showLibrary();
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(() => {});

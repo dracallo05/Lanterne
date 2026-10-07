@@ -204,6 +204,8 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
 .kpis b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
 .kpis span{font-size:12px;color:var(--tx3)}
 .tool{padding:4px 4px}
+.syncline{display:block;margin-top:10px;font-size:12px;color:var(--tx3);padding:2px}
+.syncline b{color:var(--tx2);font-weight:500}
 </style>
 </head>
 <body>
@@ -247,11 +249,19 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
 <script>
 "use strict";
 /* ================= Storage ================= */
+const SYNC_RE = /^lan\.(adv|cover)\.|^lan\.(settings|stats)$/;
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ toast("Sauvegarde impossible : " + e.message); return false; } },
-  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); if(SYNC_RE.test(k)) syncTouch(k); return true; }catch(e){ toast("Sauvegarde impossible : " + e.message); return false; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} if(SYNC_RE.test(k)) syncTouch(k); }
 };
+function syncTouch(k){
+  try{
+    const m = JSON.parse(localStorage.getItem("lan.mtime") || "{}"); m[k] = Date.now(); localStorage.setItem("lan.mtime", JSON.stringify(m));
+    const d = JSON.parse(localStorage.getItem("lan.dirty") || "{}"); d[k] = 1; localStorage.setItem("lan.dirty", JSON.stringify(d));
+  }catch(e){}
+  clearTimeout(syncTouch.t); syncTouch.t = setTimeout(() => syncNow(false), 1500);
+}
 const LOGO = `<svg class="logo" viewBox="0 0 512 512"><rect width="512" height="512" rx="110" fill="#30302e"/><g transform="translate(256 262)"><path d="M-40-150h80M0-150v28" stroke="#85837b" stroke-width="18" stroke-linecap="round"/><path d="M-78-118h156l-14 196h-128z" fill="#262624" stroke="#b5b3aa" stroke-width="14" stroke-linejoin="round"/><ellipse cx="0" cy="-10" rx="36" ry="58" fill="#d97757"/><ellipse cx="0" cy="4" rx="16" ry="30" fill="#f2c4a8"/><path d="M-96 92h192" stroke="#b5b3aa" stroke-width="16" stroke-linecap="round"/></g></svg>`;
 const DEFAULT_INSTRUCTIONS =
 `You are the narrator of an interactive text adventure. The player controls the protagonist, addressed as "you".
@@ -291,7 +301,7 @@ const DEFAULT_SETTINGS = {
   provider: "openrouter", baseUrl: "", apiKey: "", model: "deepseek/deepseek-v4-pro-0813",
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
-  contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true,
+  contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
   currency: "EUR"
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
@@ -354,11 +364,10 @@ function saveAdv(){
   if(!adv) return;
   adv.updated = Date.now();
   LS.set("lan.adv." + adv.id, adv);
-  const last = [...adv.actions].reverse().find(a => a.type === "ai" && !a.hidden);
-  const entry = { id: adv.id, title: adv.title, updated: adv.updated, spent: adv.spent || 0, summary: visible(adv.summary).slice(0, 220), hasCover: !!adv.hasCover, coverPos: adv.coverPos ?? 50 };
-  index = index.filter(x => x.id !== adv.id); index.unshift(entry);
+  index = index.filter(x => x.id !== adv.id); index.unshift(indexEntry(adv));
   LS.set("lan.index", index);
 }
+function indexEntry(a){ return { id: a.id, title: a.title, updated: a.updated, spent: a.spent || 0, summary: visible(a.summary).slice(0, 220), hasCover: !!a.hasCover, coverPos: a.coverPos ?? 50 }; }
 function blankAdventure(){
   return { id: uid(), title: "", created: Date.now(), updated: Date.now(), spent: 0,
     instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "", cards: [], actions: [],
@@ -413,7 +422,15 @@ function toast(msg){
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t);
   clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2800);
 }
-function closeSheet(){ $("#sheetHost").innerHTML = ""; }
+let syncPendingUI = false;
+function closeSheet(){
+  $("#sheetHost").innerHTML = "";
+  if(syncPendingUI){
+    syncPendingUI = false;
+    if(!adv) showLibrary();
+    else if(!generating){ const a = LS.get("lan.adv." + adv.id, null); if(a){ adv = migrate(a); applyStyle(adv.style); setHeaderTitle(adv.title, false); renderStory(false); } else showLibrary(); }
+  }
+}
 function openSheet(title, tabs, renderTab, startTab){
   const host = $("#sheetHost");
   host.innerHTML = `<div class="scrim"></div><div class="sheet"><div class="sh"><h2>${esc(title)}</h2>
@@ -530,6 +547,7 @@ function showLibrary(){
   btn(hero, "+ Nouvelle aventure", "wide", () => adventureWizard()).style.marginTop = "16px";
   const list = index.sort((a, b) => b.updated - a.updated);
   hero.appendChild(el("div", "stats", `<div><b>${list.length}</b><span>aventure${list.length > 1 ? "s" : ""}</span></div><div><b>${money(stats.total)}</b><span>dépensé au total</span></div>`));
+  if(syncConf().url){ const sl = el("button", "syncline", syncLabel()); sl.id = "syncLine"; sl.onclick = () => openSettings("sync"); hero.appendChild(sl); }
   if(!settings.apiKey){
     const w = el("button", "card", `<div class="t">Ajoute ta clé API</div><div class="s">Touche ici pour la coller. Elle reste sur ce téléphone.</div>`);
     w.style.cssText = "width:100%;text-align:left"; w.onclick = () => openSettings(); lib.appendChild(w);
@@ -1395,6 +1413,205 @@ function importScenarioFile(){
   i.click();
 }
 
+/* ================= Cloud sync (Supabase) ================= */
+const SYNC_DEFAULT = { url: "https://rqidaozmanuobnxtrben.supabase.co", key: "sb_publishable_lNsHLffLaByfKkCa-sCgXQ_MwoyAt23" };
+function syncConf(){ const c = LS.get("lan.syncconf", {}); return { url: (c.url || SYNC_DEFAULT.url || "").trim().replace(/\/+$/, ""), key: (c.key || SYNC_DEFAULT.key || "").trim() }; }
+let auth = LS.get("lan.auth", null);
+const syncState = { busy: false, last: LS.get("lan.sync.when", 0), err: "", offline: false };
+function syncLabel(){
+  if(!auth) return "☁️ <b>Connecte-toi</b> pour synchroniser PC et téléphone";
+  if(syncState.err) return "⚠️ Synchro : " + esc(syncState.err);
+  if(syncState.busy) return "☁️ Synchronisation…";
+  const d = Object.keys(LS.get("lan.dirty", {})).length;
+  if(d) return `☁️ ${d} changement${d > 1 ? "s" : ""} en attente`;
+  return syncState.last ? `☁️ Synchronisé <b>${ago(syncState.last)}</b>` : "☁️ Synchronisation en attente";
+}
+function refreshSyncLine(){ const l = $("#syncLine"); if(l) l.innerHTML = syncLabel(); const t = $("#syncTabStatus"); if(t) t.innerHTML = syncLabel(); }
+async function sbFetch(path, opts = {}, withAuth = true){
+  const c = syncConf();
+  if(!c.url || !c.key) throw new Error("serveur non configuré");
+  const headers = Object.assign({ apikey: c.key, "Content-Type": "application/json" }, opts.headers || {});
+  if(withAuth) headers.Authorization = "Bearer " + await accessToken();
+  const r = await fetch(c.url + path, Object.assign({}, opts, { headers }));
+  if(!r.ok){
+    let j = null; try{ j = await r.json(); }catch(e){}
+    const msg = j && (j.msg || j.message || j.error_description || j.error) || ("HTTP " + r.status);
+    const err = new Error(String(msg)); err.status = r.status; throw err;
+  }
+  const t = await r.text(); return t ? JSON.parse(t) : null;
+}
+function setAuth(j){
+  auth = { access_token: j.access_token, refresh_token: j.refresh_token,
+    expires_at: j.expires_at || (Math.floor(Date.now() / 1000) + (j.expires_in || 3600)), user: { id: j.user.id, email: j.user.email } };
+  localStorage.setItem("lan.auth", JSON.stringify(auth));
+}
+async function accessToken(){
+  if(!auth) throw new Error("non connecté");
+  if(Date.now() / 1000 > auth.expires_at - 60){
+    try{ setAuth(await sbFetch("/auth/v1/token?grant_type=refresh_token", { method: "POST", body: JSON.stringify({ refresh_token: auth.refresh_token }) }, false)); }
+    catch(e){ if(e.status === 400 || e.status === 401){ signOut(true); throw new Error("session expirée, reconnecte-toi"); } throw e; }
+  }
+  return auth.access_token;
+}
+const authMsg = m => /invalid login|invalid_grant|invalid credentials/i.test(m) ? "e-mail ou mot de passe incorrect"
+  : /already registered|already exists/i.test(m) ? "un compte existe déjà avec cet e-mail : connecte-toi"
+  : /password/i.test(m) && /6|short|least/i.test(m) ? "mot de passe trop court (6 caractères minimum)"
+  : /not confirmed/i.test(m) ? "e-mail pas encore confirmé (regarde ta boîte mail)" : m;
+async function signIn(email, password){
+  try{ setAuth(await sbFetch("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) }, false)); }
+  catch(e){ throw new Error(authMsg(e.message)); }
+  await firstSync();
+}
+async function signUp(email, password){
+  let j;
+  try{ j = await sbFetch("/auth/v1/signup", { method: "POST", body: JSON.stringify({ email, password }) }, false); }
+  catch(e){ throw new Error(authMsg(e.message)); }
+  if(!j || !j.access_token) throw new Error("compte créé : confirme ton e-mail (lien reçu par mail), puis connecte-toi");
+  setAuth(j); await firstSync();
+}
+function signOut(silent){
+  const a = auth; auth = null; localStorage.removeItem("lan.auth"); localStorage.removeItem("lan.sync.last");
+  if(a && !silent) fetch(syncConf().url + "/auth/v1/logout", { method: "POST", headers: { apikey: syncConf().key, Authorization: "Bearer " + a.access_token } }).catch(() => {});
+  refreshSyncLine();
+}
+async function firstSync(){
+  // stamp existing local data so it can be merged with the account (newest wins)
+  const m = LS.get("lan.mtime", {}), d = LS.get("lan.dirty", {});
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(!SYNC_RE.test(k)) continue;
+    if(!m[k]){ const v = LS.get(k, null); m[k] = (v && v.updated) || 1; }
+    d[k] = 1;
+  }
+  localStorage.setItem("lan.mtime", JSON.stringify(m)); localStorage.setItem("lan.dirty", JSON.stringify(d));
+  localStorage.removeItem("lan.sync.last");
+  await syncNow(true);
+}
+async function syncPush(){
+  const dirty = LS.get("lan.dirty", {}), mt = LS.get("lan.mtime", {});
+  const keys = Object.keys(dirty);
+  if(!keys.length) return;
+  const snap = {};
+  const rows = keys.map(k => {
+    snap[k] = mt[k] || Date.now();
+    const raw = localStorage.getItem(k);
+    let data = raw ? JSON.parse(raw) : null;
+    if(k === "lan.settings" && data && !settings.syncApiKey){ data = Object.assign({}, data); delete data.apiKey; }
+    return { user_id: auth.user.id, key: k.slice(4), data, mtime: snap[k], deleted: !raw };
+  });
+  for(let i = 0; i < rows.length; i += 15){
+    await sbFetch("/rest/v1/lanterne_docs?on_conflict=user_id,key", { method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows.slice(i, i + 15)) });
+  }
+  const now = LS.get("lan.mtime", {}), d2 = LS.get("lan.dirty", {});
+  keys.forEach(k => { if((now[k] || 0) === snap[k]) delete d2[k]; });
+  localStorage.setItem("lan.dirty", JSON.stringify(d2));
+}
+async function syncPull(){
+  let last = localStorage.getItem("lan.sync.last") || "1970-01-01T00:00:00Z";
+  const changed = [];
+  for(let page = 0; page < 20; page++){
+    const rows = await sbFetch(`/rest/v1/lanterne_docs?select=key,data,mtime,deleted,updated_at&updated_at=gt.${encodeURIComponent(last)}&order=updated_at.asc&limit=200`);
+    if(!rows || !rows.length) break;
+    const mt = LS.get("lan.mtime", {}), dirty = LS.get("lan.dirty", {});
+    rows.forEach(r => {
+      last = r.updated_at;
+      const k = "lan." + r.key;
+      if(!SYNC_RE.test(k)) return;
+      const localM = mt[k] || 0;
+      if(Number(r.mtime) <= localM) return;
+      if(r.deleted) localStorage.removeItem(k);
+      else{
+        let data = r.data;
+        if(k === "lan.settings"){ const cur = LS.get(k, {}); if(!data.apiKey && cur.apiKey) data = Object.assign({}, data, { apiKey: cur.apiKey }); }
+        localStorage.setItem(k, JSON.stringify(data));
+      }
+      mt[k] = Number(r.mtime); delete dirty[k]; changed.push(k);
+    });
+    localStorage.setItem("lan.mtime", JSON.stringify(mt)); localStorage.setItem("lan.dirty", JSON.stringify(dirty));
+    localStorage.setItem("lan.sync.last", last);
+    if(rows.length < 200) break;
+  }
+  if(changed.length) applyPulled(changed);
+}
+function applyPulled(keys){
+  let advChanged = false;
+  keys.forEach(k => {
+    if(k === "lan.settings") settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
+    else if(k === "lan.stats") stats = Object.assign({ total: 0, since: Date.now(), turns: 0, words: 0, playerWords: 0, byMonth: {}, byModel: {}, days: {} }, LS.get("lan.stats", {}));
+    else{
+      const id = k.replace(/^lan\.(adv|cover)\./, "");
+      const a = LS.get("lan.adv." + id, null);
+      index = index.filter(x => x.id !== id);
+      if(a) index.push(indexEntry(a));
+      if(adv && adv.id === id) advChanged = true;
+    }
+  });
+  index.sort((x, y) => y.updated - x.updated);
+  localStorage.setItem("lan.index", JSON.stringify(index));
+  const sheetOpen = !!$("#sheetHost").innerHTML;
+  if(sheetOpen && (!adv || advChanged)){ syncPendingUI = true; return; }
+  if(!adv){ if(!$(".ob")) showLibrary(); }
+  else if(advChanged && !generating){
+    const a = LS.get("lan.adv." + adv.id, null);
+    if(a){ adv = migrate(a); applyStyle(adv.style); setHeaderTitle(adv.title, false); renderStory(false); }
+    else showLibrary();
+  }
+}
+async function syncNow(manual){
+  if(!auth || !syncConf().url){ refreshSyncLine(); return; }
+  if(syncState.busy){ if(manual) toast("Synchronisation déjà en cours"); return; }
+  syncState.busy = true; refreshSyncLine();
+  try{
+    await syncPush(); await syncPull(); await syncPush();
+    syncState.err = ""; syncState.last = Date.now(); LS.set("lan.sync.when", syncState.last);
+    if(manual) toast("Synchronisé ✓");
+  }catch(e){
+    syncState.err = /fetch|network/i.test(e.message) ? "hors ligne" : e.message;
+    if(manual) toast("Synchro impossible : " + syncState.err);
+  }
+  syncState.busy = false; refreshSyncLine();
+}
+setInterval(() => { if(document.visibilityState === "visible") syncNow(false); }, 25000);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") syncNow(false); else syncPush().catch(() => {}); });
+window.addEventListener("online", () => syncNow(false));
+
+function renderSyncTab(body){
+  const c = syncConf();
+  hint(body, "Crée un compte pour retrouver tes aventures, réglages et stats sur tous tes appareils (PC, téléphone…). Chaque compte est privé : tes potes ont le leur.");
+  const st = el("div", "card"); st.id = "syncTabStatus"; st.innerHTML = syncLabel(); body.appendChild(st);
+  if(!c.url || !c.key){
+    hint(body, "⚠ Le serveur de synchronisation n'est pas encore configuré. Remplis les deux champs ci-dessous (dans « Serveur »).");
+  } else if(!auth){
+    let email = "", pw = "";
+    field(body, "E-mail", "", v => email = v.trim(), { type: "email", placeholder: "toi@exemple.com" });
+    field(body, "Mot de passe", "", v => pw = v, { type: "password", placeholder: "6 caractères minimum" });
+    const r = el("div", "row"); body.appendChild(r);
+    const go = (fn, label) => async (ev) => {
+      const b = ev.currentTarget; if(!email || !pw) return toast("Remplis l'e-mail et le mot de passe");
+      b.disabled = true; const t = b.textContent; b.textContent = "…";
+      try{ await fn(email, pw); toast(label); openSettings("sync"); }catch(e){ toast(e.message); }
+      b.disabled = false; b.textContent = t;
+    };
+    btn(r, "Se connecter", "", go(signIn, "Connecté ✓")).style.flex = "1";
+    btn(r, "Créer un compte", "ghost", go(signUp, "Compte créé ✓")).style.flex = "1";
+    hint(body, "À la première connexion sur un appareil, les aventures déjà présentes sont fusionnées avec celles du compte (rien n'est perdu : la version la plus récente gagne).").style.marginTop = "12px";
+  } else {
+    body.appendChild(el("div", "stat", `<span>Connecté</span><b>${esc(auth.user.email)}</b>`));
+    btn(body, "Synchroniser maintenant", "wide", () => syncNow(true)).style.marginBottom = "16px";
+    toggle(body, "Synchroniser aussi la clé API", "Pratique : rien à recoller sur le PC. Elle est stockée dans ton compte, visible par toi seul.", () => settings.syncApiKey, v => { settings.syncApiKey = v; saveSettings(); });
+    btn(body, "Se déconnecter", "ghost small", () => { if(confirm("Se déconnecter ? Tes aventures restent sur cet appareil.")){ signOut(); openSettings("sync"); } });
+  }
+  const det = el("details", "fold", `<summary>Serveur (avancé)</summary><div class="in"></div>`);
+  if(!c.url || !c.key) det.open = true;
+  body.appendChild(det); det.style.marginTop = "18px";
+  const din = det.querySelector(".in");
+  let u = LS.get("lan.syncconf", {}).url || "", k2 = LS.get("lan.syncconf", {}).key || "";
+  field(din, "Adresse du projet Supabase", u || SYNC_DEFAULT.url, v => u = v, { placeholder: "https://xxxx.supabase.co" });
+  field(din, "Clé publique (anon / publishable)", k2 || SYNC_DEFAULT.key, v => k2 = v, { placeholder: "eyJ… ou sb_publishable_…" });
+  btn(din, "Enregistrer", "ghost small", () => { LS.set("lan.syncconf", { url: u.trim(), key: k2.trim() }); toast("Serveur enregistré"); openSettings("sync"); }).style.marginBottom = "12px";
+}
+
 /* ================= Adventure sheet ================= */
 function openAdventureSheet(start){
   const tabs = [["plot","Intrigue"],["cards","Story Cards"],["scripts","Scripts"],["instr","Instructions"],["look","Apparence"],["misc","Aventure"]];
@@ -1768,7 +1985,8 @@ function renderStatsTab(body){
   if(!stats.turns) hint(body, "Les statistiques se remplissent au fil de tes parties.");
 }
 function openSettings(start){
-  openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Mémoire"],["voice","Voix"],["stats","Stats"],["data","Données"]], (k, body) => {
+  openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Mémoire"],["voice","Voix"],["sync","Compte"],["stats","Stats"],["data","Données"]], (k, body) => {
+    if(k === "sync") renderSyncTab(body);
     if(k === "voice") renderVoiceTab(body);
     if(k === "stats") renderStatsTab(body);
     if(k === "model"){
@@ -1917,6 +2135,7 @@ window.addEventListener("beforeunload", () => saveAdv());
 updateTools();
 showLibrary();
 onboarding();
+syncNow(false);
 loadFx().then(() => { if(!adv && !$("#sheetHost").innerHTML) showLibrary(); });
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(() => {});

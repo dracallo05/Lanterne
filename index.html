@@ -76,6 +76,34 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .item .grow{flex:1;min-width:0}
 .item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .m{color:var(--tx3);font-size:12px;margin-top:3px}
+.feat,.item{cursor:pointer;position:relative}
+.acts{display:flex;align-items:center;gap:6px;flex:none}
+.play{width:40px;height:40px;border-radius:50%;background:var(--acc);color:var(--onacc);display:grid;place-items:center;flex:none;border:0;transition:transform .15s,filter .15s}
+.play:hover{transform:scale(1.07);filter:brightness(1.08)}
+.play svg{width:16px;height:16px;margin-left:2px}
+.trash{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--tx3);background:transparent;border:0;opacity:.55;transition:opacity .15s,color .15s,background .15s}
+.trash svg{width:17px;height:17px}
+.trash:hover{opacity:1;color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}
+.feat .row2{display:flex;align-items:center;gap:12px}
+.feat .row2 .grow{flex:1;min-width:0}
+.feat .play{width:46px;height:46px}
+@media (hover:hover){.trash{opacity:0}.feat:hover .trash,.item:hover .trash,.trash:focus-visible{opacity:.6}.trash:hover{opacity:1}}
+.app.wide{max-width:1180px}
+@media (min-width:900px){
+  .app.wide .pad{padding:24px 32px}
+  .app.wide .hero{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:end}
+  .app.wide .hero .greet,.app.wide .hero .sub{grid-column:1}
+  .app.wide .hero > .wide{grid-column:2;grid-row:1 / span 2;margin-top:0 !important;align-self:end}
+  .app.wide .hero .stats,.app.wide .hero .syncline{grid-column:1 / -1}
+  .app.wide .hero .syncline{justify-self:start}
+  .app.wide .feat{display:flex;align-items:stretch}
+  .app.wide .feat .cover{width:46%;height:auto;min-height:220px;flex:none}
+  .app.wide .feat .in{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:22px 24px}
+  .app.wide .feat .t{font-size:22px}
+  .app.wide .feat .s{-webkit-line-clamp:4;font-size:14px}
+  .app.wide .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+  .app.wide .grid .item{margin-bottom:0}
+}
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
 .card .t{font-weight:600}
 .card .s{color:var(--tx3);font-size:13px;margin-top:3px}
@@ -540,8 +568,15 @@ function ago(t){
 /* ================= Library ================= */
 function setHeaderTitle(text, withLogo){ $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>`; }
 const TAGLINES = ["Prêt pour l'aventure ?", "Qui seras-tu aujourd'hui ?", "Un monde t'attend. À toi de jouer.", "Où est-ce qu'on part ?", "Le donjon est ouvert."];
+function deleteAdventure(id, title){
+  if(!confirm(`Supprimer définitivement « ${title || "cette aventure"} » ?`)) return;
+  LS.del("lan.adv." + id); LS.del("lan.cover." + id);
+  index = index.filter(x => x.id !== id); LS.set("lan.index", index);
+  if(adv && adv.id === id){ closeSheet(); }
+  showLibrary(); toast("Aventure supprimée");
+}
 function showLibrary(){
-  stopGen(); adv = null;
+  stopGen(); adv = null; $(".app").classList.add("wide");
   applyStyle(DEFAULT_STYLE);
   $("#libView").classList.remove("hidden");
   $("#storyView").classList.add("hidden"); $("#bar").classList.add("hidden");
@@ -564,20 +599,32 @@ function showLibrary(){
     return;
   }
   const [first, ...rest] = list;
+  const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 001.5.86l12.5-7.5a1 1 0 000-1.72L8.5 3.64A1 1 0 007 4.5z"/></svg>`;
+  const TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>`;
+  const acts = (x, host) => {
+    const a = el("div", "acts", `<button class="trash" aria-label="Supprimer" title="Supprimer">${TRASH}</button><button class="play" aria-label="Jouer" title="Jouer">${PLAY}</button>`);
+    a.querySelector(".trash").onclick = e => { e.stopPropagation(); deleteAdventure(x.id, x.title); };
+    a.querySelector(".play").onclick = e => { e.stopPropagation(); openAdventure(x.id); };
+    host.appendChild(a);
+  };
+  const clickable = (node, id) => { node.tabIndex = 0; node.setAttribute("role", "button"); node.onclick = () => openAdventure(id); node.onkeydown = e => { if(e.key === "Enter" && e.target === node) openAdventure(id); }; };
   lib.appendChild(el("div", "secT", "Reprendre"));
-  const f = el("button", "feat");
+  const f = el("div", "feat");
   f.appendChild(coverEl("", first.hasCover ? first.id : null, first.title, first.coverPos));
-  f.appendChild(el("div", "in", `<div class="t">${esc(first.title)}</div>${first.summary ? `<div class="s">${esc(first.summary)}</div>` : ""}<div class="go">Continuer l'histoire →</div>`));
-  f.onclick = () => openAdventure(first.id);
+  const fin = el("div", "in"); f.appendChild(fin);
+  const r2 = el("div", "row2", `<div class="grow"><div class="t">${esc(first.title)}</div>${first.summary ? `<div class="s">${esc(first.summary)}</div>` : ""}</div>`);
+  fin.appendChild(r2); acts(first, r2);
+  clickable(f, first.id);
   lib.appendChild(f);
   if(rest.length){
     lib.appendChild(el("div", "secT", "Toutes les aventures"));
+    const grid = el("div", "grid"); lib.appendChild(grid);
     rest.forEach(x => {
-      const it = el("button", "item");
+      const it = el("div", "item");
       it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos));
       it.appendChild(el("div", "grow", `<div class="t">${esc(x.title)}</div><div class="m">${ago(x.updated)}${x.spent ? " · " + money(x.spent) : ""}</div>`));
-      it.onclick = () => openAdventure(x.id);
-      lib.appendChild(it);
+      acts(x, it); clickable(it, x.id);
+      grid.appendChild(it);
     });
   }
 }
@@ -796,6 +843,7 @@ function openAdventure(id){
   if(!a){ toast("Aventure introuvable"); index = index.filter(x => x.id !== id); LS.set("lan.index", index); return showLibrary(); }
   adv = migrate(a); redoStack = []; lastCost = null;
   applyStyle(adv.style);
+  $(".app").classList.remove("wide");
   $("#libView").classList.add("hidden");
   $("#storyView").classList.remove("hidden"); $("#bar").classList.remove("hidden");
   $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.remove("hidden"); $("#searchBtn").classList.remove("hidden");
@@ -1704,11 +1752,7 @@ function renderMiscTab(body){
   });
   btn(r, "Partager le scénario", "", shareScenario);
   btn(r, "Exporter", "ghost", () => download(`${slug(adv.title)}.json`, { lanterne: 1, adventures: [Object.assign({}, adv, { cover: adv.hasCover ? getCover(adv.id) : undefined })] }));
-  btn(r, "Supprimer", "danger", () => {
-    if(!confirm("Supprimer définitivement cette aventure ?")) return;
-    LS.del("lan.adv." + adv.id); LS.del("lan.cover." + adv.id);
-    index = index.filter(x => x.id !== adv.id); LS.set("lan.index", index); closeSheet(); showLibrary();
-  });
+  btn(r, "Supprimer", "danger", () => deleteAdventure(adv.id, adv.title));
 }
 let showTech = false;
 function renderCardsTab(body){

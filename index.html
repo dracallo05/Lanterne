@@ -164,8 +164,8 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .app.wide .grid .item:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:color-mix(in srgb,var(--acc) 4%,var(--bg2))}
 }
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
-.libtabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:18px 2px 4px}
-.ltab{background:none;border:0;padding:10px 0;font-weight:600;font-size:15px;color:var(--tx3);border-bottom:2px solid transparent;margin-bottom:-1px}
+.libtabs{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);margin:18px 2px 4px}
+.ltab{background:none;border:0;padding:10px 0;white-space:nowrap;flex:none;font-weight:600;font-size:15px;color:var(--tx3);border-bottom:2px solid transparent;margin-bottom:-1px}
 .ltab.on{color:var(--tx);border-color:var(--acc)}
 .disc{padding-top:12px}
 .dtop{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
@@ -308,6 +308,8 @@ input[type=range]{padding:0;border:0;background:transparent;height:30px;accent-c
 .sc{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px}
 .sc .t{font-weight:600}
 .sc .k{color:var(--acc2);font-size:12px;margin-top:2px}
+.sc .imp{color:var(--acc);font-size:11px;margin-left:6px;letter-spacing:1px}
+.sc.mem .e{-webkit-line-clamp:4;color:var(--tx2)}
 .sc .e{color:var(--tx3);font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
 pre.ctx{white-space:pre-wrap;font-size:12px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--tx2);overflow:auto}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
@@ -423,7 +425,7 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
 <script>
 "use strict";
 /* ================= Storage ================= */
-const SYNC_RE = /^lan\.(adv|cover)\.|^lan\.(settings|stats)$/;
+const SYNC_RE = /^lan\.(adv|cover|scn)\.|^lan\.(settings|stats)$/;
 const LS = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); if(SYNC_RE.test(k)) syncTouch(k); return true; }catch(e){ toast("Sauvegarde impossible : " + e.message); return false; } },
@@ -450,7 +452,7 @@ const SCRIPT_GLUE = `The user message contains the full story context. Continue 
 const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »</em>`;
 const KEYS_HINT = "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.";
 const TYPES = ["personnage","lieu","objet","faction","concept","autre"];
-const SCRIPT_DEF = () => ({ ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true, minds: false, mindEvery: 2, mindChips: true });
+const SCRIPT_DEF = () => ({ ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true, minds: false, mindEvery: 2, mindChips: true, mem: true });
 
 const THEMES = {
   braise:    { name: "Braise",    v: { bg:"#1f1e1c", bg2:"#262624", bg3:"#30302e", line:"#3d3c39", tx:"#e8e6dc", tx2:"#b5b3aa", tx3:"#85837b", acc:"#d97757", acc2:"#e8957a", onacc:"#1b1410" } },
@@ -477,7 +479,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR"
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small"
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -631,6 +633,7 @@ function migrate(a){
   a.style = Object.assign({}, DEFAULT_STYLE, a.style || {});
   a.scripts = Object.assign(SCRIPT_DEF(), a.scripts || {});
   a.pending ||= []; a.scIgnore ||= []; a.arOff ||= []; a.arUser ??= ""; a.minds ||= {};
+  if(!a.origin && a.actions.some(x => x.type === "ai")) a.origin = originOf(a); // parties d'avant la 7.4 : on fige le départ tel qu'il est aujourd'hui
 
   a.scriptState ||= {};
   a.cards = a.cards.map(normalizeCard);
@@ -818,8 +821,10 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "7.3";
+const APP_VERSION = "7.4";
 const CHANGELOG = [
+  { v: "7.4", fr: ["Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée", "Recommencer : chaque partie garde son matériel de départ et peut repartir de zéro (Aventure → Recommencer, ou ⋯ dans la bibliothèque)", "Création de personnage disponible dès la création d'une aventure ou d'un scénario", "Rien n'est publié sans ton accord : la publication dans Découvrir reste un bouton à part", "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène (par le sens, pas seulement par mots-clés)", "Les souvenirs se lisent, se modifient, s'épinglent et se cherchent (Aventure → Mémoire longue)", "Après un import, Lanterne propose de tout mémoriser et de refaire le résumé de toute l'histoire", "Import AI Dungeon : le vrai titre de l'aventure est repris (plus « Configure Inner Self »)"],
+    en: ["My scenarios: your private scenarios, kept apart from your games. Editing them never touches games already started", "Restart: every game keeps its starting material and can start over from scratch (Adventure → Restart, or ⋯ in the library)", "Character creation available as soon as you create an adventure or scenario", "Nothing is published without your say: publishing to Discover stays a separate button", "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene (by meaning, not just keywords)", "Memories can be read, edited, pinned and searched (Adventure → Long-term memory)", "After an import, Lanterne offers to memorize everything and rebuild the whole story's summary", "AI Dungeon import: the real adventure title is kept (no more “Configure Inner Self”)"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés entre joueurs, avec recherche, genres, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import depuis AI Dungeon : aventures, scénarios et Story Cards"],
     en: ["Discover tab: scenarios shared between players, with search, genres, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import from AI Dungeon: adventures, scenarios and Story Cards"] },
   { v: "7.2", fr: ["Esprit des personnages : humeur, relation avec toi (confiance, affection, peur, tension), objectifs, plan, ce qu'ils savent, secrets, façon de parler", "Les personnages vivent hors champ et ne savent que ce qu'ils ont vu ou entendu", "Onglet Scripts réorganisé : outils Lanterne recommandés en haut, scripts AI Dungeon (Auto-Cards, Inner Self) à part en dessous"],
@@ -857,7 +862,7 @@ function openChangelog(){
 const TAGLINES = ["Prêt pour l'aventure ?", "Qui seras-tu aujourd'hui ?", "Un monde t'attend. À toi de jouer.", "Où est-ce qu'on part ?", "Le donjon est ouvert."];
 function coverMenu(btnEl, x){
   document.querySelectorAll(".menu").forEach(m => m.remove());
-  const m = el("div", "menu", `<button data-a="cover">Changer l'image</button>${x.hasCover ? `<button data-a="nocover">Retirer l'image</button>` : ""}`);
+  const m = el("div", "menu", `<button data-a="restart">${L("↺ Recommencer", "↺ Restart")}</button><button data-a="cover">Changer l'image</button>${x.hasCover ? `<button data-a="nocover">Retirer l'image</button>` : ""}`);
   document.body.appendChild(m);
   const r = btnEl.getBoundingClientRect(), mh = m.offsetHeight;
   m.style.left = Math.max(8, Math.min(r.right - 190, innerWidth - 198)) + "px";
@@ -868,6 +873,7 @@ function coverMenu(btnEl, x){
   m.onclick = async ev => {
     const act = ev.target.dataset.a; if(!act) return; close();
     const a = LS.get("lan.adv." + x.id, null); if(!a) return;
+    if(act === "restart") return restartAdventure(migrate(a));
     if(act === "cover"){
       const img = await chooseCover(); if(!img) return;
       if(!LS.set("lan.cover." + x.id, img)) return toast("Image trop lourde pour le stockage");
@@ -885,6 +891,11 @@ function deleteAdventure(id, title){
   if(adv && adv.id === id){ closeSheet(); }
   showLibrary(); toast("Aventure supprimée");
 }
+const LIB_ICONS = {
+  PLAY: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.2v13.6a1 1 0 001.5.86l10.6-6.8a1 1 0 000-1.72L10 4.34a1 1 0 00-1.5.86z"/></svg>`,
+  MORE: `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>`,
+  TRASH: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>`
+};
 function showLibrary(){
   stopGen(); adv = null; $(".app").classList.add("wide");
   applyStyle(DEFAULT_STYLE);
@@ -906,14 +917,13 @@ function showLibrary(){
   }
   libTabs(lib);
   if(libTab === "discover"){ renderDiscover(lib); return; }
+  if(libTab === "scn"){ renderMyScenarios(lib, LIB_ICONS); return; }
   if(!list.length){
     lib.appendChild(el("div", "empty", "Aucune aventure pour l'instant.<br>Crée-en une pour commencer."));
     return;
   }
   const [first, ...rest] = list;
-  const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.2v13.6a1 1 0 001.5.86l10.6-6.8a1 1 0 000-1.72L10 4.34a1 1 0 00-1.5.86z"/></svg>`;
-  const MORE = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>`;
-  const TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>`;
+  const { PLAY, MORE, TRASH } = LIB_ICONS;
   const acts = (x, host) => {
     const a = el("div", "acts", `<div class="mini"><button class="more" aria-label="Options" title="Options">${MORE}</button><button class="trash" aria-label="Supprimer" title="Supprimer">${TRASH}</button></div><button class="play" aria-label="Jouer" title="Jouer">${PLAY}</button>`);
     a.querySelector(".trash").onclick = e => { e.stopPropagation(); deleteAdventure(x.id, x.title); };
@@ -1063,19 +1073,26 @@ Return ONLY the instructions, no preamble.`;
 }
 
 /* ================= Adventure wizard ================= */
-function adventureWizard(pre){
+/* Éditeur de scénario. mode "adventure" : nouvelle aventure (gardée aussi dans Mes scénarios si coché) ;
+   mode "scenario" : création ou modification d'un scénario privé (opts.scn), sans rien lancer ni publier. */
+function adventureWizard(pre, opts = {}){
+  let scn = opts.scn || null;
+  const mode = scn || opts.mode === "scenario" ? "scenario" : "adventure";
   const d = Object.assign({ title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [], cover: null,
-    scripts: SCRIPT_DEF() }, pre || {});
-  let idea = "", genOpen = false, wish = "";
+    scripts: SCRIPT_DEF(), character: { enabled: false, fields: ["name", "gender", "look", "personality"], questions: [] } }, pre || {});
+  d.character = Object.assign({ enabled: false, fields: [], questions: [] }, d.character || {});
+  let idea = "", genOpen = false, wish = "", keep = true, dirty = false;
   const render = (b) => {
     b.innerHTML = "";
-    const pc = coverFramer(b, () => d.cover, () => d.coverPos, v => d.coverPos = v);
+    if(mode === "scenario") hint(b, L("🔒 Un scénario est privé : il reste chez toi (et dans ton compte chiffré). Il n'est publié dans Découvrir que si tu le demandes. Le modifier ne touche à aucune partie déjà lancée.", "🔒 A scenario is private: it stays with you (and in your encrypted account). It only goes to Discover if you ask. Editing it never touches games already started.")).style.marginBottom = "12px";
+    const pc = coverFramer(b, () => d.cover, () => d.coverPos, v => { d.coverPos = v; dirty = true; });
     if(!d.cover) pc.textContent = "＋ Image de couverture (optionnel)";
-    pc.onclick = async () => { const img = await chooseCover(); if(img){ d.cover = img; d.coverPos = 50; render(b); } };
+    pc.onclick = async () => { const img = await chooseCover(); if(img){ d.cover = img; d.coverPos = 50; dirty = true; render(b); } };
+    if(d.cover){ const rm = btn(b, L("Retirer l'image", "Remove image"), "ghost small", () => { d.cover = null; dirty = true; render(b); }); rm.style.margin = "-6px 0 12px"; }
 
     const gr = el("div", "row"); gr.style.cssText = "flex-wrap:wrap;margin-bottom:14px"; b.appendChild(gr);
     btn(gr, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer", "ghost small", () => { genOpen = !genOpen; render(b); });
-    btn(gr, "📥 Importer un scénario", "ghost small", () => { closeSheet(); importScenarioFile(); });
+    if(!scn) btn(gr, "📥 Importer un scénario", "ghost small", () => { closeSheet(); importScenarioFile(mode === "scenario"); });
     if(genOpen){
       const g = el("div", "genbox", `<div class="hint" style="margin:0 0 8px">Décris une envie en une phrase, ou laisse vide pour une surprise. L'IA remplit le titre, l'ouverture, les essentiels et la note d'auteur.</div>`);
       b.appendChild(g);
@@ -1086,43 +1103,171 @@ function adventureWizard(pre){
         gb.disabled = true; gb.textContent = "Génération…";
         try{
           const s = await generateScenario(d, idea);
-          d.title = s.title || d.title; d.opening = s.opening || d.opening; d.essentials = s.essentials || d.essentials; d.authorsNote = s.authorsNote || d.authorsNote;
+          d.title = s.title || d.title; d.opening = s.opening || d.opening; d.essentials = s.essentials || d.essentials; d.authorsNote = s.authorsNote || d.authorsNote; dirty = true;
           genOpen = false; toast("Scénario généré, ajuste-le à ton goût"); render(b);
         }catch(e){ toast("Échec : " + e.message); gb.disabled = false; gb.textContent = "Générer"; }
       });
       gb.style.marginTop = "10px";
     }
 
-    field(b, "Titre", d.title, v => d.title = v, { placeholder: "Le nom de ton aventure" });
-    field(b, "Texte d'ouverture", d.opening, v => d.opening = v, { multiline: true, rows: 6, hint: "Le début de l'histoire, à la 2e personne. L'IA continuera à partir de là.", placeholder: "Tu pousses la porte de l'auberge. Dehors, la tempête redouble…" });
-    field(b, "Plot Essentials", d.essentials, v => d.essentials = v, { multiline: true, rows: 4, hint: "Ce que l'IA doit toujours savoir : qui tu es, le monde, les relations, l'enjeu." });
-    field(b, "Note d'auteur", d.authorsNote, v => d.authorsNote = v, { multiline: true, rows: 2, hint: AN_HINT, hintHtml: true });
+    const ch = v => { dirty = true; return v; };
+    field(b, "Titre", d.title, v => d.title = ch(v), { placeholder: mode === "scenario" ? L("Le nom de ton scénario", "Your scenario's name") : "Le nom de ton aventure" });
+    field(b, "Texte d'ouverture", d.opening, v => d.opening = ch(v), { multiline: true, rows: 6, hint: "Le début de l'histoire, à la 2e personne. L'IA continuera à partir de là.", placeholder: "Tu pousses la porte de l'auberge. Dehors, la tempête redouble…" });
+    field(b, "Plot Essentials", d.essentials, v => d.essentials = ch(v), { multiline: true, rows: 4, hint: "Ce que l'IA doit toujours savoir : qui tu es, le monde, les relations, l'enjeu." });
+    field(b, "Note d'auteur", d.authorsNote, v => d.authorsNote = ch(v), { multiline: true, rows: 2, hint: AN_HINT, hintHtml: true });
 
     sec(b, `Story Cards (${d.cards.length})`);
     hint(b, "Personnages, lieux, objets… Tu peux en ajouter maintenant ou plus tard.");
-    d.cards.forEach(c => b.appendChild(cardTile(c, () => editCard(c, d.cards, wizardCtx(d), reopen))));
-    btn(b, "+ Ajouter une carte", "ghost small", () => editCard(null, d.cards, wizardCtx(d), reopen)).style.marginBottom = "6px";
+    d.cards.forEach(c => b.appendChild(cardTile(c, () => { dirty = true; editCard(c, d.cards, wizardCtx(d), reopen); })));
+    btn(b, "+ Ajouter une carte", "ghost small", () => { dirty = true; editCard(null, d.cards, wizardCtx(d), reopen); }).style.marginBottom = "6px";
+
+    sec(b, L("Personnage du joueur", "Player character"));
+    charConfigEditor(b, d.character, () => dirty = true);
 
     sec(b, "Outils et scripts (optionnel)");
-    scriptToggles(b, d.scripts, () => {}, () => render(b));
+    scriptToggles(b, d.scripts, () => dirty = true, () => render(b));
 
     sec(b, "Avancé");
     const det = el("details", "fold", `<summary>Instructions de l'IA</summary><div class="in"></div>`);
     b.appendChild(det);
-    instructionsEditor(det.querySelector(".in"), () => d.instructions, v => d.instructions = v, () => wish, v => wish = v);
+    instructionsEditor(det.querySelector(".in"), () => d.instructions, v => { d.instructions = v; dirty = true; }, () => wish, v => wish = v);
 
-    btn(b, "Commencer l'aventure", "wide", () => {
-      const a = blankAdventure();
-      a.title = d.title.trim() || L("Nouvelle aventure", "New adventure");
-      Object.assign(a, { essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions, cards: d.cards, scripts: d.scripts });
-      if(d.style) a.style = Object.assign({}, DEFAULT_STYLE, d.style);
-      if(d.cover){ if(LS.set("lan.cover." + a.id, d.cover)){ a.hasCover = true; a.coverPos = d.coverPos ?? 50; } }
-      if(d.opening.trim()) a.actions.push({ id: uid(), type: "ai", text: d.opening.trim() });
-      adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
-    }).style.marginTop = "18px";
+    if(mode === "adventure"){
+      const kp = toggle(b, L("Garder dans Mes scénarios", "Keep in My scenarios"), L("Une copie intacte de ce départ, pour recommencer de zéro ou relancer une autre partie. Elle reste privée.", "An untouched copy of this start, to restart from scratch or launch another game. It stays private."), () => keep, v => keep = v);
+      kp.style.marginTop = "18px";
+      btn(b, "Commencer l'aventure", "wide", () => {
+        const sc = wizSc(d);
+        let sid = null;
+        if(keep){ const sn = scnFromSc(sc); saveScn(sn); sid = sn.id; }
+        closeSheet(); playScenario(sc, null, { scenarioId: sid });
+      }).style.marginTop = "10px";
+    } else {
+      const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;margin-top:18px"; b.appendChild(r);
+      const save = () => { scn = writeScn(scn, d); dirty = false; return scn; };
+      btn(r, "▶ " + L("Jouer", "Play"), "", () => { const t = save(); closeSheet(); playScenario(scnToSc(t), null, { scenarioId: t.id }); }).style.flex = "1";
+      btn(r, L("Enregistrer", "Save"), "ghost", () => { save(); toast(L("Scénario enregistré", "Scenario saved")); closeSheet(); if(!adv) showLibrary(); });
+      if(scn){
+        const r2 = el("div", "row"); r2.style.cssText = "flex-wrap:wrap;margin-top:10px;gap:8px"; b.appendChild(r2);
+        if(scn.publishedId || canPublish()) btn(r2, scn.publishedId ? L("Mettre à jour dans Découvrir", "Update in Discover") : L("Publier dans Découvrir", "Publish to Discover"), "ghost small", () => {
+          if(!auth || !hasKey()) return toast(L("Connecte-toi d'abord (Réglages → Compte)", "Sign in first (Settings → Account)"));
+          const t = save(); publishSheet(() => adventureWizard(scnPre(t), { scn: t }), scnTarget(t));
+        });
+        btn(r2, L("Dupliquer", "Duplicate"), "ghost small", () => { const t = save(); const c = scnFromSc(Object.assign(scnToSc(t), { title: t.title + L(" (copie)", " (copy)") })); c.publish = clone(t.publish); delete c.publishedId; saveScn(c); toast(L("Copie créée", "Copy created")); closeSheet(); showLibrary(); });
+        btn(r2, L("Exporter", "Export"), "ghost small", () => { const t = save(); download(`scenario-${slug(t.title)}.json`, scnToSc(t)); });
+        btn(r2, L("Supprimer", "Delete"), "danger small", () => { if(deleteScn(scn)){ closeSheet(); showLibrary(); } });
+        if(scn.publishedId) hint(b, L("Publié dans Découvrir. Tes modifications ne sont visibles des autres qu'après « Mettre à jour ».", "Published in Discover. Your edits are only visible to others after “Update”.")).style.marginTop = "10px";
+      }
+    }
   };
-  const reopen = () => openSheet("Nouvelle aventure", null, (_, b) => render(b));
+  const title = mode === "adventure" ? "Nouvelle aventure" : scn ? L("Scénario", "Scenario") : L("Nouveau scénario", "New scenario");
+  const reopen = () => openSheet(title, null, (_, b) => render(b));
   reopen();
+}
+const wizSc = d => ({ lanterne_scenario: 1, title: d.title.trim() || L("Nouvelle aventure", "New adventure"), opening: d.opening.trim(), essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions,
+  cards: d.cards.map(c => ({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })), scripts: Object.assign({}, d.scripts), style: d.style, cover: d.cover || undefined, coverPos: d.coverPos ?? 50, character: clone(d.character) });
+function charConfigEditor(b, c, onChange){
+  let sub;
+  toggle(b, L("Le joueur crée son personnage", "The player creates their character"), L("Au lancement, un petit formulaire demande ce que tu coches. Pas besoin de balises dans ton texte : écris à la 2e personne (« tu »), Lanterne ajoute le personnage aux essentiels et adapte le début tout seul.", "At launch, a short form asks for what you tick. No tags needed in your text: write in second person (“you”), Lanterne adds the character to the essentials and adapts the opening on its own."), () => c.enabled, v => { c.enabled = v; if(v && !c.fields.length && !c.questions.length) c.fields = ["name", "gender", "look", "personality"]; sub.classList.toggle("hidden", !v); onChange(); });
+  sub = el("div", "subopts" + (c.enabled ? "" : " hidden")); b.appendChild(sub);
+  const fl = el("div", "chips"); sub.appendChild(fl);
+  const drawChips = () => { fl.innerHTML = ""; CHAR_FIELDS.forEach(([f, fr, en]) => { const on = c.fields.includes(f); const x = el("button", "mode" + (on ? " on" : ""), L(fr, en)); x.onclick = ev => { ev.preventDefault(); c.fields = on ? c.fields.filter(y => y !== f) : [...c.fields, f]; onChange(); drawChips(); }; fl.appendChild(x); }); };
+  drawChips();
+  field(sub, L("Questions en plus", "Extra questions"), c.questions.join("\n"), v => { c.questions = v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 6); onChange(); }, { multiline: true, rows: 2, placeholder: L("Une par ligne. Ex. : Quelle est ta classe ?", "One per line. E.g. What is your class?"), hint: L("Avancé : pour placer une réponse à un endroit précis du texte, écris {nom}, {genre}, {âge}, {apparence}, {personnalité}, {passé}, ou {1}, {2}… pour tes questions. Les balises ${…} d'AI Dungeon marchent aussi.", "Advanced: to place an answer at a precise spot in the text, write {name}, {gender}, {age}, {appearance}, {personality}, {background}, or {1}, {2}… for your questions. AI Dungeon ${…} tags work too.") });
+}
+/* ---- Mes scénarios (privés, stockés à part des parties) ---- */
+const scnKey = id => "lan.scn." + id;
+function scnList(){
+  const out = [];
+  for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.id) out.push(v); } }
+  return out.sort((a, b) => (b.updated || 0) - (a.updated || 0));
+}
+function saveScn(t){ t.updated = Date.now(); return LS.set(scnKey(t.id), t); }
+function scnFromSc(sc){
+  const t = { id: uid(), created: Date.now(), updated: Date.now(), title: sc.title || L("Sans titre", "Untitled"), opening: sc.opening || "", essentials: sc.essentials || "", authorsNote: sc.authorsNote || "",
+    instructions: sc.instructions || DEFAULT_INSTRUCTIONS, cards: (sc.cards || []).map(c => normalizeCard({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })),
+    scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}, { player: "" }), style: sc.style || null, coverPos: sc.coverPos ?? 50, hasCover: false,
+    publish: { character: Object.assign({ enabled: false, fields: [], questions: [] }, clone(sc.character) || {}) } };
+  if(sc.cover && LS.set("lan.cover." + t.id, sc.cover)) t.hasCover = true;
+  return t;
+}
+function scnToSc(t){
+  const ch = t.publish?.character;
+  return { lanterne_scenario: 1, title: t.title, opening: t.opening, essentials: t.essentials, authorsNote: t.authorsNote, instructions: t.instructions,
+    cards: (t.cards || []).map(c => ({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })), scripts: Object.assign({}, t.scripts), style: t.style,
+    cover: t.hasCover ? getCover(t.id) : undefined, coverPos: t.coverPos, character: ch?.enabled ? clone(ch) : { enabled: false, fields: [], questions: [] } };
+}
+const scnPre = t => ({ title: t.title, opening: t.opening, essentials: t.essentials, authorsNote: t.authorsNote, instructions: t.instructions,
+  cards: clone(t.cards || []).map(normalizeCard), scripts: Object.assign(SCRIPT_DEF(), clone(t.scripts) || {}), style: t.style, cover: t.hasCover ? getCover(t.id) : null, coverPos: t.coverPos ?? 50,
+  character: Object.assign({ enabled: false, fields: [], questions: [] }, clone(t.publish?.character) || {}) });
+function writeScn(t, d){
+  const isNew = !t;
+  t = t || { id: uid(), created: Date.now(), publish: {} };
+  Object.assign(t, { title: d.title.trim() || L("Sans titre", "Untitled"), opening: d.opening.trim(), essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions,
+    cards: clone(d.cards), scripts: Object.assign({}, d.scripts, { player: "" }), style: d.style || null, coverPos: d.coverPos ?? 50 });
+  t.publish = Object.assign(t.publish || {}, { character: clone(d.character) });
+  const cur = t.hasCover ? getCover(t.id) : null;
+  if(d.cover && d.cover !== cur){ t.hasCover = !!LS.set("lan.cover." + t.id, d.cover); }
+  else if(!d.cover && cur){ LS.del("lan.cover." + t.id); t.hasCover = false; }
+  saveScn(t);
+  if(isNew) toast(L("Scénario créé dans Mes scénarios", "Scenario created in My scenarios"));
+  return t;
+}
+function deleteScn(t){
+  if(!confirm(L(`Supprimer le scénario « ${t.title} » ? Les parties déjà lancées ne sont pas touchées.`, `Delete the scenario “${t.title}”? Games already started are not affected.`))) return false;
+  LS.del(scnKey(t.id)); LS.del("lan.cover." + t.id);
+  if(t.publishedId) toast(L("Supprimé de Mes scénarios. Il reste dans Découvrir : retire-le depuis Découvrir si tu veux.", "Deleted from My scenarios. It stays in Discover: remove it from Discover if you want."));
+  else toast(L("Scénario supprimé", "Scenario deleted"));
+  return true;
+}
+function scnTarget(t){ return { obj: t, save: o => saveScn(o), sc: () => scnToSc(t) }; }
+function openScn(id){ const t = LS.get(scnKey(id), null); if(!t) return toast(L("Scénario introuvable", "Scenario not found")); adventureWizard(scnPre(t), { scn: t }); }
+function renderMyScenarios(lib, icons){
+  getRole().catch(() => {});
+  const top = el("div", "row"); top.style.cssText = "flex-wrap:wrap;gap:8px;margin:14px 0 6px"; lib.appendChild(top);
+  btn(top, L("+ Nouveau scénario", "+ New scenario"), "small", () => adventureWizard(null, { mode: "scenario" }));
+  btn(top, L("📥 Importer", "📥 Import"), "ghost small", () => openSheet(L("Importer un scénario", "Import a scenario"), null, (_, b) => {
+    const opt = (t, d, f) => { const o = el("button", "mdl", `<div class="grow"><div class="n">${t}</div><div class="d">${d}</div></div>`); o.onclick = f; b.appendChild(o); };
+    opt(L("Scénario Lanterne", "Lanterne scenario"), L("Un fichier envoyé par un pote (« Partager le scénario » ou « Exporter »).", "A file sent by a friend (“Share scenario” or “Export”)."), () => { closeSheet(); importScenarioFile(true); });
+    opt(L("Scénario AI Dungeon", "AI Dungeon scenario"), L("Un fichier JSON exporté avec le script Lanterne depuis une page de scénario AI Dungeon.", "A JSON file exported with the Lanterne script from an AI Dungeon scenario page."), () => { closeSheet(); importAIDFile(); });
+  }));
+  hint(lib, L("🔒 Tes scénarios sont privés. Les modifier ne touche à aucune partie déjà lancée, et chaque partie peut être recommencée de zéro. Rien n'est publié sans ton accord.", "🔒 Your scenarios are private. Editing one never touches games already started, and every game can be restarted from scratch. Nothing is published without your say."));
+  const list = scnList();
+  if(!list.length){ lib.appendChild(el("div", "empty", L("Aucun scénario pour l'instant.<br>Crée-en un, ou coche « Garder dans Mes scénarios » en lançant une aventure.", "No scenarios yet.<br>Create one, or tick “Keep in My scenarios” when starting an adventure."))); return; }
+  const grid = el("div", "grid"); lib.appendChild(grid);
+  list.forEach(t => {
+    const it = el("div", "item");
+    it.appendChild(coverEl("", t.hasCover ? t.id : null, t.title, t.coverPos));
+    it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(t.title)}</div><div class="m">${t.publishedId ? L("Publié", "Published") : L("🔒 Privé", "🔒 Private")} · ${ago(t.updated)}</div>`));
+    const a = el("div", "acts", `<div class="mini"><button class="trash" aria-label="${L("Supprimer", "Delete")}" title="${L("Supprimer", "Delete")}">${icons.TRASH}</button></div><button class="play" aria-label="${L("Jouer", "Play")}" title="${L("Jouer", "Play")}">${icons.PLAY}</button>`);
+    a.querySelector(".trash").onclick = e => { e.stopPropagation(); if(deleteScn(t)) showLibrary(); };
+    a.querySelector(".play").onclick = e => { e.stopPropagation(); playScenario(scnToSc(t), null, { scenarioId: t.id }); };
+    it.appendChild(a);
+    it.tabIndex = 0; it.setAttribute("role", "button"); it.onclick = () => openScn(t.id);
+    grid.appendChild(it);
+  });
+}
+/* ---- Matériel de départ d'une partie, pour la recommencer de zéro ---- */
+function originOf(a){
+  const opening = a.actions.find(x => x.type === "ai" && !x.hidden);
+  return { lanterne_scenario: 1, title: a.title, opening: opening ? visible(opening.text) : "", essentials: a.essentials, authorsNote: a.authorsNote, instructions: a.instructions,
+    cards: a.cards.filter(c => !isBrain(c) && !isSystem(c)).map(c => ({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })),
+    scripts: Object.assign({}, a.scripts, { player: "" }), style: a.style, coverPos: a.coverPos,
+    character: a.publish?.character?.enabled ? clone(a.publish.character) : { enabled: false, fields: [], questions: [] }, late: true };
+}
+function restartAdventure(a){
+  const o = clone(a.origin || originOf(a));
+  if(!confirm(L(`Recommencer « ${o.title || a.title} » depuis le début ?\n\nUne nouvelle partie est créée avec le matériel de départ (ouverture, essentiels, cartes, instructions). Ta partie actuelle est gardée.`, `Restart “${o.title || a.title}” from the beginning?\n\nA new game is created with the starting material (opening, essentials, cards, instructions). Your current game is kept.`))) return;
+  if(a.hasCover) o.cover = getCover(a.id);
+  closeSheet(); playScenario(o, null, { scenarioId: a.scenarioId });
+}
+function scenarioFromAdventure(a){
+  openSheet(L("Créer un scénario", "Create a scenario"), null, (_, b) => {
+    hint(b, L("Le scénario est rangé dans Mes scénarios, en privé. Ta partie n'est pas modifiée.", "The scenario goes to My scenarios, privately. Your game isn't changed."));
+    const opt = (t, d, f) => { const o = el("button", "mdl", `<div class="grow"><div class="n">${t}</div><div class="d">${d}</div></div>`); o.onclick = f; b.appendChild(o); };
+    const make = sc => { if(a.hasCover) sc.cover = getCover(a.id); const t = scnFromSc(sc); saveScn(t); toast(L("Scénario créé dans Mes scénarios", "Scenario created in My scenarios")); closeSheet(); adventureWizard(scnPre(t), { scn: t }); };
+    opt(L("Depuis le départ", "From the start"), L("Le matériel d'origine de cette partie, comme au premier tour.", "This game's original material, as on the first turn."), () => make(clone(a.origin || originOf(a))));
+    opt(L("Depuis l'état actuel", "From the current state"), L("L'ouverture d'origine, mais les cartes, essentiels et instructions d'aujourd'hui (enrichis pendant la partie).", "The original opening, but today's cards, essentials and instructions (enriched during play)."), () => make(Object.assign(originOf(a), { character: clone((a.origin || {}).character) || { enabled: false, fields: [], questions: [] } })));
+  });
 }
 function wizardCtx(d){ return [d.title, d.essentials, d.opening].filter(Boolean).join("\n\n").slice(0, 3000); }
 function instructionsEditor(b, get, set, getWish, setWish){
@@ -1270,11 +1415,12 @@ function buildMessages(guide){
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
   const cards = triggeredCards();
-  if(cards.length) parts.push("[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n"));
+  const wi = cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n") : "";
   const extra = [mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
-  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "") + (extra ? "\n\n" + extra : "");
+  const sys = mem => { const p = [...parts, mem, wi].filter(Boolean); return (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (p.length ? "\n\n" + p.join("\n\n") : "") + (extra ? "\n\n" + extra : ""); };
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
-  let budget = settings.contextTokens - estTok(system) - estTok(an) - settings.max_tokens - 50;
+  const reserve = memReserve(adv);
+  let budget = settings.contextTokens - estTok(sys("")) - estTok(an) - settings.max_tokens - 50 - reserve;
   const hist = [];
   const acts = adv.actions.filter(a => !a.hidden);
   for(let i = acts.length - 1; i >= 0; i--){
@@ -1282,6 +1428,7 @@ function buildMessages(guide){
     if(budget - t < 0 && hist.length) break;
     budget -= t; hist.unshift(a);
   }
+  const system = sys(memBlock(adv, hist.length ? adv.actions.indexOf(hist[0]) : adv.actions.length, reserve, false));
   const msgs = [];
   const push = (role, content) => {
     const last = msgs[msgs.length - 1];
@@ -1310,19 +1457,24 @@ function buildAIDContext(){
   const cards = triggeredCards();
   if(cards.length) top.push("World Lore:\n" + cards.map(c => c.entry.trim()).join("\n\n"));
   if(adv.summary.trim()) top.push("Story Summary:\n" + adv.summary.trim());
+  const reserve = memReserve(adv);
   const head = top.join("\n\n");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
-  let budget = limit - head.length - an.length - 40;
+  let budget = limit - head.length - an.length - 40 - Math.round(reserve * 3.6);
   const parts = [];
   const ra = rollAction(adv.actions);
+  let oldest = adv.actions.length;
   for(let i = adv.actions.length - 1; i >= 0; i--){
     const t = adv.actions[i].text.replace(/^\s+|\s+$/g, "") + (adv.actions[i] === ra ? "\n" + rollNote(ra.roll) : "");
     if(!t) continue;
     if(budget - t.length < 0 && parts.length) break;
-    budget -= t.length; parts.unshift(t);
+    budget -= t.length; parts.unshift(t); oldest = i;
   }
+  const mb = memBlock(adv, oldest, reserve, true);
+  if(mb) top.push(mb);
+  const head2 = top.join("\n\n");
   if(an) parts.splice(Math.max(0, parts.length - 1), 0, an);
-  return (head ? head + "\n\n" : "") + "Recent Story:\n" + parts.join("\n\n");
+  return (head2 ? head2 + "\n\n" : "") + "Recent Story:\n" + parts.join("\n\n");
 }
 function aidHistory(){
   return adv.actions.map((a, i) => ({
@@ -1442,6 +1594,7 @@ async function generate(input, opts = {}){
       const ph = placeholder();
       if(guide) ph.setStatus("🧭 guidé");
       const view = $("#storyView");
+      await prepareRecall(signal, playerText || guide);
       const msgs0 = buildMessages(guide);
       let r, attempt = 0;
       lastCost = 0;
@@ -1478,6 +1631,7 @@ async function generate(input, opts = {}){
       renderStory(true);
       const ph = placeholder();
       lastCost = 0;
+      await prepareRecall(signal, playerText || guide);
       for(let loop = 0; loop < 10; loop++){
         if(signal.aborted) break;
         const logStart = scriptLogs.length;
@@ -1519,13 +1673,13 @@ async function generate(input, opts = {}){
   if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
   const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
   if(final && settings.ttsAuto) speak(final);
-  if(!errMsg){ maybeSummarize(); maybeSmartCards(); maybeMinds(); }
+  if(!errMsg){ maybeSummarize(); maybeSmartCards(); maybeMinds(); maybeMemorize(); }
 }
 const wantsRoll = input => !!(adv.scripts.rpg && adv.scripts.rpgDice !== false && input && input.kind === "do");
 let summarizing = false;
 function windowStart(){
   // index (in adv.actions) of the oldest action that still fits in the AI's memory
-  const head = estTok(adv.instructions) + estTok(adv.essentials) + estTok(adv.summary) + estTok(adv.authorsNote) + triggeredCards().reduce((n, c) => n + estTok(c.entry), 0);
+  const head = estTok(adv.instructions) + estTok(adv.essentials) + estTok(adv.summary) + estTok(adv.authorsNote) + triggeredCards().reduce((n, c) => n + estTok(c.entry), 0) + memReserve(adv);
   let budget = settings.contextTokens - head - settings.max_tokens - 50;
   for(let i = adv.actions.length - 1; i >= 0; i--){
     if(adv.actions[i].hidden) continue;
@@ -1560,6 +1714,342 @@ Rewrite the summary so it includes the new events. Keep important facts: what ha
     else if(out){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; LS.set("lan.adv." + a.id, a); }
   }catch(e){ console.warn("summary failed", e); }
   summarizing = false;
+}
+/* ================= Mémoire longue (Memory Bank) =================
+   L'histoire est découpée en petits souvenirs (1-2 phrases + mots-clés + importance), chacun avec une empreinte de sens (embedding).
+   À chaque tour, Lanterne cherche les souvenirs qui ressemblent à la scène actuelle (par le sens, pas seulement par mots-clés)
+   et glisse les plus pertinents dans le contexte. Seuls les passages sortis de la mémoire courte sont mémorisés. */
+const MEM_DIM = 512;
+const memOn = a => !!(a && a.scripts && a.scripts.mem !== false);
+const memItems = a => (a && a.mem && a.mem.items) || [];
+function ensureMem(a){ a.mem ||= { items: [], model: "" }; a.mem.items ||= []; return a.mem; }
+function persistAdv(a){ if(adv === a) saveAdv(); else LS.set("lan.adv." + a.id, a); }
+function memReserve(a){
+  if(!memOn(a) || !memItems(a).length) return 0;
+  return Math.min(settings.memBudget || 1000, memItems(a).reduce((n, it) => n + estTok(it.t) + 4, 0) + 40);
+}
+/* --- empreintes de sens (embeddings) --- */
+function embedUrl(){ return isOR() ? "https://openrouter.ai/api/v1/embeddings" : (settings.baseUrl || "").trim().replace(/\/+$/, "").replace(/\/chat\/completions$/, "") + "/embeddings"; }
+async function embed(texts, signal){
+  const res = await fetch(embedUrl(), { method: "POST", signal,
+    headers: Object.assign({ "Authorization": "Bearer " + settings.apiKey.trim(), "Content-Type": "application/json" }, isOR() ? { "X-Title": "Lanterne" } : {}),
+    body: JSON.stringify({ model: (settings.memModel || DEFAULT_SETTINGS.memModel).trim(), input: texts }) });
+  let j = null; try{ j = await res.json(); }catch(e){}
+  if(!res.ok || !j || j.error) throw new Error((j && j.error && (j.error.message || j.error)) || ("HTTP " + res.status));
+  if(j.usage && j.usage.cost != null) addCost(Number(j.usage.cost));
+  const data = (j.data || []).slice().sort((x, y) => (x.index ?? 0) - (y.index ?? 0));
+  if(data.length !== texts.length || !data.every(d => Array.isArray(d.embedding))) throw new Error("embeddings incomplets");
+  return data.map(d => packVec(d.embedding));
+}
+function packVec(v){
+  v = v.slice(0, MEM_DIM); let m = 0; for(const x of v) m = Math.max(m, Math.abs(x)); m = m || 1;
+  const q = new Int8Array(v.length); for(let i = 0; i < v.length; i++) q[i] = Math.round(v[i] / m * 127);
+  return b64(q.buffer);
+}
+function unpackVec(s){ const u = unb64(s); return new Int8Array(u.buffer, u.byteOffset, u.length); }
+function cosQ(a, b){ const n = Math.min(a.length, b.length); let d = 0, x = 0, y = 0; for(let i = 0; i < n; i++){ d += a[i] * b[i]; x += a[i] * a[i]; y += b[i] * b[i]; } return x && y ? d / Math.sqrt(x * y) : 0; }
+const memEmbText = it => it.t + (it.k ? " (" + it.k + ")" : "");
+/* --- recherche par mots (secours sans embeddings + bonus) --- */
+const STOP = new Set("les des une un le la et est dans qui que quoi pour pas par sur avec son sa ses ton ta tes mon ma mes leur leurs aux du au ce cet cette ces elle il ils elles tu te toi vous nous mais ou donc car ne plus tout tous comme sans sous entre vers chez été être avoir fait the and you your for with that this was were his her she him they them have has had not but are from into out its our then than there what when who will would".split(" "));
+function memToks(s){
+  return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/)
+    .filter(w => w.length > 2 && !STOP.has(w)).map(w => w.length > 4 ? w.replace(/(ement|ment|ees|ee|es|s|x|e)$/, "") : w);
+}
+function lexScores(items, q){
+  const qt = [...new Set(memToks(q))]; if(!qt.length) return items.map(() => 0);
+  const docs = items.map(it => memToks(it.t + " " + it.k + " " + it.k));
+  const N = docs.length, avg = docs.reduce((n, d) => n + d.length, 0) / (N || 1) || 1;
+  const df = {}; docs.forEach(d => new Set(d).forEach(w => df[w] = (df[w] || 0) + 1));
+  const sc = docs.map(d => {
+    const tf = {}; d.forEach(w => tf[w] = (tf[w] || 0) + 1);
+    let s = 0; qt.forEach(w => { if(!tf[w]) return; const idf = Math.log(1 + (N - df[w] + 0.5) / (df[w] + 0.5)); s += idf * tf[w] * 2.2 / (tf[w] + 1.2 * (0.25 + 0.75 * d.length / avg)); });
+    return s;
+  });
+  const mx = Math.max(...sc, 0); return sc.map(x => mx ? x / mx : 0);
+}
+/* --- rappel à chaque tour --- */
+let recall = { id: null, q: "", qv: null, list: [], used: [], mode: "" }; // qv : [scène, action]
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error("timeout")), ms))]);
+async function prepareRecall(signal, extra){
+  const a = adv;
+  if(!memOn(a) || !memItems(a).length){ recall = { id: a && a.id, q: "", qv: null, list: [], used: [], mode: "" }; return; }
+  const vis = a.actions.filter(x => !x.hidden);
+  // deux requêtes : la scène récente, et l'action du joueur (+ la fin de la dernière réponse), qui compte le plus
+  const lastAI = [...vis].reverse().find(x => x.type === "ai");
+  const lastP = vis.length && vis[vis.length - 1].type !== "ai" ? visible(vis[vis.length - 1].text) : "";
+  const qScene = vis.slice(-3).map(x => visible(x.text)).join("\n").slice(-1600);
+  const qAct = ((lastAI ? visible(lastAI.text).slice(-400) + "\n" : "") + lastP + (extra && !lastP.includes(extra.trim()) ? "\n" + extra : "")).slice(-900) || qScene;
+  const qIn = ((lastP || "") + (extra && !lastP.includes(extra.trim()) ? "\n" + extra : "")).replace(/^>\s*/gm, "").trim().slice(0, 600);
+  const texts = [qScene, qAct].concat(qIn.length > 12 ? [qIn] : []);
+  const q = texts.join("\u0000");
+  let qv = recall.id === a.id && recall.q === q ? recall.qv : null;
+  const canVec = a.mem.model === (settings.memModel || "").trim() && a.mem.items.some(it => it.e);
+  if(!qv && canVec){ try{ qv = await withTimeout(embed(texts, signal), 5000); }catch(e){ console.warn("recall embed", e.message); } }
+  const items = a.mem.items, lexS = lexScores(items, qScene), lexA = lexScores(items, qIn || qAct);
+  const qs = qv ? qv.map(unpackVec) : null;
+  // deux classements : ce que le joueur fait (prioritaire) et la scène en cours, puis on les entrelace
+  const bonus = it => ((it.imp || 2) - 2) * 0.03;
+  const minS = qs ? 0.22 : 0.12;
+  const scored = items.map((it, i) => {
+    let sIn, sCtx;
+    if(qs && it.e){ const v = unpackVec(it.e); sIn = (qs[2] ? cosQ(qs[2], v) : cosQ(qs[1], v)) + 0.12 * lexA[i]; sCtx = Math.max(cosQ(qs[1], v), cosQ(qs[0], v) * 0.95) + 0.12 * lexS[i]; }
+    else { sIn = lexA[i] * (qs ? 0.5 : 1); sCtx = lexS[i] * (qs ? 0.4 : 0.8); }
+    return { it, sIn: sIn + bonus(it), sCtx: sCtx + bonus(it), s: Math.max(sIn, sCtx) + bonus(it) };
+  });
+  const byIn = scored.filter(x => x.sIn >= minS).sort((x, y) => y.sIn - x.sIn);
+  const byCtx = scored.filter(x => x.sCtx >= minS).sort((x, y) => y.sCtx - x.sCtx);
+  const seen = new Set(), list = [];
+  const add = x => { if(x && !seen.has(x.it.id)){ seen.add(x.it.id); list.push(x); } };
+  scored.filter(x => x.it.pin).forEach(add);
+  for(let i = 0, j = 0; i < byIn.length || j < byCtx.length;){ add(byIn[i++]); add(byIn[i++]); add(byCtx[j++]); }
+  recall = { id: a.id, q, qv, list, used: [], mode: qs ? "sens" : "mots" };
+}
+function memBlock(a, startIdx, reserve, aid){
+  if(!reserve || recall.id !== a.id || !recall.list.length) return "";
+  const pos = new Map(a.actions.map((x, i) => [x.id, i]));
+  let left = reserve - 40; const pick = [];
+  for(const { it } of recall.list){
+    const i = pos.get(it.b); if(i == null || i >= startIdx) continue;
+    const t = estTok(it.t) + 4; if(t > left) continue;
+    left -= t; pick.push({ it, i });
+    if(left < 20) break;
+  }
+  recall.used = pick.map(p => p.it.id);
+  if(!pick.length) return "";
+  pick.sort((x, y) => x.i - y.i);
+  const lines = pick.map(p => "- " + p.it.t.trim()).join("\n");
+  return aid ? "Memories (earlier events, in order):\n" + lines
+    : "[Memories — relevant events from earlier in the story, in chronological order. Use them for continuity when they matter; don't recap them.]\n" + lines;
+}
+/* --- fabrication des souvenirs --- */
+let memorizing = false, memBuild = null;
+function memChunks(a, end, all){
+  // morceaux de passages consécutifs, pas encore mémorisés, sortis de la mémoire courte
+  const runs = []; let cur = null;
+  for(let i = 0; i < end; i++){
+    const x = a.actions[i]; if(x.hidden || !visible(x.text).trim()) continue;
+    if(x.m){ cur = null; continue; }
+    if(!cur){ cur = { list: [], closed: false }; runs.push(cur); }
+    cur.list.push(i);
+  }
+  runs.forEach((r, k) => r.closed = k < runs.length - 1 || all);
+  const out = [];
+  runs.forEach(r => {
+    let c = [], n = 0;
+    const flush = last => { if(c.length && (r.closed || !last || c.length >= 6 || n >= 2500)) out.push(c); c = []; n = 0; };
+    r.list.forEach(i => { const L2 = visible(a.actions[i].text).length; if(c.length && (n + L2 > 5000 || c.length >= 14)) flush(false); c.push(i); n += L2; });
+    flush(true);
+  });
+  return out;
+}
+async function memorizeChunk(a, idxs){
+  const acts = idxs.map(i => a.actions[i]);
+  const prevI = idxs[0] - 1, prev = prevI >= 0 ? visible(a.actions[prevI].text).slice(-500) : "";
+  const text = acts.map((x, k) => `[${k + 1}] ${visible(x.text).trim()}`).join("\n\n");
+  const n = Math.max(1, Math.min(6, Math.round(text.length / 900)));
+  const you = (a.scripts.player || "").trim();
+  const prompt =
+`You are building the long-term memory of an interactive story written in second person ("you" is the player${you ? ", named " + you : ""}).
+${prev ? "Just before (context only, do not memorize):\n\"\"\"\n" + prev + "\n\"\"\"\n" : ""}Passages to memorize (numbered):
+"""
+${text}
+"""
+Write up to ${n} memories covering what matters in these passages. Each memory:
+- "text": one or two sentences (15-45 words), self-contained and factual: who did what, to whom, where, why, and the outcome. Use names, not pronouns${you ? "" : `; call the player "${isEN() ? "you" : "tu"}"`}. Keep concrete details that could matter later: promises, secrets, revelations, injuries, gifts, objects, places, feelings, decisions, names. Skip filler and atmosphere.
+- "keys": 3 to 8 lowercase words, comma separated: names, places, objects, themes and synonyms someone might use later.
+- "imp": 1 = minor, 2 = notable, 3 = major (turning point, revelation, relationship change, death, betrayal).
+- "p": the number of the passage it mostly comes from.
+Write in the language of the story.
+Return ONLY JSON: {"memories":[{"text":"...","keys":"...","imp":2,"p":1}]}`;
+  const j = parseJSON(await complete(prompt, 260 + n * 130));
+  const list = (j.memories || []).filter(m => m && typeof m.text === "string" && m.text.trim()).slice(0, n + 1).map(m => {
+    const p = Math.min(acts.length, Math.max(1, Number(m.p) || acts.length));
+    return { id: uid(), a: acts[0].id, b: acts[p - 1].id, t: m.text.trim().slice(0, 400), k: String(Array.isArray(m.keys) ? m.keys.join(", ") : m.keys || "").toLowerCase().slice(0, 160), imp: Math.min(3, Math.max(1, Number(m.imp) || 2)), e: null };
+  });
+  const mem = ensureMem(a);
+  mem.items.push(...list);
+  const order = new Map(a.actions.map((x, i) => [x.id, i]));
+  mem.items.sort((x, y) => (order.get(x.b) ?? 1e9) - (order.get(y.b) ?? 1e9));
+  acts.forEach(x => x.m = 1);
+  return list;
+}
+let embedFailAt = 0;
+async function embedMissing(a, max = 256, force){
+  if(!force && Date.now() - embedFailAt < 600000) return 0;
+  const mem = ensureMem(a), model = (settings.memModel || "").trim();
+  if(mem.model !== model){ mem.items.forEach(it => it.e = null); mem.model = model; }
+  const todo = mem.items.filter(it => !it.e).slice(0, max);
+  for(let i = 0; i < todo.length; i += 64){
+    const part = todo.slice(i, i + 64);
+    let vecs; try{ vecs = await embed(part.map(memEmbText)); }catch(e){ embedFailAt = Date.now(); throw e; }
+    part.forEach((it, k) => it.e = vecs[k]);
+  }
+  return todo.length;
+}
+function memStatus(a){
+  const end = adv === a ? windowStart() : a.actions.length;
+  let old = 0, done = 0;
+  for(let i = 0; i < end; i++){ const x = a.actions[i]; if(x.hidden || !visible(x.text).trim()) continue; old++; if(x.m) done++; }
+  return { old, done, left: old - done, chunks: memChunks(a, end, true).length };
+}
+async function maybeMemorize(){
+  if(!memOn(adv) || memorizing || memBuild || !settings.apiKey) return;
+  const a = adv; memorizing = true;
+  try{
+    const ch = memChunks(a, windowStart(), false);
+    if(ch.length){ await memorizeChunk(a, ch[ch.length - 1]); persistAdv(a); }
+    if(memItems(a).some(it => !it.e) || (a.mem && a.mem.model !== (settings.memModel || "").trim())){
+      try{ if(await embedMissing(a, 128)) persistAdv(a); }catch(e){ console.warn("embed", e.message); }
+    }
+  }catch(e){ console.warn("memorize failed", e); }
+  memorizing = false;
+}
+async function buildAllMemories(a, onProg){
+  if(memBuild) return;
+  memBuild = { stop: false, done: 0, total: 0, err: "" };
+  const st = memBuild;
+  while(memorizing) await new Promise(r => setTimeout(r, 300));
+  try{
+    let chunks = memChunks(a, adv === a ? windowStart() : a.actions.length, true);
+    st.total = chunks.length; onProg?.(st);
+    let k = 0, fails = 0;
+    const worker = async () => {
+      while(!st.stop && k < chunks.length){
+        const c = chunks[k++];
+        try{ await memorizeChunk(a, c); }catch(e){ fails++; st.err = e.message; if(fails > 4){ st.stop = true; } }
+        st.done++; onProg?.(st);
+        if(st.done % 4 === 0) persistAdv(a);
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    // la mémoire courte rétrécit un peu une fois les souvenirs en place : on rattrape les derniers passages sortis
+    if(!st.stop){ chunks = memChunks(a, adv === a ? windowStart() : a.actions.length, true); k = 0; st.total += chunks.length; await Promise.all([worker(), worker()]); }
+    persistAdv(a);
+    st.phase = "embed"; onProg?.(st);
+    try{ await embedMissing(a, 100000, true); }catch(e){ st.err = L("Recherche par sens indisponible (", "Meaning search unavailable (") + e.message + L(") : la recherche par mots-clés prend le relais.", "): keyword search takes over."); }
+    persistAdv(a);
+  }finally{ memBuild = null; st.end = true; onProg?.(st); }
+}
+async function summaryFromMemories(a){
+  const items = memItems(a); if(!items.length) throw new Error(L("aucun souvenir", "no memories"));
+  const list = items.map(it => (it.imp === 3 ? "★ " : "- ") + it.t).join("\n").slice(-60000);
+  const prompt =
+`Here are the memories of an interactive story (second person, the player is "you"), in chronological order. ★ = major event.
+"""
+${list}
+"""
+Write the story summary so far: the main arc in chronological order, key relationships and their current state, important promises, secrets, items and unresolved threads. Concise but complete, under 2200 characters. Write in the language of the memories. Return ONLY the summary.`;
+  const out = await complete(prompt, 1100);
+  if(!out) throw new Error(L("réponse vide", "empty answer"));
+  a.summary = out.trim().slice(0, 2600); a.summarizedUpTo = adv === a ? windowStart() : a.actions.length;
+  persistAdv(a);
+}
+function memTurnOf(a, it){ const i = a.actions.findIndex(x => x.id === it.b); return i < 0 ? null : a.actions.slice(0, i + 1).filter(x => !x.hidden && x.type !== "ai").length || 1; }
+function memTile(a, it, used){
+  const tn = memTurnOf(a, it);
+  const d = el("div", "sc mem", `<div class="row"><div class="k" style="flex:1">${tn ? L("Tour ", "Turn ") + tn : L("passage supprimé", "deleted passage")}</div>${it.pin ? `<span class="chip acc">${L("épinglé", "pinned")}</span>` : ""}${used ? `<span class="chip acc">${L("utilisé", "used")}</span>` : ""}<span class="imp">${"★".repeat(it.imp || 2)}</span></div><div class="e noi18n">${esc(it.t)}</div>${it.k ? `<div class="k noi18n">${esc(it.k)}</div>` : ""}`);
+  return d;
+}
+function openMemories(back){
+  let q = "";
+  openSheet(L("Souvenirs", "Memories"), null, (_, b) => {
+    const items = memItems(adv);
+    hint(b, L("Les souvenirs de l'IA, du plus ancien au plus récent. Touche-en un pour le modifier, l'épingler (toujours envoyé) ou le supprimer.", "The AI's memories, oldest to newest. Tap one to edit it, pin it (always sent) or delete it."));
+    const s = field(b, L("Chercher", "Search"), q, v => { q = v; fill(); }, { placeholder: L("Un nom, un lieu, un événement…", "A name, a place, an event…") });
+    s.type = "search";
+    btn(b, L("+ Ajouter un souvenir", "+ Add a memory"), "ghost small", () => editMemory(null, () => openMemories(back))).style.marginBottom = "10px";
+    const box = el("div"); b.appendChild(box);
+    const used = new Set(recall.id === adv.id ? recall.used : []);
+    const fill = () => {
+      box.innerHTML = "";
+      let list = items;
+      if(q.trim()){ const sc = lexScores(items, q); list = items.filter((_, i) => sc[i] > 0.05 || items[i].t.toLowerCase().includes(q.trim().toLowerCase())); }
+      if(!list.length) hint(box, items.length ? L("Aucun souvenir ne correspond.", "No memory matches.") : L("Pas encore de souvenirs.", "No memories yet."));
+      list.forEach(it => { const d = memTile(adv, it, used.has(it.id)); d.onclick = () => editMemory(it, () => openMemories(back)); box.appendChild(d); });
+    };
+    fill();
+    const det = el("details", "fold", `<summary>${L("Avancé", "Advanced")}</summary><div class="in"></div>`); b.appendChild(det); det.style.marginTop = "14px";
+    const di = det.querySelector(".in");
+    field(di, L("Modèle d'empreintes de sens (embeddings)", "Embedding model"), settings.memModel, v => { settings.memModel = v.trim() || DEFAULT_SETTINGS.memModel; saveSettings(); }, { hint: L("Par défaut openai/text-embedding-3-small : très bon en français, presque gratuit. Si tu le changes, les empreintes sont refaites automatiquement.", "Default openai/text-embedding-3-small: great in French and English, almost free. If you change it, the embeddings are redone automatically.") });
+    if(back) btn(b, L("← Retour", "← Back"), "ghost small", back).style.marginTop = "12px";
+  });
+}
+function editMemory(it, back){
+  const isNew = !it;
+  const d = it ? { t: it.t, k: it.k, imp: it.imp || 2, pin: !!it.pin } : { t: "", k: "", imp: 2, pin: false };
+  openSheet(isNew ? L("Nouveau souvenir", "New memory") : L("Souvenir", "Memory"), null, (_, b) => {
+    field(b, L("Souvenir", "Memory"), d.t, v => d.t = v, { multiline: true, rows: 4, hint: L("Une ou deux phrases factuelles : qui, quoi, où, pourquoi, et ce que ça a changé.", "One or two factual sentences: who, what, where, why, and what it changed.") });
+    field(b, L("Mots-clés", "Keywords"), d.k, v => d.k = v, { placeholder: L("noms, lieux, objets, thèmes", "names, places, objects, themes") });
+    const r = el("div", "row"); r.style.cssText = "gap:6px;margin:4px 0 12px"; b.appendChild(r);
+    const imps = [[1, L("Mineur", "Minor")], [2, L("Notable", "Notable")], [3, L("Majeur", "Major")]];
+    imps.forEach(([v, lab]) => { const x = btn(r, lab, "small " + (d.imp === v ? "" : "ghost"), () => { d.imp = v; r.querySelectorAll("button").forEach((bb, k) => bb.className = "btn small " + (imps[k][0] === v ? "" : "ghost")); }); });
+    toggle(b, L("Épingler", "Pin"), L("Toujours envoyé à l'IA, quelle que soit la scène.", "Always sent to the AI, whatever the scene."), () => d.pin, v => d.pin = v);
+    const row = el("div", "row"); row.style.cssText = "flex-wrap:wrap;margin-top:14px"; b.appendChild(row);
+    btn(row, L("Enregistrer", "Save"), "", () => {
+      if(!d.t.trim()) return toast(L("Écris le souvenir", "Write the memory"));
+      const mem = ensureMem(adv);
+      if(isNew){
+        const vis = adv.actions.filter(x => !x.hidden); const last = vis[Math.max(0, vis.length - 1)];
+        it = { id: uid(), a: last?.id, b: last?.id, t: "", k: "", imp: 2, e: null }; mem.items.push(it);
+      }
+      if(it.t !== d.t.trim() || it.k !== d.k.trim()) it.e = null;
+      Object.assign(it, { t: d.t.trim(), k: d.k.trim().toLowerCase(), imp: d.imp }); if(d.pin) it.pin = 1; else delete it.pin;
+      saveAdv(); embedMissing(adv, 8).then(n => n && saveAdv()).catch(() => {});
+      back();
+    });
+    if(!isNew) btn(row, L("Supprimer", "Delete"), "danger", () => { const mem = ensureMem(adv); mem.items = mem.items.filter(x => x !== it); saveAdv(); back(); });
+    btn(row, L("Annuler", "Cancel"), "ghost", back);
+  });
+}
+function renderMemSection(body){
+  sec(body, L("Mémoire longue", "Long-term memory"));
+  let sub;
+  toggle(body, L("Souvenirs automatiques", "Automatic memories"), L("L'IA range l'histoire en petits souvenirs. À chaque tour, elle retrouve ceux qui ont un rapport avec la scène (par le sens, même sans mot-clé) et s'en sert, même des centaines de tours plus tard.", "The AI files the story into small memories. Each turn it finds the ones related to the scene (by meaning, even without keywords) and uses them, even hundreds of turns later."), () => memOn(adv), v => { adv.scripts.mem = v; saveAdv(); sub.classList.toggle("hidden", !v); });
+  sub = el("div", "subopts" + (memOn(adv) ? "" : " hidden")); body.appendChild(sub);
+  const n = memItems(adv).length, st = memStatus(adv);
+  const vec = n && memItems(adv).every(it => it.e) && adv.mem.model === (settings.memModel || "").trim();
+  hint(sub, L(`<b>${n}</b> souvenirs · <b>${st.done}</b> sur ${st.old} passages anciens mémorisés`, `<b>${n}</b> memories · <b>${st.done}</b> of ${st.old} old passages memorized`) + (n ? " · " + (vec ? L("recherche par sens ✓", "meaning search ✓") : L("recherche par mots-clés", "keyword search")) : ""));
+  if(st.left > 0){
+    const label = () => memBuild ? (memBuild.phase === "embed" ? L("Empreintes de sens…", "Embedding…") : L(`Mémorisation… ${memBuild.done}/${memBuild.total}`, `Memorizing… ${memBuild.done}/${memBuild.total}`)) : L(`🧠 Tout mémoriser maintenant (${st.chunks} requêtes)`, `🧠 Memorize everything now (${st.chunks} requests)`);
+    const bb = btn(sub, label(), "small", async () => {
+      if(memBuild){ memBuild.stop = true; return; }
+      const a = adv;
+      await buildAllMemories(a, s => { if(bb.isConnected) bb.textContent = s.end ? L("Terminé ✓", "Done ✓") : label() + L(" · toucher pour arrêter", " · tap to stop"); });
+      if(memBuild === null && $("#sheetHost").innerHTML && adv === a) openAdventureSheet("misc");
+      toast(L("Mémoire longue prête", "Long-term memory ready"));
+    });
+    if(memBuild) bb.textContent = label();
+    hint(sub, L("Sinon, les anciens passages se mémorisent petit à petit, une requête par tour.", "Otherwise old passages get memorized bit by bit, one request per turn."));
+  }
+  const used = recall.id === adv.id ? recall.used.map(id => memItems(adv).find(it => it.id === id)).filter(Boolean) : [];
+  if(used.length){
+    hint(sub, L(`Souvenirs utilisés au dernier tour (${used.length}) :`, `Memories used last turn (${used.length}):`));
+    used.slice(0, 4).forEach(it => sub.appendChild(memTile(adv, it, true)));
+  }
+  const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;gap:8px;margin:6px 0 4px"; sub.appendChild(r);
+  btn(r, L(`Voir les souvenirs (${n})`, `See memories (${n})`), "ghost small", () => openMemories(() => openAdventureSheet("misc")));
+  if(n >= 4){
+    const sb = btn(r, L("Refaire le résumé avec les souvenirs", "Rebuild the summary from memories"), "ghost small", async () => {
+      if(adv.summary.trim() && !confirm(L("Remplacer le résumé actuel par un résumé de toute l'histoire ?", "Replace the current summary with a summary of the whole story?"))) return;
+      sb.disabled = true; sb.textContent = L("Résumé en cours…", "Summarizing…");
+      try{ await summaryFromMemories(adv); toast(L("Résumé mis à jour", "Summary updated")); openAdventureSheet("misc"); }catch(e){ toast(e.message); sb.disabled = false; }
+    });
+  }
+  slider(sub, L("Place pour les souvenirs (tokens)", "Room for memories (tokens)"), "memBudget", 300, 3000, 100, L("Pris sur la mémoire de l'IA. 1000 ≈ 10 à 15 souvenirs par tour.", "Taken from the AI's memory. 1000 ≈ 10 to 15 memories per turn."));
+}
+function offerMemoryBuild(a0){
+  setTimeout(() => {
+    if(!adv || adv.id !== a0.id || !memOn(adv)) return;
+    const a = adv;
+    const st = memStatus(a); if(st.chunks < 2) return;
+    if(!confirm(L(`Construire la mémoire longue de cette histoire maintenant ?\n\nL'IA va lire les ${st.old} passages anciens et en tirer des souvenirs (${st.chunks} petites requêtes, quelques centimes). Sans ça, l'IA ne connaît le passé lointain que par le résumé et les cartes.`, `Build this story's long-term memory now?\n\nThe AI will read the ${st.old} old passages and turn them into memories (${st.chunks} small requests, a few cents). Without it, the AI only knows the distant past through the summary and cards.`))) return;
+    toast(L("Mémoire longue en construction… (Aventure → Mémoire longue)", "Building long-term memory… (Adventure → Long-term memory)"));
+    buildAllMemories(a, null).then(() => {
+      if(adv !== a) return;
+      const ask = confirm(L("Mémoire longue prête ✓\n\nRefaire aussi le résumé de l'histoire à partir de ces souvenirs ? (conseillé après un import)", "Long-term memory ready ✓\n\nAlso rebuild the story summary from these memories? (recommended after an import)"));
+      if(ask) summaryFromMemories(a).then(() => toast(L("Résumé mis à jour", "Summary updated"))).catch(e => toast(e.message));
+    });
+  }, 600);
 }
 function cleanOutput(t){
   t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s+/, "").replace(/\s+$/, "");
@@ -2312,16 +2802,17 @@ function startFromScenario(sc){
     instructions: sc.instructions || DEFAULT_INSTRUCTIONS,
     cards: (sc.cards || []).map(c => normalizeCard({ title: c.title, type: c.type, keys: c.keys, entry: c.entry })),
     scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}),
-    cover: sc.cover || null, coverPos: sc.coverPos ?? 50, style: sc.style
+    cover: sc.cover || null, coverPos: sc.coverPos ?? 50, style: sc.style, character: sc.character
   });
 }
-function importScenarioFile(){
+function importScenarioFile(toScn){
   const i = document.createElement("input"); i.type = "file"; i.accept = "application/json,.json";
   i.onchange = async () => {
     try{
       const j = JSON.parse(await i.files[0].text());
-      if(j.lanterne_scenario) startFromScenario(j);
-      else if(j.adventures?.length) startFromScenario(scenarioOf(migrate(j.adventures[0])));
+      const sc = j.lanterne_scenario ? j : j.adventures?.length ? (() => { const a = migrate(j.adventures[0]); const o = clone(a.origin || originOf(a)); o.cover = j.adventures[0].cover; return o; })() : null;
+      if(sc && toScn){ const t = scnFromSc(sc); saveScn(t); libTab = "scn"; if(!adv) showLibrary(); toast(L("Scénario importé dans Mes scénarios", "Scenario imported into My scenarios")); adventureWizard(scnPre(t), { scn: t }); }
+      else if(sc) startFromScenario(sc);
       else throw new Error("ce n'est pas un scénario Lanterne");
     }catch(e){ toast("Import impossible : " + e.message); }
   };
@@ -2469,7 +2960,7 @@ const canPublish = () => myRole === "admin" || myRole === "publisher";
 const genreLabel = g => (COVER_GENRES.find(x => x[0] === g) || [, L("Autre", "Other")])[1];
 function libTabs(lib){
   const t = el("div", "libtabs");
-  [["mine", L("Mes aventures", "My adventures")], ["discover", L("Découvrir", "Discover")]].forEach(([k, n]) => {
+  [["mine", L("Mes aventures", "My adventures")], ["scn", L("Mes scénarios", "My scenarios")], ["discover", L("Découvrir", "Discover")]].forEach(([k, n]) => {
     const b = el("button", "ltab" + (libTab === k ? " on" : ""), n); b.onclick = () => { libTab = k; showLibrary(); }; t.appendChild(b);
   });
   lib.appendChild(t);
@@ -2552,7 +3043,7 @@ async function openScenario(id){
     const mine = sc.author === auth?.user?.id;
     if(mine || myRole === "admin"){
       const a = el("div", "row"); a.style.cssText = "margin-top:16px;flex-wrap:wrap"; b.appendChild(a);
-      if(mine) hint(a, L("Pour la modifier : ouvre l'aventure d'origine, onglet Aventure → Mettre à jour la publication.", "To edit it: open the original adventure, Adventure tab → Update the post."));
+      if(mine) hint(a, L("Pour la modifier : ouvre-la dans Mes scénarios (ou l'aventure d'origine), puis « Mettre à jour ».", "To edit it: open it in My scenarios (or the original adventure), then “Update”."));
       btn(a, mine ? L("Retirer ma publication", "Remove my post") : L("Retirer (admin)", "Remove (admin)"), "danger small", async () => {
         if(!confirm(L("Retirer ce scénario de Découvrir ?", "Remove this scenario from Discover?"))) return;
         try{ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${sc.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); toast(L("Scénario retiré", "Scenario removed")); closeSheet(); showLibrary(); }catch(e){ toast(e.message); }
@@ -2619,12 +3110,7 @@ function characterSheet(sc){
     const host = $("#sheetHost"); const obs = new MutationObserver(() => { if(!host.innerHTML && !done){ obs.disconnect(); resolve(null); } else if(done) obs.disconnect(); }); obs.observe(host, { childList: true });
   });
 }
-function playAsScenario(a){
-  const sc = scenarioOf(a);
-  sc.character = a.publish?.character?.enabled ? a.publish.character : (hasTags(sc.opening + sc.essentials) ? { enabled: true, fields: ["name"], questions: [] } : { enabled: true, fields: ["name", "gender", "look", "personality"], questions: [] });
-  closeSheet(); playScenario(sc);
-}
-async function playScenario(sc, publishedId){
+async function playScenario(sc, publishedId, opt = {}){
   const ch = sc.character || {};
   let ans = null;
   if(ch.enabled && ((ch.fields || []).length || (ch.questions || []).length)){ ans = await characterSheet(sc); if(!ans) return; }
@@ -2636,6 +3122,9 @@ async function playScenario(sc, publishedId){
     cards: (sc.cards || []).map(c => normalizeCard({ title: sub(c.title), type: c.type, keys: sub(c.keys), entry: sub(c.entry) })),
     scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}) });
   if(ans?.name) a.scripts.player = ans.name;
+  a.origin = Object.assign(clone(Object.assign({}, sc, { cover: undefined })), { late: undefined });
+  if(opt.scenarioId) a.scenarioId = opt.scenarioId;
+  if(publishedId) a.publishedFrom = publishedId;
   if(sc.style) a.style = Object.assign({}, DEFAULT_STYLE, sc.style);
   if(sc.cover && LS.set("lan.cover." + a.id, sc.cover)){ a.hasCover = true; a.coverPos = sc.coverPos ?? 50; }
   let opening = sub(sc.opening || "");
@@ -2655,10 +3144,15 @@ async function playScenario(sc, publishedId){
 
 /* ---- Publier ---- */
 function pickAdventureToPublish(){
-  openSheet(L("Publier une aventure", "Publish an adventure"), null, (_, b) => {
-    hint(b, L("Choisis l'aventure à partager. Seul le début est publié (ouverture, essentiels, note d'auteur, instructions, cartes, outils, image), jamais ta partie jouée.", "Choose the adventure to share. Only the start is published (opening, essentials, author's note, instructions, cards, tools, image), never your playthrough."));
+  openSheet(L("Publier", "Publish"), null, (_, b) => {
+    hint(b, L("Choisis ce que tu partages. Seul un départ est publié (ouverture, essentiels, note d'auteur, instructions, cartes, outils, image), jamais une partie jouée.", "Choose what to share. Only a start is published (opening, essentials, author's note, instructions, cards, tools, image), never a playthrough."));
     btn(b, L("📥 Importer depuis AI Dungeon", "📥 Import from AI Dungeon"), "ghost small", () => { closeSheet(); importAIDMenu(); }).style.marginBottom = "14px";
-    if(!index.length) hint(b, L("Aucune aventure. Crée-en une d'abord.", "No adventures. Create one first."));
+    const sl = scnList();
+    sec(b, L("Mes scénarios (conseillé)", "My scenarios (recommended)"));
+    if(!sl.length) hint(b, L("Aucun scénario. Crée-en un dans l'onglet Mes scénarios.", "No scenarios. Create one in the My scenarios tab."));
+    sl.forEach(t => { const it = el("div", "item"); it.appendChild(coverEl("", t.hasCover ? t.id : null, t.title, t.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(t.title)}</div>${t.publishedId ? `<div class="m">${L("déjà publié", "already published")}</div>` : ""}`)); it.onclick = () => publishSheet(() => showLibrary(), scnTarget(t)); b.appendChild(it); });
+    sec(b, L("Mes aventures (état actuel)", "My adventures (current state)"));
+    if(!index.length) hint(b, L("Aucune aventure.", "No adventures."));
     index.forEach(x => { const it = el("div", "item"); it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(x.title)}</div>`)); it.onclick = () => { const a = LS.get("lan.adv." + x.id, null); if(a){ adv = migrate(a); publishSheet(() => { adv = null; showLibrary(); }); } }; b.appendChild(it); });
   });
 }
@@ -2671,11 +3165,13 @@ async function shrinkCover(url){
     return c.toDataURL("image/jpeg", 0.7);
   }catch(e){ return null; }
 }
-function publishSheet(after){
-  const a = adv; if(!a) return;
+function publishSheet(after, tgt){
+  tgt ||= adv ? { obj: adv, save: o => LS.set("lan.adv." + o.id, o), sc: () => scenarioOf(adv) } : null;
+  if(!tgt) return;
+  const a = tgt.obj;
   const p = Object.assign({ title: a.title, hook: "", genre: "misc", author: settings.authorName || (auth?.user?.email || "").split("@")[0], character: { enabled: false, fields: ["name", "gender", "look", "personality"], questions: [] } }, a.publish || {});
   p.character = Object.assign({ enabled: false, fields: [], questions: [] }, p.character);
-  const save = () => { a.publish = p; LS.set("lan.adv." + a.id, a); };
+  const save = () => { a.publish = p; tgt.save(a); };
   openSheet(a.publishedId ? L("Mettre à jour la publication", "Update the post") : L("Publier dans Découvrir", "Publish to Discover"), null, (_, b) => {
     field(b, L("Titre", "Title"), p.title, v => { p.title = v; save(); });
     field(b, L("Accroche", "Hook"), p.hook, v => { p.hook = v.slice(0, 220); save(); }, { multiline: true, rows: 2, placeholder: L("Une ou deux phrases qui donnent envie de jouer.", "One or two sentences that make people want to play.") });
@@ -2690,7 +3186,7 @@ function publishSheet(after){
     const fl = el("div", "chips"); sub.appendChild(fl);
     CHAR_FIELDS.forEach(([f, fr, en]) => { const on = p.character.fields.includes(f); const c = el("button", "mode" + (on ? " on" : ""), L(fr, en)); c.onclick = () => { p.character.fields = on ? p.character.fields.filter(x => x !== f) : [...p.character.fields, f]; save(); c.classList.toggle("on"); }; fl.appendChild(c); });
     field(sub, L("Questions en plus", "Extra questions"), p.character.questions.join("\n"), v => { p.character.questions = v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 6); save(); }, { multiline: true, rows: 2, placeholder: L("Une par ligne. Ex. : Quelle est ta classe ?", "One per line. E.g. What is your class?"), hint: L("Avancé : pour placer une réponse à un endroit précis du texte, écris {nom}, {genre}, {âge}, {apparence}, {personnalité}, {passé}, ou {1}, {2}… pour tes questions. Les balises ${…} d'AI Dungeon marchent aussi.", "Advanced: to place an answer at a precise spot in the text, write {name}, {gender}, {age}, {appearance}, {personality}, {background}, or {1}, {2}… for your questions. AI Dungeon ${…} tags work too.") });
-    const sc = scenarioOf(a);
+    const sc = tgt.sc();
     hint(b, L(`Sera publié : ouverture, essentiels, note d'auteur, instructions, ${sc.cards.length} carte${sc.cards.length > 1 ? "s" : ""}, outils activés et image. Ta partie jouée reste privée.`, `Will be published: opening, essentials, author's note, instructions, ${sc.cards.length} card${sc.cards.length > 1 ? "s" : ""}, enabled tools and image. Your playthrough stays private.`)).style.marginTop = "14px";
     const r = el("div", "row"); r.style.cssText = "margin-top:10px;flex-wrap:wrap"; b.appendChild(r);
     const go = btn(r, a.publishedId ? L("Mettre à jour", "Update") : L("Publier", "Publish"), "", async () => {
@@ -2702,7 +3198,7 @@ function publishSheet(after){
         const row = { title: p.title.trim(), hook: p.hook.trim(), genre: p.genre, lang: isEN() ? "en" : "fr", author_name: p.author || "?", cover: await shrinkCover(sc.cover), data };
         if(a.publishedId){ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${a.publishedId}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(Object.assign(row, { updated_at: new Date().toISOString() })) }); toast(L("Publication mise à jour ✓", "Post updated ✓")); }
         else { const res = await sbFetch("/rest/v1/lanterne_scenarios?select=id", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify([row]) }); a.publishedId = res?.[0]?.id; toast(L("Publié dans Découvrir ✓", "Published to Discover ✓")); }
-        LS.set("lan.adv." + a.id, a); closeSheet(); if(after) after();
+        tgt.save(a); closeSheet(); if(after) after();
       }catch(e){
         go.disabled = false; go.textContent = a.publishedId ? L("Mettre à jour", "Update") : L("Publier", "Publish");
         toast(/row-level|policy|permission|403|42501/i.test(e.message + e.status) ? L("Tu n'es pas autorisé à publier : demande à l'admin de Lanterne", "You're not allowed to publish: ask the Lanterne admin") : e.message);
@@ -2711,7 +3207,7 @@ function publishSheet(after){
     go.style.flex = "1";
     if(a.publishedId) btn(r, L("Retirer", "Remove"), "danger", async () => {
       if(!confirm(L("Retirer ce scénario de Découvrir ?", "Remove this scenario from Discover?"))) return;
-      try{ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${a.publishedId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); delete a.publishedId; LS.set("lan.adv." + a.id, a); toast(L("Scénario retiré", "Scenario removed")); closeSheet(); if(after) after(); }catch(e){ toast(e.message); }
+      try{ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${a.publishedId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); delete a.publishedId; tgt.save(a); toast(L("Scénario retiré", "Scenario removed")); closeSheet(); if(after) after(); }catch(e){ toast(e.message); }
     });
   });
 }
@@ -2748,11 +3244,14 @@ function aidCards(arr){
   }));
 }
 function parseAID(j){
-  const arrays = [], strings = {};
+  const arrays = [], strings = {}, titles = [];
   const walk = (o, depth) => {
     if(!o || depth > 9) return;
     if(Array.isArray(o)){ arrays.push(o); o.forEach(x => walk(x, depth + 1)); return; }
-    if(typeof o === "object") for(const [k, v] of Object.entries(o)){ if(typeof v === "string" && v.trim()) (strings[k] ||= []).push(v); else walk(v, depth + 1); }
+    if(typeof o === "object"){
+      const card = "keys" in o || "value" in o || "entry" in o;
+      for(const [k, v] of Object.entries(o)){ if(typeof v === "string" && v.trim()){ (strings[k] ||= []).push(v); if(k === "title" && !card) titles.push({ v: v.trim(), depth }); } else walk(v, depth + 1); }
+    }
   };
   walk(j, 0);
   const pick = (...keys) => { for(const k of keys) if(strings[k]?.length) return strings[k].sort((a, b) => b.length - a.length)[0]; return ""; };
@@ -2770,7 +3269,7 @@ function parseAID(j){
   const prompt = pick("prompt", "openingPrompt");
   const questions = [...new Set((prompt + pick("memory", "plotEssentials") + pick("authorsNote")).match(/\$\{([^}]{1,120})\}/g) || [])].map(x => x.slice(2, -1));
   return {
-    title: pick("title") || L("Aventure importée", "Imported adventure"), essentials: pick("memory", "plotEssentials", "plot_essentials"), authorsNote: pick("authorsNote", "authorNote", "authors_note"),
+    title: (titles.filter(t => !/configure|inner\s*self|auto-?cards/i.test(t.v)).sort((a, b) => a.depth - b.depth)[0]?.v) || L("Aventure importée", "Imported adventure"), essentials: pick("memory", "plotEssentials", "plot_essentials"), authorsNote: pick("authorsNote", "authorNote", "authors_note"),
     instructions: pick("instructions", "aiInstructions", "ai_instructions"), summary: pick("storySummary", "summary"), description: pick("description"),
     actions, cards, prompt, questions
   };
@@ -2810,6 +3309,7 @@ function importAIDText(){
       Object.assign(a, { title: d.title.trim() || L("Aventure importée", "Imported adventure"), essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions.trim().length > 40 ? d.instructions : DEFAULT_INSTRUCTIONS, actions: acts });
       adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
       toast(L(`Aventure importée : ${acts.length} passages. Ajoute tes Story Cards depuis l'onglet Story Cards.`, `Adventure imported: ${acts.length} passages. Add your Story Cards from the Story Cards tab.`));
+      offerMemoryBuild(a);
     }).style.marginTop = "14px";
   });
 }
@@ -2837,13 +3337,14 @@ function importAIDFile(){
         Object.assign(a, { title: d.title, essentials: d.essentials, authorsNote: d.authorsNote, instructions: instr, summary: d.summary, cards: d.cards, actions: d.actions });
         adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
         toast(L(`Aventure importée : ${d.actions.length} passages, ${d.cards.length} cartes`, `Adventure imported: ${d.actions.length} passages, ${d.cards.length} cards`));
+        offerMemoryBuild(a);
       } else {
-        const a = blankAdventure();
-        Object.assign(a, { title: d.title, essentials: d.essentials, authorsNote: d.authorsNote, instructions: instr, cards: d.cards,
-          actions: d.prompt ? [{ id: uid(), type: "ai", text: d.prompt }] : [],
-          publish: { title: d.title, hook: (d.description || "").slice(0, 220), genre: "misc", character: { enabled: d.questions.length > 0, fields: [], questions: d.questions } } });
-        adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
-        toast(L("Scénario importé. Onglet Aventure : ▶ Jouer comme scénario, ou Publier", "Scenario imported. Adventure tab: ▶ Play as scenario, or Publish"));
+        const t = scnFromSc({ title: d.title, opening: d.prompt, essentials: d.essentials, authorsNote: d.authorsNote, instructions: instr, cards: d.cards,
+          character: { enabled: d.questions.length > 0, fields: [], questions: d.questions } });
+        t.publish = Object.assign(t.publish, { title: d.title, hook: (d.description || "").slice(0, 220), genre: "misc" });
+        saveScn(t); closeSheet(); libTab = "scn"; if(adv){ adv = null; } showLibrary();
+        toast(L("Scénario importé dans Mes scénarios (privé)", "Scenario imported into My scenarios (private)"));
+        adventureWizard(scnPre(t), { scn: t });
       }
     }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
   };
@@ -3153,7 +3654,7 @@ function applyPulled(keys){
     if(k === "lan.settings") settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
     else if(k === "lan.stats") stats = Object.assign({ total: 0, since: Date.now(), turns: 0, words: 0, playerWords: 0, byMonth: {}, byModel: {}, days: {} }, LS.get("lan.stats", {}));
     else{
-      const id = k.replace(/^lan\.(adv|cover)\./, "");
+      const id = k.replace(/^lan\.(adv|cover|scn)\./, "");
       const a = LS.get("lan.adv." + id, null);
       index = index.filter(x => x.id !== id);
       if(a) index.push(indexEntry(a));
@@ -3372,6 +3873,7 @@ function renderMiscTab(body){
       btn(b, "← Retour", "ghost small", () => openAdventureSheet("misc")).style.marginTop = "12px";
     });
   }).style.marginBottom = "8px";
+  renderMemSection(body);
   sec(body, "Dépenses");
   body.appendChild(el("div", "stat", `<span>Dépensé sur cette aventure</span><b>${money(adv.spent || 0)}</b>`));
   body.appendChild(el("div", "stat", `<span>Tours joués · mots</span><b>${(adv.turns || 0).toLocaleString(LOC())} · ${(adv.words || 0).toLocaleString(LOC())}</b>`));
@@ -3379,8 +3881,12 @@ function renderMiscTab(body){
   sec(body, L("Découvrir", "Discover"));
   const pr = el("div", "row"); pr.style.flexWrap = "wrap"; body.appendChild(pr);
   btn(pr, adv.publishedId ? L("Mettre à jour la publication", "Update the post") : L("Publier dans Découvrir", "Publish to Discover"), "", () => { if(!auth || !hasKey()) return toast(L("Connecte-toi d'abord (Réglages → Compte)", "Sign in first (Settings → Account)")); publishSheet(() => openAdventureSheet("misc")); });
-  btn(pr, L("▶ Jouer comme scénario", "▶ Play as scenario"), "ghost", () => playAsScenario(adv));
-  hint(body, L("« Jouer comme scénario » lance une nouvelle partie depuis le début de cette aventure, avec création de personnage.", "“Play as scenario” starts a new game from this adventure's beginning, with character creation."));
+  hint(body, L("Ce qui est publié, c'est l'état actuel de cette aventure (sans ta partie jouée). Pour publier une version propre, publie plutôt depuis Mes scénarios.", "What gets published is this adventure's current state (without your playthrough). To publish a clean version, publish from My scenarios instead."));
+  sec(body, L("Recommencer", "Restart"));
+  const rr = el("div", "row"); rr.style.flexWrap = "wrap"; body.appendChild(rr);
+  btn(rr, L("↺ Recommencer depuis le début", "↺ Restart from the beginning"), "", () => restartAdventure(adv));
+  btn(rr, L("Créer un scénario", "Create a scenario"), "ghost", () => scenarioFromAdventure(adv));
+  hint(body, (adv.origin?.late ? L("Le départ de cette partie a été enregistré à la mise à jour 7.4 : les cartes et essentiels sont ceux de ce moment-là. ", "This game's start was saved with update 7.4: cards and essentials are those from that moment. ") : "") + L("Le matériel de départ (ouverture, essentiels, cartes, instructions) est gardé à part : ce qui change pendant la partie ne le touche pas.", "The starting material (opening, essentials, cards, instructions) is kept aside: what changes during play never touches it."));
   sec(body, "Gestion");
   const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
   btn(r, "Dupliquer", "ghost", () => {

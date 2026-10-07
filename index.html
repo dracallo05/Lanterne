@@ -1481,7 +1481,16 @@ function signOut(silent){
   if(a && !silent) fetch(syncConf().url + "/auth/v1/logout", { method: "POST", headers: { apikey: syncConf().key, Authorization: "Bearer " + a.access_token } }).catch(() => {});
   refreshSyncLine();
 }
+function wipeLocalSynced(){
+  const ks = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(SYNC_RE.test(k)) ks.push(k); }
+  ks.forEach(k => localStorage.removeItem(k));
+  ["lan.mtime", "lan.dirty", "lan.index", "lan.sync.last"].forEach(k => localStorage.removeItem(k));
+  settings = Object.assign({}, DEFAULT_SETTINGS); index = []; stats = { total: 0, since: Date.now(), turns: 0, words: 0, playerWords: 0, byMonth: {}, byModel: {}, days: {} };
+}
 async function firstSync(){
+  const owner = localStorage.getItem("lan.sync.owner");
+  if(owner && owner !== auth.user.id) wipeLocalSynced(); // another account used this device before: start clean
+  localStorage.setItem("lan.sync.owner", auth.user.id);
   // stamp existing local data so it can be merged with the account (newest wins)
   const m = LS.get("lan.mtime", {}), d = LS.get("lan.dirty", {});
   for(let i = 0; i < localStorage.length; i++){
@@ -1518,7 +1527,7 @@ async function syncPull(){
   let last = localStorage.getItem("lan.sync.last") || "1970-01-01T00:00:00Z";
   const changed = [];
   for(let page = 0; page < 20; page++){
-    const rows = await sbFetch(`/rest/v1/lanterne_docs?select=key,data,mtime,deleted,updated_at&updated_at=gt.${encodeURIComponent(last)}&order=updated_at.asc&limit=200`);
+    const rows = await sbFetch(`/rest/v1/lanterne_docs?select=key,data,mtime,deleted,updated_at&user_id=eq.${auth.user.id}&updated_at=gt.${encodeURIComponent(last)}&order=updated_at.asc&limit=200`);
     if(!rows || !rows.length) break;
     const mt = LS.get("lan.mtime", {}), dirty = LS.get("lan.dirty", {});
     rows.forEach(r => {
@@ -1567,6 +1576,7 @@ function applyPulled(keys){
 }
 async function syncNow(manual){
   if(!auth || !syncConf().url){ refreshSyncLine(); return; }
+  if(!localStorage.getItem("lan.sync.owner")) localStorage.setItem("lan.sync.owner", auth.user.id);
   if(syncState.busy){ if(manual) toast("Synchronisation déjà en cours"); return; }
   syncState.busy = true; refreshSyncLine();
   try{
@@ -1607,7 +1617,7 @@ function renderSyncTab(body){
     body.appendChild(el("div", "stat", `<span>Connecté</span><b>${esc(auth.user.email)}</b>`));
     btn(body, "Synchroniser maintenant", "wide", () => syncNow(true)).style.marginBottom = "16px";
     toggle(body, "Synchroniser aussi la clé API", "Pratique : rien à recoller sur le PC. Elle est stockée dans ton compte, visible par toi seul.", () => settings.syncApiKey, v => { settings.syncApiKey = v; saveSettings(); });
-    btn(body, "Se déconnecter", "ghost small", () => { if(confirm("Se déconnecter ? Tes aventures restent sur cet appareil.")){ signOut(); openSettings("sync"); } });
+    btn(body, "Se déconnecter", "ghost small", async () => { if(confirm("Se déconnecter ? Tes aventures restent sur cet appareil. Si un autre compte se connecte ici ensuite, elles seront retirées de l'appareil (elles restent dans ton compte).")){ await syncNow(false); signOut(); openSettings("sync"); } });
   }
   const det = el("details", "fold", `<summary>Serveur (avancé)</summary><div class="in"></div>`);
   if(!c.url || !c.key) det.open = true;

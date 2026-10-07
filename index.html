@@ -2657,7 +2657,7 @@ async function playScenario(sc, publishedId){
 function pickAdventureToPublish(){
   openSheet(L("Publier une aventure", "Publish an adventure"), null, (_, b) => {
     hint(b, L("Choisis l'aventure à partager. Seul le début est publié (ouverture, essentiels, note d'auteur, instructions, cartes, outils, image), jamais ta partie jouée.", "Choose the adventure to share. Only the start is published (opening, essentials, author's note, instructions, cards, tools, image), never your playthrough."));
-    btn(b, L("📥 Importer un scénario AI Dungeon", "📥 Import an AI Dungeon scenario"), "ghost small", () => { closeSheet(); importAIDFile(); }).style.marginBottom = "14px";
+    btn(b, L("📥 Importer depuis AI Dungeon", "📥 Import from AI Dungeon"), "ghost small", () => { closeSheet(); importAIDMenu(); }).style.marginBottom = "14px";
     if(!index.length) hint(b, L("Aucune aventure. Crée-en une d'abord.", "No adventures. Create one first."));
     index.forEach(x => { const it = el("div", "item"); it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(x.title)}</div>`)); it.onclick = () => { const a = LS.get("lan.adv." + x.id, null); if(a){ adv = migrate(a); publishSheet(() => { adv = null; showLibrary(); }); } }; b.appendChild(it); });
   });
@@ -2759,7 +2759,8 @@ function parseAID(j){
   const actArr = arrays.filter(a => a.length && a.every(x => x && typeof x === "object" && typeof x.text === "string" && ("type" in x || "actionType" in x))).sort((a, b) => b.length - a.length)[0] || [];
   const cards = aidCards(arrays.filter(a => a.some(x => x && typeof x === "object" && "keys" in x && ("value" in x || "entry" in x))).sort((a, b) => b.length - a.length)[0] || []);
   let acts = actArr.filter(x => !x.undoneAt && !x.deletedAt && !x.retriedAt && x.text.trim());
-  if(acts.some(x => x.actionNumber != null || x.id != null)) acts = [...acts].sort((a, b) => (Number(a.actionNumber ?? a.id) || 0) - (Number(b.actionNumber ?? b.id) || 0));
+  if(acts.some(x => x.createdAt)) acts = [...acts].sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")) || (Number(a.id) || 0) - (Number(b.id) || 0));
+  else if(acts.some(x => x.actionNumber != null || x.id != null)) acts = [...acts].sort((a, b) => (Number(a.actionNumber ?? a.id) || 0) - (Number(b.actionNumber ?? b.id) || 0));
   const actions = acts.map(x => {
     const t = String(x.type || x.actionType || "").toLowerCase(), text = x.text.replace(/^\n+|\s+$/g, "");
     if(t === "do" || t === "say") return { id: uid(), type: "player", kind: t, text: text.trim() };
@@ -2773,6 +2774,51 @@ function parseAID(j){
     instructions: pick("instructions", "aiInstructions", "ai_instructions"), summary: pick("storySummary", "summary"), description: pick("description"),
     actions, cards, prompt, questions
   };
+}
+function parseStoryText(raw){
+  const lines = String(raw || "").replace(/\r/g, "").split("\n");
+  const actions = []; let buf = [];
+  const flush = () => { const t = buf.join("\n").replace(/\n{3,}/g, "\n\n").trim(); if(t) actions.push({ id: uid(), type: "ai", text: t }); buf = []; };
+  lines.forEach(l => {
+    const t = l.trim();
+    if(/^>\s*\S/.test(t)){
+      flush();
+      const body = t.replace(/^>\s*/, "");
+      const say = /^(you|tu)\s+(say|says|dis|demandes?|cries?|cri(es)?|murmures?|whispers?|shouts?|asks?)\b|^["“«]/i.test(body);
+      actions.push({ id: uid(), type: "player", kind: say ? "say" : "do", text: "> " + body });
+    } else buf.push(l);
+  });
+  flush();
+  return actions;
+}
+function importAIDText(){
+  const d = { title: "", text: "", essentials: "", authorsNote: "", instructions: "" };
+  openSheet(L("Importer une histoire (texte)", "Import a story (text)"), null, (_, b) => {
+    hint(b, L("Dans AI Dungeon, sélectionne tout le texte de ton histoire (du début à la fin), copie-le et colle-le ici. Lanterne reconnaît tes actions (les lignes qui commencent par « > ») et les réponses de l'IA. Si l'histoire est très longue, tu peux coller en plusieurs fois : ajoute la suite avec le même bouton dans l'aventure.", "In AI Dungeon, select all your story text (start to end), copy it and paste it here. Lanterne recognizes your actions (lines starting with “>”) and the AI's replies. If the story is very long, you can paste it in several goes."));
+    field(b, L("Titre", "Title"), d.title, v => d.title = v);
+    const ta = field(b, L("Texte de l'histoire", "Story text"), "", v => { d.text = v; cnt.textContent = L(`${parseStoryText(v).length} passages reconnus`, `${parseStoryText(v).length} passages recognized`); }, { multiline: true, rows: 10, placeholder: L("Colle ici tout le texte…", "Paste all the text here…") });
+    const cnt = el("div", "hint"); cnt.style.cssText = "text-align:right;margin:-12px 0 12px"; ta.parentElement.after(cnt);
+    const det = el("details", "fold", `<summary>${L("Plot Essentials, note d'auteur, instructions (optionnel)", "Plot Essentials, author's note, instructions (optional)")}</summary><div class="in"></div>`); b.appendChild(det);
+    const di = det.querySelector(".in");
+    field(di, "Plot Essentials", "", v => d.essentials = v, { multiline: true, rows: 4 });
+    field(di, L("Note d'auteur", "Author's note"), "", v => d.authorsNote = v, { multiline: true, rows: 2 });
+    field(di, L("Instructions de l'IA", "AI instructions"), "", v => d.instructions = v, { multiline: true, rows: 4, hint: L("Laisse vide pour garder les instructions par défaut de Lanterne.", "Leave empty to keep Lanterne's default instructions.") });
+    btn(b, L("Importer", "Import"), "wide", () => {
+      const acts = parseStoryText(d.text);
+      if(!acts.length) return toast(L("Colle d'abord le texte de l'histoire", "Paste the story text first"));
+      const a = blankAdventure();
+      Object.assign(a, { title: d.title.trim() || L("Aventure importée", "Imported adventure"), essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions.trim().length > 40 ? d.instructions : DEFAULT_INSTRUCTIONS, actions: acts });
+      adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
+      toast(L(`Aventure importée : ${acts.length} passages. Ajoute tes Story Cards depuis l'onglet Story Cards.`, `Adventure imported: ${acts.length} passages. Add your Story Cards from the Story Cards tab.`));
+    }).style.marginTop = "14px";
+  });
+}
+function importAIDMenu(){
+  openSheet(L("Importer depuis AI Dungeon", "Import from AI Dungeon"), null, (_, b) => {
+    const opt = (t, d, f) => { const o = el("button", "mdl", `<div class="grow"><div class="n">${t}</div><div class="d">${d}</div></div>`); o.onclick = f; b.appendChild(o); };
+    opt(L("Coller le texte de l'histoire", "Paste the story text"), L("Le plus simple : copie ton histoire dans AI Dungeon et colle-la. Marche toujours.", "The simplest: copy your story in AI Dungeon and paste it. Always works."), () => { closeSheet(); importAIDText(); });
+    opt(L("Fichier JSON", "JSON file"), L("Un export complet (outil communautaire) ou des Story Cards exportées par AI Dungeon.", "A full export (community tool) or Story Cards exported by AI Dungeon."), () => { closeSheet(); importAIDFile(); });
+  });
 }
 function importAIDFile(){
   const i = document.createElement("input"); i.type = "file"; i.accept = "application/json,.json";
@@ -3722,7 +3768,7 @@ function openSettings(start){
         download(`lanterne-sauvegarde-${new Date().toISOString().slice(0,10)}.json`, { lanterne: 1, adventures: all });
       });
       btn(r, "Importer", "ghost", importFile);
-      btn(r, L("Importer depuis AI Dungeon", "Import from AI Dungeon"), "ghost", importAIDFile);
+      btn(r, L("Importer depuis AI Dungeon", "Import from AI Dungeon"), "ghost", importAIDMenu);
       btn(body, "Revoir le tutoriel", "ghost small", () => { closeSheet(); onboarding(true); }).style.marginTop = "12px";
       sec(body, "Crédits");
       hint(body, `Scripts Auto-Cards et Inner Self par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a>, sous licence MIT. Les Cartes intelligentes et l'Esprit des personnages s'en inspirent.`);

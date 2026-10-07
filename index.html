@@ -479,7 +479,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small"
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto"
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -568,7 +568,7 @@ let adv = null;
 let redoStack = [];
 let mode = "do";
 let generating = null;
-let lastCost = null;
+let lastCost = null, lastCache = null;
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const $ = s => document.querySelector(s);
@@ -604,11 +604,11 @@ function recordTurn(aiText, playerText){
   if(adv){ adv.turns = (adv.turns || 0) + 1; adv.words = (adv.words || 0) + wordCount(aiText) + wordCount(playerText || ""); }
 }
 function saveSettings(){ LS.set("lan.settings", settings); }
-function addCost(c){
+function addCost(c, model){
   if(!(c > 0)) return;
   stats.total += c;
   const mk = monthKey(); stats.byMonth[mk] = (stats.byMonth[mk] || 0) + c;
-  const md = (stats.byModel[settings.model] ||= { turns: 0, usd: 0 }); md.usd += c;
+  const md = (stats.byModel[model || settings.model] ||= { turns: 0, usd: 0 }); md.usd += c;
   LS.set("lan.stats", stats);
   if(adv){ adv.spent = (adv.spent || 0) + c; }
 }
@@ -823,8 +823,8 @@ function setHeaderTitle(text, withLogo){
 }
 const APP_VERSION = "7.4";
 const CHANGELOG = [
-  { v: "7.4", fr: ["Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée", "Recommencer : chaque partie garde son matériel de départ et peut repartir de zéro (Aventure → Recommencer, ou ⋯ dans la bibliothèque)", "Création de personnage disponible dès la création d'une aventure ou d'un scénario", "Rien n'est publié sans ton accord : la publication dans Découvrir reste un bouton à part", "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène (par le sens, pas seulement par mots-clés)", "Les souvenirs se lisent, se modifient, s'épinglent et se cherchent (Aventure → Mémoire longue)", "Après un import, Lanterne propose de tout mémoriser et de refaire le résumé de toute l'histoire", "Import AI Dungeon : le vrai titre de l'aventure est repris (plus « Configure Inner Self »)"],
-    en: ["My scenarios: your private scenarios, kept apart from your games. Editing them never touches games already started", "Restart: every game keeps its starting material and can start over from scratch (Adventure → Restart, or ⋯ in the library)", "Character creation available as soon as you create an adventure or scenario", "Nothing is published without your say: publishing to Discover stays a separate button", "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene (by meaning, not just keywords)", "Memories can be read, edited, pinned and searched (Adventure → Long-term memory)", "After an import, Lanterne offers to memorize everything and rebuild the whole story's summary", "AI Dungeon import: the real adventure title is kept (no more “Configure Inner Self”)"] },
+  { v: "7.4", fr: ["Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée", "Recommencer : chaque partie garde son matériel de départ et peut repartir de zéro (Aventure → Recommencer, ou ⋯ dans la bibliothèque)", "Création de personnage disponible dès la création d'une aventure ou d'un scénario", "Rien n'est publié sans ton accord : la publication dans Découvrir reste un bouton à part", "Mode économie : les tours coûtent 2 à 4 fois moins cher grâce au cache des fournisseurs (l'histoire sort de la mémoire par paquets, le pourcentage en cache s'affiche sous la réponse)", "Les tâches de fond (résumé, souvenirs, cartes, esprits) passent par un modèle économique, DeepSeek V4 Flash par défaut (Réglages → Modèle)", "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène (par le sens, pas seulement par mots-clés)", "Les souvenirs se lisent, se modifient, s'épinglent et se cherchent (Aventure → Mémoire longue)", "Après un import, Lanterne propose de tout mémoriser et de refaire le résumé de toute l'histoire", "Import AI Dungeon : le vrai titre de l'aventure est repris (plus « Configure Inner Self »)"],
+    en: ["My scenarios: your private scenarios, kept apart from your games. Editing them never touches games already started", "Restart: every game keeps its starting material and can start over from scratch (Adventure → Restart, or ⋯ in the library)", "Character creation available as soon as you create an adventure or scenario", "Nothing is published without your say: publishing to Discover stays a separate button", "Economy mode: turns cost 2 to 4 times less thanks to provider caching (old passages leave memory in batches, the cached percentage shows under each reply)", "Background tasks (summary, memories, cards, minds) use a cheap model, DeepSeek V4 Flash by default (Settings → Model)", "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene (by meaning, not just keywords)", "Memories can be read, edited, pinned and searched (Adventure → Long-term memory)", "After an import, Lanterne offers to memorize everything and rebuild the whole story's summary", "AI Dungeon import: the real adventure title is kept (no more “Configure Inner Self”)"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés entre joueurs, avec recherche, genres, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import depuis AI Dungeon : aventures, scénarios et Story Cards"],
     en: ["Discover tab: scenarios shared between players, with search, genres, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import from AI Dungeon: adventures, scenarios and Story Cards"] },
   { v: "7.2", fr: ["Esprit des personnages : humeur, relation avec toi (confiance, affection, peur, tension), objectifs, plan, ce qu'ils savent, secrets, façon de parler", "Les personnages vivent hors champ et ne savent que ce qu'ils ont vu ou entendu", "Onglet Scripts réorganisé : outils Lanterne recommandés en haut, scripts AI Dungeon (Auto-Cards, Inner Self) à part en dessous"],
@@ -961,7 +961,7 @@ function apiConf(){
 async function callModel(messages, opts = {}){
   if(!settings.apiKey) throw new Error("Ajoute ta clé API dans les réglages");
   const { url, or } = apiConf();
-  const body = { model: settings.model.trim(), messages, stream: !!opts.onDelta || opts.stream === true,
+  const body = { model: (opts.model || settings.model).trim(), messages, stream: !!opts.onDelta || opts.stream === true,
     max_tokens: opts.max_tokens ?? settings.max_tokens, temperature: opts.temperature ?? settings.temperature, top_p: opts.top_p ?? settings.top_p };
   if(!opts.plain){
     if(settings.presence_penalty) body.presence_penalty = settings.presence_penalty;
@@ -1016,12 +1016,29 @@ async function callModel(messages, opts = {}){
     }
   }
   if(usage?.cost != null) cost = Number(usage.cost);
-  addCost(cost);
+  const ptd = usage?.prompt_tokens_details; if(!opts.plain && usage?.prompt_tokens) lastCache = Math.round(100 * (Number(ptd?.cached_tokens) || 0) / usage.prompt_tokens);
+  addCost(cost, body.model);
   return { text: text.replace(/<think>[\s\S]*?<\/think>/g, ""), cost, usage };
 }
-async function complete(prompt, max_tokens){
-  const r = await callModel([{ role: "user", content: prompt }], { max_tokens, temperature: 0.9, top_p: 0.95, plain: true });
-  return r.text.trim();
+/* Tâches de fond (résumé, souvenirs, cartes, esprits) : modèle économique au choix, par défaut DeepSeek V4 Flash */
+let bgResolved = null;
+async function bgModel(){
+  const v = (settings.bgModel ?? "auto").trim();
+  if(!v || v === "same" || !isOR()) return settings.model;
+  if(v !== "auto") return v;
+  if(bgResolved) return bgResolved;
+  try{
+    const all = await withTimeout(loadModels(), 6000);
+    const hit = all.filter(m => /^deepseek\/deepseek-v4[\d.]*-flash(-\d{4,8})?$/.test(m.id)).sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+    bgResolved = hit ? hit.id : settings.model;
+  }catch(e){ return settings.model; }
+  return bgResolved;
+}
+async function complete(prompt, max_tokens, bg){
+  const opts = { max_tokens, temperature: 0.9, top_p: 0.95, plain: true };
+  if(bg){ const m = await bgModel(); if(m && m !== settings.model){ opts.model = m; opts.temperature = 0.6; } }
+  try{ const r = await callModel([{ role: "user", content: prompt }], opts); return r.text.trim(); }
+  catch(e){ if(opts.model){ bgResolved = settings.model; delete opts.model; const r = await callModel([{ role: "user", content: prompt }], opts); return r.text.trim(); } throw e; }
 }
 function parseJSON(t){
   t = t.replace(/```(?:json)?/gi, "");
@@ -1346,7 +1363,7 @@ function renderStory(scroll){
   });
   if(!shown.length) s.appendChild(el("div", "empty", `<span style="font-family:var(--sans)">L'histoire est vide. Écris une action, ou passe en mode <b>Histoire</b> pour poser la scène.</span>`));
   const m = el("div", "meta");
-  m.textContent = (lastCost != null ? "ce tour : " + money(lastCost) + " · " : "") + "aventure : " + money(adv.spent || 0);
+  m.textContent = (lastCost != null ? "ce tour : " + money(lastCost) + (lastCache ? ` (${L("cache", "cache")} ${lastCache} %)` : "") + " · " : "") + "aventure : " + money(adv.spent || 0);
   s.appendChild(m);
   updateTools(); refreshSmartBar();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
@@ -1408,35 +1425,58 @@ function triggeredCards(){
   return adv.cards.filter(c => c.enabled !== false && !isSystem(c) && !isBrain(c) && visible(c.entry) &&
     (c.keys || "").split(",").map(k => k.trim().toLowerCase()).filter(Boolean).some(k => recent.includes(k)));
 }
-function buildMessages(guide){
+/* Ordre pensé pour le cache des fournisseurs : ce qui ne bouge pas (instructions, essentiels, résumé, histoire)
+   en premier, ce qui change à chaque tour (cartes, souvenirs, esprits, RPG) dans le dernier message.
+   L'histoire sort de la mémoire par paquets (fenêtre « collante »), pour que le début reste identique plusieurs tours de suite. */
+function stickyStart(a, budget, cost, dry){
+  const acts = a.actions, n = acts.length;
+  let need = n, tot = 0;
+  for(let i = n - 1; i >= 0; i--){ if(acts[i].hidden) continue; const t = cost(acts[i]); if(tot + t > budget && need < n) break; tot += t; need = i; }
+  const ai = a.ctxAnchor ? acts.findIndex(x => x.id === a.ctxAnchor) : -1;
+  if(ai >= 0 && ai >= need){
+    if(ai === need) return ai;
+    let fill = 0; for(let i = ai; i < n; i++) if(!acts[i].hidden) fill += cost(acts[i]);
+    if(fill >= budget * 0.55) return ai;
+  }
+  let st = n; tot = 0;
+  for(let i = n - 1; i >= 0; i--){ if(acts[i].hidden) continue; const t = cost(acts[i]); if(tot + t > budget * 0.7 && st < n) break; tot += t; st = i; }
+  if(st >= n) st = need;
+  if(!dry && acts[st]) a.ctxAnchor = acts[st].id;
+  return st;
+}
+function dynBlock(a, startIdx, reserve){
+  const cards = triggeredCards();
+  return [
+    cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n") : "",
+    memBlock(a, startIdx, reserve, false), mindBlock(a), rpgBlock(a), arNote(a)
+  ].filter(Boolean).join("\n\n");
+}
+function histBudget(a, dyn){
+  const sys = estTok(a.instructions) + estTok(a.essentials) + estTok(a.summary) + 30;
+  return settings.contextTokens - sys - dyn - estTok(a.authorsNote) - settings.max_tokens - 80;
+}
+function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
-  const cards = triggeredCards();
-  const wi = cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n") : "";
-  const extra = [mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
-  const sys = mem => { const p = [...parts, mem, wi].filter(Boolean); return (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (p.length ? "\n\n" + p.join("\n\n") : "") + (extra ? "\n\n" + extra : ""); };
+  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
-  let budget = settings.contextTokens - estTok(sys("")) - estTok(an) - settings.max_tokens - 50 - reserve;
-  const hist = [];
-  const acts = adv.actions.filter(a => !a.hidden);
-  for(let i = acts.length - 1; i >= 0; i--){
-    const a = acts[i]; const t = estTok(a.text);
-    if(budget - t < 0 && hist.length) break;
-    budget -= t; hist.unshift(a);
-  }
-  const system = sys(memBlock(adv, hist.length ? adv.actions.indexOf(hist[0]) : adv.actions.length, reserve, false));
+  const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;
+  const start = stickyStart(adv, histBudget(adv, dynEst), x => estTok(x.text), dry);
+  const dyn = dynBlock(adv, start, reserve);
+  const hist = adv.actions.slice(start).filter(a => !a.hidden);
   const msgs = [];
   const push = (role, content) => {
     const last = msgs[msgs.length - 1];
     if(last && last.role === role) last.content += "\n\n" + content; else msgs.push({ role, content });
   };
-  const ra = rollAction(acts);
+  const ra = rollAction(adv.actions.filter(a => !a.hidden));
   hist.forEach(a => push(a.type === "ai" ? "assistant" : "user", visible(a.text) + (a === ra ? "\n" + rollNote(a.roll) : "")));
   if(!msgs.length || msgs[msgs.length - 1].role === "assistant") push("user", "(Continue the story.)");
   if(msgs[0].role === "assistant") msgs.unshift({ role: "user", content: "(Begin.)" });
-  if(an){ const last = msgs[msgs.length - 1]; last.content = an + "\n\n" + last.content; }
+  const head = [dyn ? "[Notes for the narrator — background to use when relevant; never mention or quote them]\n" + dyn : "", an].filter(Boolean).join("\n\n");
+  if(head){ const last = msgs[msgs.length - 1]; last.content = head + "\n\n" + last.content; }
   if(guide){ const last = msgs[msgs.length - 1]; last.content += "\n\n" + guideNote(guide); }
   return [{ role: "system", content: system }, ...msgs];
 }
@@ -1448,7 +1488,7 @@ function rollAction(list){
 /* AI Dungeon–style single-text context, used when scripts are enabled */
 const ctxCharLimit = () => Math.max(6000, Math.floor((settings.contextTokens - settings.max_tokens) * 3.5));
 const guideNote = g => `[Direction from the player for what happens next — follow it naturally, never mention it: ${g.trim()}]`;
-function buildAIDContext(){
+function buildAIDContext(dry){
   const limit = ctxCharLimit();
   const top = [];
   if(adv.essentials.trim()) top.push(adv.essentials.trim());
@@ -1458,21 +1498,25 @@ function buildAIDContext(){
   const reserve = memReserve(adv);
   const head = top.join("\n\n");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
-  let budget = limit - head.length - an.length - 40 - Math.round(reserve * 3.6);
-  const parts = [];
   const ra = rollAction(adv.actions);
-  let oldest = adv.actions.length;
-  for(let i = adv.actions.length - 1; i >= 0; i--){
+  const oldest = aidStart(!!dry, head.length + an.length + 40 + Math.round(reserve * 3.6));
+  const parts = [];
+  for(let i = oldest; i < adv.actions.length; i++){
     const t = adv.actions[i].text.replace(/^\s+|\s+$/g, "") + (adv.actions[i] === ra ? "\n" + rollNote(ra.roll) : "");
-    if(!t) continue;
-    if(budget - t.length < 0 && parts.length) break;
-    budget -= t.length; parts.unshift(t); oldest = i;
+    if(t) parts.push(t);
   }
   const mb = memBlock(adv, oldest, reserve, true);
   if(mb) top.push(mb);
   const head2 = top.join("\n\n");
   if(an) parts.splice(Math.max(0, parts.length - 1), 0, an);
   return (head2 ? head2 + "\n\n" : "") + "Recent Story:\n" + parts.join("\n\n");
+}
+function aidStart(dry, headLen){
+  if(headLen == null){
+    const cards = triggeredCards();
+    headLen = (adv.essentials || "").length + (adv.summary || "").length + cards.reduce((n, c) => n + c.entry.length + 2, 0) + (adv.authorsNote || "").length + 80 + Math.round(memReserve(adv) * 3.6);
+  }
+  return stickyStart(adv, ctxCharLimit() - headLen, x => x.text.trim().length + 2, dry);
 }
 function aidHistory(){
   return adv.actions.map((a, i) => ({
@@ -1595,7 +1639,7 @@ async function generate(input, opts = {}){
       await prepareRecall(signal, playerText || guide);
       const msgs0 = buildMessages(guide);
       let r, attempt = 0;
-      lastCost = 0;
+      lastCost = 0; lastCache = null;
       while(true){
         let started = false, cut = false, partial = "";
         try{
@@ -1628,7 +1672,7 @@ async function generate(input, opts = {}){
       }
       renderStory(true);
       const ph = placeholder();
-      lastCost = 0;
+      lastCost = 0; lastCache = null;
       await prepareRecall(signal, playerText || guide);
       for(let loop = 0; loop < 10; loop++){
         if(signal.aborted) break;
@@ -1676,15 +1720,10 @@ async function generate(input, opts = {}){
 const wantsRoll = input => !!(adv.scripts.rpg && adv.scripts.rpgDice !== false && input && input.kind === "do");
 let summarizing = false;
 function windowStart(){
-  // index (in adv.actions) of the oldest action that still fits in the AI's memory
-  const head = estTok(adv.instructions) + estTok(adv.essentials) + estTok(adv.summary) + estTok(adv.authorsNote) + triggeredCards().reduce((n, c) => n + estTok(c.entry), 0) + memReserve(adv);
-  let budget = settings.contextTokens - head - settings.max_tokens - 50;
-  for(let i = adv.actions.length - 1; i >= 0; i--){
-    if(adv.actions[i].hidden) continue;
-    budget -= estTok(adv.actions[i].text);
-    if(budget < 0) return i + 1;
-  }
-  return 0;
+  // index (dans adv.actions) du plus ancien passage encore dans la mémoire courte de l'IA
+  if(scriptsOn()) return aidStart(true);
+  const dynEst = estTok(dynBlock(adv, 0, 0)) + memReserve(adv);
+  return stickyStart(adv, histBudget(adv, dynEst), x => estTok(x.text), true);
 }
 async function maybeSummarize(){
   if(!settings.autoSummary || summarizing || !adv) return;
@@ -1707,7 +1746,7 @@ New events that just left the AI's short-term memory:
 ${chunk}
 """
 Rewrite the summary so it includes the new events. Keep important facts: what happened, decisions, relationships, promises, secrets, injuries, items, places. Drop trivial details. Chronological, concise, under 1500 characters. Write in the language of the story. Return ONLY the summary.`;
-    const out = await complete(prompt, 700);
+    const out = await complete(prompt, 700, true);
     if(out && adv === a){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; saveAdv(); }
     else if(out){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; LS.set("lan.adv." + a.id, a); }
   }catch(e){ console.warn("summary failed", e); }
@@ -1859,7 +1898,7 @@ Write up to ${n} memories covering what matters in these passages. Each memory:
 - "p": the number of the passage it mostly comes from.
 Write in the language of the story.
 Return ONLY JSON: {"memories":[{"text":"...","keys":"...","imp":2,"p":1}]}`;
-  const j = parseJSON(await complete(prompt, 260 + n * 130));
+  const j = parseJSON(await complete(prompt, 260 + n * 130, true));
   const list = (j.memories || []).filter(m => m && typeof m.text === "string" && m.text.trim()).slice(0, n + 1).map(m => {
     const p = Math.min(acts.length, Math.max(1, Number(m.p) || acts.length));
     return { id: uid(), a: acts[0].id, b: acts[p - 1].id, t: m.text.trim().slice(0, 400), k: String(Array.isArray(m.keys) ? m.keys.join(", ") : m.keys || "").toLowerCase().slice(0, 160), imp: Math.min(3, Math.max(1, Number(m.imp) || 2)), e: null };
@@ -1937,7 +1976,7 @@ async function summaryFromMemories(a){
 ${list}
 """
 Write the story summary so far: the main arc in chronological order, key relationships and their current state, important promises, secrets, items and unresolved threads. Concise but complete, under 2200 characters. Write in the language of the memories. Return ONLY the summary.`;
-  const out = await complete(prompt, 1100);
+  const out = await complete(prompt, 1100, true);
   if(!out) throw new Error(L("réponse vide", "empty answer"));
   a.summary = out.trim().slice(0, 2600); a.summarizedUpTo = adv === a ? windowStart() : a.actions.length;
   persistAdv(a);
@@ -2127,7 +2166,7 @@ Return ONLY JSON:
 {"new":[{"type":"personnage|lieu|objet|faction|concept|autre","title":"","keys":"","entry":""}],
  "update":[{"id":"card id without #","entry":"full new entry","keys":"","why":"very short reason, in ${isEN() ? "English" : "French"}"}],
  "merge":[{"keep":"card id","remove":["card id"],"title":"","entry":"merged entry","keys":""}]}`;
-    const r = parseJSON(await complete(prompt, 2200));
+    const r = parseJSON(await complete(prompt, 2200, true));
     const ops = [];
     const byId = id => a.cards.find(c => c.id === String(id || "").replace(/^#/, ""));
     (r.new || []).forEach(n => {
@@ -2417,7 +2456,7 @@ Write every text value in the language of the story (${lang} if unsure). Keep ev
 Return ONLY JSON:
 {"characters":[{"name":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
  "offscreen":[{"name":"","offscreen":"","plan":""}]}`;
-    const r = parseJSON(await complete(prompt, 2400));
+    const r = parseJSON(await complete(prompt, 2400, true));
     const deltas = [];
     const player = (a.scripts.player || "").trim();
     (r.characters || []).forEach(c => {
@@ -3857,7 +3896,7 @@ function renderLookTab(body){
 function renderMiscTab(body){
   field(body, "Titre", adv.title, v => { adv.title = v; setHeaderTitle(v, false); saveAdv(); });
   sec(body, "Mémoire de l'IA");
-  const msgs = scriptsOn() ? scriptMessages(buildAIDContext()) : buildMessages();
+  const msgs = scriptsOn() ? scriptMessages(buildAIDContext(true)) : buildMessages(null, true);
   const total = msgs.reduce((n, m) => n + estTok(m.content), 0);
   const pct = Math.min(100, Math.round(total / settings.contextTokens * 100));
   hint(body, `Utilisée à <b>${pct} %</b> (${total.toLocaleString(LOC())} sur ${settings.contextTokens.toLocaleString(LOC())} tokens). Quand elle est pleine, l'IA oublie les passages les plus anciens, sauf ce qui est dans les Plot Essentials, le résumé et les cartes.`);
@@ -4086,9 +4125,9 @@ function modelRow(m, desc, onPick, pop, tags){
   b.onclick = () => onPick(m);
   return b;
 }
-function openModelPicker(back){
+function openModelPicker(back, key = "model"){
   openSheet("Choisir un modèle", [["rec","Recommandés"],["all","Tous les modèles"]], async (k, body) => {
-    const pick = m => { settings.model = m.id; saveSettings(); toast("Modèle : " + (m.name || m.id).replace(/^[^:]+:\s*/, "")); back(); };
+    const pick = m => { settings[key] = m.id; if(key === "bgModel") bgResolved = null; saveSettings(); toast("Modèle : " + (m.name || m.id).replace(/^[^:]+:\s*/, "")); back(); };
     body.innerHTML = `<div class="hint">Chargement des modèles et des prix…</div>`;
     let all = [];
     try{ all = await loadModels(); }catch(e){ body.innerHTML = `<div class="hint">Impossible de charger la liste (hors ligne ?).</div>`; }
@@ -4224,6 +4263,15 @@ function openSettings(start){
         draw();
         if(!modelCache) loadModels().then(() => holder.isConnected && draw()).catch(() => {});
         btn(body, "Changer de modèle", "ghost wide", () => openModelPicker(() => openSettings("model"))).style.marginBottom = "22px";
+        sec(body, L("Modèle des tâches de fond", "Background tasks model"));
+        hint(body, L("Utilisé pour le résumé, les souvenirs, les cartes intelligentes et les esprits des personnages : du travail de rangement, pas d'écriture. Un modèle économique suffit et coûte bien moins cher.", "Used for the summary, memories, smart cards and character minds: filing work, not writing. A cheap model is enough and costs much less."));
+        const bv = (settings.bgModel ?? "auto").trim();
+        const bsel = document.createElement("select"); bsel.className = "raw";
+        [["auto", L("Automatique : DeepSeek V4 Flash (conseillé)", "Automatic: DeepSeek V4 Flash (recommended)")], ["same", L("Le même que pour l'histoire", "Same as the story")], ["custom", L("Autre…", "Other…")]].forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; if((bv === v) || (v === "custom" && bv && bv !== "auto" && bv !== "same")) o.selected = true; bsel.appendChild(o); });
+        bsel.onchange = () => { if(bsel.value === "custom") return openModelPicker(() => openSettings("model"), "bgModel"); settings.bgModel = bsel.value; bgResolved = null; saveSettings(); openSettings("model"); };
+        body.appendChild(bsel);
+        if(bv && bv !== "auto" && bv !== "same") hint(body, esc(bv)).style.marginTop = "6px";
+        bsel.style.marginBottom = "22px";
       } else {
         field(body, "Modèle", settings.model, v => { settings.model = v; saveSettings(); }, { placeholder: "deepseek-chat", hint: "L'identifiant du modèle chez ce fournisseur." });
       }

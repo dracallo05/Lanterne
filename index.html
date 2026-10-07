@@ -62,7 +62,9 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .stats span{color:var(--tx3);font-size:12px}
 .secT{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);font-weight:600;margin:22px 2px 10px}
 .cover{background-size:cover;background-position:center;position:relative;overflow:hidden}
-.cover .ph{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--serif);color:rgba(255,255,255,.35);font-size:44px}
+.cover .ph{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.32)}
+.cover .ph svg{height:46%;max-height:90px;width:auto}
+.item .cover .ph svg{height:58%}
 .feat{border-radius:16px;overflow:hidden;background:var(--bg2);border:1px solid var(--line);display:block;width:100%;text-align:left;padding:0}
 .feat .cover{height:150px}
 .feat .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.55))}
@@ -80,16 +82,41 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .acts{display:flex;align-items:center;gap:6px;flex:none}
 .play{width:40px;height:40px;border-radius:50%;background:var(--acc);color:var(--onacc);display:grid;place-items:center;flex:none;border:0;transition:transform .15s,filter .15s}
 .play:hover{transform:scale(1.07);filter:brightness(1.08)}
-.play svg{width:16px;height:16px;margin-left:2px}
+.play svg{width:16px;height:16px;margin-left:0}
 .trash{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--tx3);background:transparent;border:0;opacity:.55;transition:opacity .15s,color .15s,background .15s}
 .trash svg{width:17px;height:17px}
 .trash:hover{opacity:1;color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}
 .feat .row2{display:flex;align-items:center;gap:12px}
 .feat .row2 .grow{flex:1;min-width:0}
-.feat .play{width:46px;height:46px}
+.feat .play{width:42px;height:42px}
+.feat .play svg{width:15px;height:15px}
+.gal{position:fixed;inset:0;z-index:45;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.galbox{background:var(--bg);border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:760px;max-height:88dvh;display:flex;flex-direction:column;padding:14px 16px calc(16px + env(safe-area-inset-bottom))}
+.galhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.galhd b{font-size:17px}
+.galup{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:1px dashed var(--line);border-radius:12px;color:var(--tx2);background:transparent;margin-bottom:12px}
+.galup:hover{border-color:var(--acc);color:var(--acc)}
+.galchips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:12px;flex:none}
+.galchips::-webkit-scrollbar{display:none}
+.galgrid{display:grid;grid-template-columns:repeat(2,1fr);grid-auto-rows:max-content;align-content:start;gap:8px;overflow-y:auto;min-height:0;padding-bottom:4px}
+.galit{height:0;padding:0 0 56.25% !important;width:100%;border-radius:12px;background-size:cover;background-position:center;border:1px solid var(--line);position:relative;overflow:hidden;padding:0}
+.galit span{position:absolute;left:0;right:0;bottom:0;padding:16px 8px 6px;font-size:12px;color:#fff;text-align:left;background:linear-gradient(transparent,rgba(0,0,0,.65))}
+.galit:hover{outline:2px solid var(--acc);outline-offset:1px}
+@media (min-width:700px){.galbox{border-radius:20px;margin-bottom:5vh}.galgrid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:899px){
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid .item{flex-direction:column;align-items:stretch;padding:0;gap:0;overflow:hidden;margin:0}
+  .grid .item .cover{width:100%;height:92px;border-radius:0}
+  .grid .item .grow{padding:9px 10px 10px;padding-right:46px}
+  .grid .item .t{font-size:14px}
+  .grid .item .m{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grid .item .play{position:absolute;right:8px;bottom:10px;width:32px;height:32px}
+  .grid .item .play svg{width:12px;height:12px}
+  .grid .item .trash{position:absolute;right:6px;top:6px;width:28px;height:28px;color:#fff;background:rgba(0,0,0,.4);opacity:.85}
+  .grid .item .trash svg{width:14px;height:14px}
+}
 @media (hover:hover){.trash{opacity:0}.feat:hover .trash,.item:hover .trash,.trash:focus-visible{opacity:.6}.trash:hover{opacity:1}}
 .app.wide{max-width:1180px}
-.newtile{display:none}
 @media (min-width:900px){
   .app.wide .pad{padding:28px 40px 40px}
   .app.wide .hero{display:grid;grid-template-columns:1fr auto;column-gap:32px;align-items:end;padding-bottom:6px}
@@ -103,7 +130,8 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .app.wide .feat{height:320px;border-radius:20px}
   .app.wide .feat .cover{position:absolute;inset:0;height:auto}
   .app.wide .feat .cover::after{background:linear-gradient(90deg,rgba(0,0,0,.78) 0%,rgba(0,0,0,.45) 45%,rgba(0,0,0,.05) 100%),linear-gradient(0deg,rgba(0,0,0,.5),transparent 55%)}
-  .app.wide .feat .cover .ph{justify-items:end;padding-right:9%;font-size:150px;color:rgba(255,255,255,.18)}
+  .app.wide .feat .cover .ph{justify-items:end;padding-right:9%;color:rgba(255,255,255,.2)}
+  .app.wide .feat .cover .ph svg{height:42%;max-height:none}
   .app.wide .feat .in{position:absolute;left:0;right:0;bottom:0;padding:32px 36px;z-index:1}
   .app.wide .feat .row2{align-items:flex-end;gap:24px;justify-content:space-between}
   .app.wide .feat .grow{max-width:620px}
@@ -116,9 +144,6 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .app.wide .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
   .app.wide .grid .item{margin-bottom:0;padding:12px;transition:border-color .15s,background .15s}
   .app.wide .grid .item:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:color-mix(in srgb,var(--acc) 4%,var(--bg2))}
-  .app.wide .newtile{display:flex;align-items:center;justify-content:center;gap:10px;min-height:84px;border:1px dashed var(--line);border-radius:14px;color:var(--tx3);background:transparent;font-size:14px;transition:color .15s,border-color .15s}
-  .app.wide .newtile:hover{color:var(--acc);border-color:var(--acc)}
-  .app.wide .newtile b{font-size:22px;font-weight:400}
 }
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
 .card .t{font-weight:600}
@@ -533,21 +558,22 @@ function btn(body, text, cls, onClick){
 function sec(body, text){ const d = el("div", "sec"); d.textContent = text; body.appendChild(d); }
 function hint(body, html){ const d = el("div", "hint", html); body.appendChild(d); return d; }
 function hueOf(s){ let h = 0; for(const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+const LOGO_SVG = `<svg viewBox="-110 -170 220 280" aria-hidden="true"><path d="M-40-150h80M0-150v28" stroke="currentColor" stroke-width="18" stroke-linecap="round" fill="none"/><path d="M-78-118h156l-14 196h-128z" fill="rgba(0,0,0,.18)" stroke="currentColor" stroke-width="14" stroke-linejoin="round"/><ellipse cx="0" cy="-10" rx="36" ry="58" fill="#d97757" opacity=".9"/><ellipse cx="0" cy="4" rx="16" ry="30" fill="#f2c4a8" opacity=".9"/><path d="M-96 92h192" stroke="currentColor" stroke-width="16" stroke-linecap="round"/></svg>`;
 function coverEl(cls, id, title, pos){
   const d = el("div", "cover " + cls);
   const img = id ? getCover(id) : null;
-  if(img){ d.style.backgroundImage = `url(${img})`; d.style.backgroundPosition = `center ${pos ?? 50}%`; }
+  if(img){ d.style.backgroundImage = `url("${img}")`; d.style.backgroundPosition = `center ${pos ?? 50}%`; }
   else {
     const h = hueOf(title || "?");
     d.style.background = `linear-gradient(135deg, hsl(${h} 32% 26%), hsl(${(h + 50) % 360} 30% 13%))`;
-    d.appendChild(el("div", "ph", esc((visible(title) || "?").charAt(0).toUpperCase())));
+    d.appendChild(el("div", "ph", LOGO_SVG));
   }
   return d;
 }
 function coverFramer(b, getImg, getPos, setPos){
   const img = getImg();
   const pc = el("button", "pickcover" + (img ? " has" : ""), img ? "" : "＋ Image de couverture");
-  if(img){ pc.style.backgroundImage = `url(${img})`; pc.style.backgroundSize = "cover"; pc.style.backgroundPosition = `center ${getPos() ?? 50}%`; pc.style.height = "150px"; }
+  if(img){ pc.style.backgroundImage = `url("${img}")`; pc.style.backgroundSize = "cover"; pc.style.backgroundPosition = `center ${getPos() ?? 50}%`; pc.style.height = "150px"; }
   b.appendChild(pc);
   if(img){
     const d = el("div", "sl", `<div class="top"><b>Cadrage</b><output>haut ↕ bas</output></div><div class="hint">Glisse pour choisir la partie de l'image qui reste visible.</div><input type="range" min="0" max="100" step="1" value="${getPos() ?? 50}">`);
@@ -556,6 +582,30 @@ function coverFramer(b, getImg, getPos, setPos){
     b.appendChild(d);
   }
   return pc;
+}
+function chooseCover(){
+  return new Promise(resolve => {
+    let genre = "all";
+    const ov = el("div", "gal"); const box = el("div", "galbox"); ov.appendChild(box); document.body.appendChild(ov);
+    const done = v => { ov.remove(); resolve(v); };
+    ov.onclick = e => { if(e.target === ov) done(null); };
+    const draw = () => {
+      box.innerHTML = "";
+      const hd = el("div", "galhd", `<b>Image de couverture</b>`); box.appendChild(hd);
+      const x = el("button", "ib", "✕"); x.setAttribute("aria-label", "Fermer"); x.onclick = () => done(null); hd.appendChild(x);
+      const up = el("button", "galup", `<span>⤒</span> Importer depuis l'appareil`); box.appendChild(up);
+      up.onclick = async () => { const img = await pickImage(); if(img) done(img); };
+      const chips = el("div", "galchips"); box.appendChild(chips);
+      [["all", "Tous"], ...COVER_GENRES].forEach(([k, n]) => { const c = el("button", "mode" + (genre === k ? " on" : ""), n); c.onclick = () => { genre = k; draw(); }; chips.appendChild(c); });
+      const g = el("div", "galgrid"); box.appendChild(g);
+      CoverArt.list.filter(c => genre === "all" || c.genre === genre).forEach(c => {
+        const t = el("button", "galit"); const url = CoverArt.url(c.id);
+        t.style.backgroundImage = `url("${url}")`; t.title = c.name; t.appendChild(el("span", "", esc(c.name)));
+        t.onclick = () => done(url); g.appendChild(t);
+      });
+    };
+    draw();
+  });
 }
 function pickImage(){
   return new Promise((resolve) => {
@@ -615,7 +665,7 @@ function showLibrary(){
     return;
   }
   const [first, ...rest] = list;
-  const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 001.5.86l12.5-7.5a1 1 0 000-1.72L8.5 3.64A1 1 0 007 4.5z"/></svg>`;
+  const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.2v13.6a1 1 0 001.5.86l10.6-6.8a1 1 0 000-1.72L10 4.34a1 1 0 00-1.5.86z"/></svg>`;
   const TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>`;
   const acts = (x, host) => {
     const a = el("div", "acts", `<button class="trash" aria-label="Supprimer" title="Supprimer">${TRASH}</button><button class="play" aria-label="Jouer" title="Jouer">${PLAY}</button>`);
@@ -632,9 +682,8 @@ function showLibrary(){
   fin.appendChild(r2); acts(first, r2);
   clickable(f, first.id);
   lib.appendChild(f);
-  const wideLib = matchMedia("(min-width:900px)").matches;
-  if(rest.length || wideLib){
-    lib.appendChild(el("div", "secT", rest.length ? "Toutes les aventures" : "Bibliothèque"));
+  if(rest.length){
+    lib.appendChild(el("div", "secT", "Toutes les aventures"));
     const grid = el("div", "grid"); lib.appendChild(grid);
     rest.forEach(x => {
       const it = el("div", "item");
@@ -643,7 +692,6 @@ function showLibrary(){
       acts(x, it); clickable(it, x.id);
       grid.appendChild(it);
     });
-    const nt = el("button", "newtile", "<b>+</b> Nouvelle aventure"); nt.onclick = () => adventureWizard(); grid.appendChild(nt);
   }
 }
 
@@ -775,7 +823,7 @@ function adventureWizard(pre){
     b.innerHTML = "";
     const pc = coverFramer(b, () => d.cover, () => d.coverPos, v => d.coverPos = v);
     if(!d.cover) pc.textContent = "＋ Image de couverture (optionnel)";
-    pc.onclick = async () => { const img = await pickImage(); if(img){ d.cover = img; d.coverPos = 50; render(b); } };
+    pc.onclick = async () => { const img = await chooseCover(); if(img){ d.cover = img; d.coverPos = 50; render(b); } };
 
     const gr = el("div", "row"); gr.style.cssText = "flex-wrap:wrap;margin-bottom:14px"; b.appendChild(gr);
     btn(gr, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer", "ghost small", () => { genOpen = !genOpen; render(b); });
@@ -1486,6 +1534,134 @@ function importScenarioFile(){
   i.click();
 }
 
+/* ================= Premade covers (vector, generated in-app) ================= */
+const COVER_GENRES = [["scifi","Science-fiction"],["fantasy","Fantasy"],["action","Action-aventure"],["horror","Horreur"],["drama","Drame"],["misc","Divers"],["worlds","Mondes"]];
+const CoverArt = (() => {
+  const W = 800, H = 450;
+  const rng = s => () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  let gid = 0;
+  const lin = (stops, x2 = 0, y2 = 1) => { const id = "g" + (++gid); return [id, `<linearGradient id="${id}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([o, c, a]) => `<stop offset="${o}" stop-color="${c}"${a != null ? ` stop-opacity="${a}"` : ""}/>`).join("")}</linearGradient>`]; };
+  const rad = (stops) => { const id = "r" + (++gid); return [id, `<radialGradient id="${id}">${stops.map(([o, c, a]) => `<stop offset="${o}" stop-color="${c}"${a != null ? ` stop-opacity="${a}"` : ""}/>`).join("")}</radialGradient>`]; };
+  function ridge(r, y, amp, rough, fill, steps = 64){
+    let pts = [], v = 0;
+    for(let i = 0; i <= steps; i++){ v += (r() - .5) * rough; v *= .92; pts.push([i * W / steps, y + v * amp]); }
+    return `<path d="M0 ${H}L${pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join("L")}L${W} ${H}Z" fill="${fill}"/>`;
+  }
+  function peaks(r, y, n, hmin, hmax, fill){
+    let d = `M0 ${H}L0 ${y}`, x = 0;
+    while(x < W){ const w = 60 + r() * (W / n); const h = hmin + r() * (hmax - hmin); d += `L${(x + w / 2).toFixed(0)} ${(y - h).toFixed(0)}L${(x + w).toFixed(0)} ${(y - r() * 20).toFixed(0)}`; x += w; }
+    return `<path d="${d}L${W} ${H}Z" fill="${fill}"/>`;
+  }
+  function stars(r, n, maxY, color = "#fff"){
+    let s = ""; for(let i = 0; i < n; i++){ const big = r() < .08; s += `<circle cx="${(r() * W).toFixed(0)}" cy="${(r() * maxY).toFixed(0)}" r="${big ? 1.6 : .5 + r() * .8}" fill="${color}" opacity="${(.3 + r() * .7).toFixed(2)}"/>`; }
+    return s;
+  }
+  function orb(cx, cy, rr, color, glow, ga = .45){
+    const [id, def] = rad([[0, glow, ga], [1, glow, 0]]);
+    return { def, svg: `<circle cx="${cx}" cy="${cy}" r="${rr * 3.2}" fill="url(#${id})"/><circle cx="${cx}" cy="${cy}" r="${rr}" fill="${color}"/>` };
+  }
+  function pines(r, yb, n, hmin, hmax, fill){
+    let s = ""; for(let i = 0; i < n; i++){ const x = r() * W, h = hmin + r() * (hmax - hmin), w = h * (.28 + r() * .1);
+      s += `<path d="M${x.toFixed(0)} ${(yb - h).toFixed(0)}L${(x + w / 2).toFixed(0)} ${(yb - h * .45).toFixed(0)}L${(x + w * .3).toFixed(0)} ${(yb - h * .45).toFixed(0)}L${(x + w * .62).toFixed(0)} ${yb}L${(x - w * .62).toFixed(0)} ${yb}L${(x - w * .3).toFixed(0)} ${(yb - h * .45).toFixed(0)}L${(x - w / 2).toFixed(0)} ${(yb - h * .45).toFixed(0)}Z" fill="${fill}"/>`; }
+    return s + `<rect x="0" y="${yb - 1}" width="${W}" height="${H - yb + 1}" fill="${fill}"/>`;
+  }
+  function skyline(r, yb, hmin, hmax, fill, win, dens = .12){
+    let s = "", x = -10;
+    while(x < W){ const w = 26 + r() * 50, h = hmin + r() * (hmax - hmin);
+      s += `<rect x="${x.toFixed(0)}" y="${(yb - h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h + H).toFixed(0)}" fill="${fill}"/>`;
+      if(r() < .25) s += `<rect x="${(x + w / 2 - 1).toFixed(0)}" y="${(yb - h - 22).toFixed(0)}" width="2" height="22" fill="${fill}"/>`;
+      if(win) for(let wy = yb - h + 8; wy < yb - 6; wy += 9) for(let wx = x + 5; wx < x + w - 6; wx += 8) if(r() < dens) s += `<rect x="${wx.toFixed(0)}" y="${wy.toFixed(0)}" width="3" height="4" fill="${win}" opacity="${(.5 + r() * .5).toFixed(2)}"/>`;
+      x += w + 2; }
+    return s;
+  }
+  function tree(r, x, y, len, ang, depth, color, w){
+    if(depth === 0 || len < 4) return "";
+    const x2 = x + Math.cos(ang) * len, y2 = y - Math.sin(ang) * len;
+    let s = `<path d="M${x.toFixed(1)} ${y.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${color}" stroke-width="${w.toFixed(1)}" stroke-linecap="round"/>`;
+    const n = 2 + (r() < .35 ? 1 : 0);
+    for(let i = 0; i < n; i++){ const spread = n === 2 ? (i ? .42 : -.42) : (i - 1) * .55; s += tree(r, x2, y2, len * (.66 + r() * .14), ang + spread + (r() - .5) * .35, depth - 1, color, w * .68); }
+    return s;
+  }
+  const fog = (y, h, color, a = .5) => { const [id, def] = lin([[0, color, 0], [.5, color, a], [1, color, 0]]); return { def, svg: `<rect x="0" y="${y}" width="${W}" height="${h}" fill="url(#${id})"/>` }; };
+  const bokeh = (r, n, colors, ymin, ymax) => { let s = ""; for(let i = 0; i < n; i++) s += `<circle cx="${(r() * W).toFixed(0)}" cy="${(ymin + r() * (ymax - ymin)).toFixed(0)}" r="${(8 + r() * 34).toFixed(0)}" fill="${colors[i % colors.length]}" opacity="${(.08 + r() * .22).toFixed(2)}"/>`; return s; };
+  function build(sky, parts){
+    const defs = [sky[1]], body = [];
+    parts.forEach(p => { if(typeof p === "string") body.push(p); else { if(p.def) defs.push(p.def); body.push(p.svg); } });
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice"><defs>${defs.join("")}</defs><rect width="${W}" height="${H}" fill="url(#${sky[0]})"/>${body.join("")}</svg>`;
+  }
+  const S = {};
+  S["scifi-planet"] = ["Planète géante", "scifi", r => { const sky = lin([[0, "#05060f"], [.6, "#14143a"], [1, "#3a1d4a"]]);
+    const [pg, pd] = lin([[0, "#f0b37e"], [.5, "#b0566a"], [1, "#2b1a40"]], 1, 1);
+    return build(sky, [stars(r, 220, 330), orb(560, 150, 6, "#e9e6ff", "#b9b4ff", .5), { def: pd, svg: `<circle cx="300" cy="190" r="120" fill="url(#${pg})"/><ellipse cx="300" cy="200" rx="215" ry="34" fill="none" stroke="#f4cfa2" stroke-opacity=".55" stroke-width="7" transform="rotate(-14 300 200)"/>` },
+      ridge(r, 360, 60, 1.4, "#2a1638"), ridge(r, 395, 40, 1.2, "#150b20")]); }];
+  S["scifi-city"] = ["Cité néon", "scifi", r => { const sky = lin([[0, "#0b0820"], [.55, "#3b1450"], [1, "#e0457b"]]);
+    return build(sky, [stars(r, 60, 160), orb(620, 120, 46, "#ffd2e1", "#ff6fa5", .35), skyline(r, 420, 90, 210, "#2a1240", null), skyline(r, 450, 60, 170, "#140a24", "#5ef0ff", .16), fog(330, 120, "#ff5f9e", .18)]); }];
+  S["scifi-orbit"] = ["Orbite", "scifi", r => { const sky = lin([[0, "#000004"], [1, "#061226"]]);
+    const [eg, ed] = lin([[0, "#7fd4ff"], [.08, "#1d5c9a"], [1, "#04101f"]]);
+    return build(sky, [stars(r, 260, 450), { def: ed, svg: `<ellipse cx="400" cy="780" rx="760" ry="430" fill="url(#${eg})"/><ellipse cx="400" cy="780" rx="768" ry="436" fill="none" stroke="#9fe3ff" stroke-opacity=".5" stroke-width="3"/>` },
+      `<g transform="translate(560 140) rotate(-18)" fill="none" stroke="#cfd8e6" stroke-opacity=".85"><ellipse rx="70" ry="22" stroke-width="5"/><path d="M-70 0H70M0-22V22" stroke-width="3"/><rect x="-12" y="-8" width="24" height="16" fill="#cfd8e6" stroke="none"/><rect x="-130" y="-6" width="50" height="12" fill="#3a5f8f" stroke-width="1.5"/><rect x="80" y="-6" width="50" height="12" fill="#3a5f8f" stroke-width="1.5"/></g>`]); }];
+  S["fantasy-castle"] = ["Château au clair de lune", "fantasy", r => { const sky = lin([[0, "#0a1230"], [.7, "#2b3a6e"], [1, "#56608f"]]);
+    const castle = `<g fill="#0e1328"><path d="M470 300h120v-60h-14v-14h14v-10h12v10h14v14h-14v60h40v-90l18-30 18 30v90h0v60h-220z"/><rect x="500" y="250" width="26" height="60"/><path d="M495 250l18-34 18 34z"/><rect x="560" y="180" width="18" height="70"/><path d="M555 182l14-30 14 30z"/></g><g fill="#ffd27a"><rect x="508" y="268" width="5" height="9"/><rect x="566" y="200" width="5" height="8"/><rect x="640" y="230" width="5" height="9"/></g>`;
+    return build(sky, [stars(r, 140, 260), orb(200, 110, 44, "#f4f0dc", "#c9d4ff", .4), peaks(r, 330, 6, 40, 150, "#1b2550"), castle, `<path d="M400 450L430 330Q560 300 720 320L800 340V450Z" fill="#0e1328"/>`, fog(330, 90, "#8b95c9", .22), ridge(r, 400, 30, 1, "#070b1a")]); }];
+  S["fantasy-forest"] = ["Forêt enchantée", "fantasy", r => { const sky = lin([[0, "#06201f"], [.6, "#0f4a43"], [1, "#4fa38a"]]);
+    let ff = ""; for(let i = 0; i < 40; i++) ff += `<circle cx="${(r() * 800).toFixed(0)}" cy="${(200 + r() * 230).toFixed(0)}" r="${(1 + r() * 2.2).toFixed(1)}" fill="#f6ffb0" opacity="${(.5 + r() * .5).toFixed(2)}"/>`;
+    return build(sky, [orb(400, 300, 30, "#e8ffd9", "#b8ffcf", .5), pines(r, 360, 40, 90, 200, "#0d3a35"), fog(250, 140, "#9fe0c4", .25), pines(r, 410, 30, 120, 260, "#062320"), ff, pines(r, 450, 12, 200, 380, "#021110")]); }];
+  S["fantasy-tower"] = ["Tour du mage", "fantasy", r => { const sky = lin([[0, "#140a2e"], [.6, "#4a2470"], [1, "#d07a8f"]]);
+    const [ag, ad] = lin([[0, "#7dffcf", 0], [.5, "#7dffcf", .35], [1, "#b48cff", 0]], 1, 0);
+    return build(sky, [stars(r, 120, 240), { def: ad, svg: `<path d="M-20 120Q200 40 400 130T820 90L820 170Q600 200 400 200T-20 190Z" fill="url(#${ag})"/>` }, peaks(r, 360, 7, 30, 110, "#2c1748"),
+      `<g fill="#120826"><path d="M560 380V180l-14-6 30-70 30 70-14 6v200z"/><path d="M546 174h60" stroke="#120826" stroke-width="6"/></g><rect x="571" y="210" width="8" height="12" fill="#ffd27a"/><circle cx="576" cy="98" r="5" fill="#c9a7ff"/><circle cx="576" cy="98" r="18" fill="#c9a7ff" opacity=".25"/>`, ridge(r, 390, 30, 1.1, "#120826")]); }];
+  S["action-canyon"] = ["Canyon au soleil", "action", r => { const sky = lin([[0, "#3b1a2e"], [.5, "#d4643a"], [1, "#ffcf7a"]]);
+    const mesa = (x, w, h, c) => `<path d="M${x} 450V${450 - h}l14-12h${w - 28}l14 12V450Z" fill="${c}"/>`;
+    return build(sky, [orb(420, 260, 70, "#fff0c2", "#ffb35c", .5), mesa(40, 200, 170, "#7a2d24"), mesa(560, 230, 210, "#7a2d24"), mesa(300, 140, 110, "#93402d"), ridge(r, 380, 20, .8, "#4a1a18"), ridge(r, 420, 14, .8, "#2a0e10")]); }];
+  S["action-jungle"] = ["Jungle", "action", r => { const sky = lin([[0, "#0e2a1c"], [.6, "#2f6b3e"], [1, "#a8c97a"]]);
+    let leaves = ""; for(let i = 0; i < 26; i++){ const x = r() * 800, y = 330 + r() * 120, s = 30 + r() * 50; leaves += `<ellipse cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" rx="${s.toFixed(0)}" ry="${(s * .35).toFixed(0)}" transform="rotate(${((r() - .5) * 70).toFixed(0)} ${x.toFixed(0)} ${y.toFixed(0)})" fill="#0b2416"/>`; }
+    return build(sky, [peaks(r, 260, 5, 60, 150, "#3f7a52"), `<path d="M380 120h40v330h-40z" fill="#cfeee6" opacity=".55"/><path d="M386 120h8v330h-8z" fill="#fff" opacity=".5"/>`, fog(200, 140, "#d9f2d0", .3), ridge(r, 300, 50, 1.4, "#1e4a2c"), leaves, ridge(r, 420, 20, 1, "#06140c")]); }];
+  S["action-sea"] = ["Mer déchaînée", "action", r => { const sky = lin([[0, "#0c1622"], [.6, "#2d4a5f"], [1, "#8aa6a8"]]);
+    let waves = ""; for(let i = 0; i < 6; i++){ const y = 300 + i * 26; let d = `M0 ${H}V${y}`; for(let x = 0; x <= 800; x += 40) d += `Q${x + 20} ${y - 10 - r() * 14} ${x + 40} ${y}`; waves += `<path d="${d}V${H}Z" fill="hsl(200 35% ${24 - i * 3}%)"/>`; }
+    const ship = `<g transform="translate(470 250)" fill="#0b1118"><path d="M-70 40h150l-22 26h-108z"/><path d="M0 40V-90M30 40V-60" stroke="#0b1118" stroke-width="4"/><path d="M2-86L60 0H2z M-2-80L-60 10H-2z M32-56L70 10H32z" opacity=".92"/></g>`;
+    return build(sky, [`<path d="M0 0H800V160Q600 120 400 170T0 150Z" fill="#0a121b" opacity=".6"/>`, ship, waves]); }];
+  S["horror-tree"] = ["Arbre mort", "horror", r => { const sky = lin([[0, "#050304"], [.6, "#3a0b10"], [1, "#7a1c1c"]]);
+    return build(sky, [orb(560, 140, 62, "#f2e6d8", "#ff9a8a", .3), ridge(r, 390, 18, .7, "#120607"), tree(r, 290, 410, 90, Math.PI / 2 + .06, 8, "#0a0304", 15), fog(330, 120, "#a33", .18), ridge(r, 425, 10, .6, "#050203")]); }];
+  S["horror-manor"] = ["Manoir", "horror", r => { const sky = lin([[0, "#060a08"], [.6, "#1d2b24"], [1, "#4a5d50"]]);
+    const house = `<g fill="#050806"><path d="M250 380V250l90-70 90 70v130z"/><path d="M400 380V200l60-50 60 50v180z"/><rect x="470" y="120" width="14" height="50"/><path d="M200 380h400v20H200z"/></g><g fill="#e7c76a"><rect x="300" y="280" width="14" height="20"/><rect x="452" y="230" width="12" height="18" opacity=".7"/></g>`;
+    let bats = ""; for(let i = 0; i < 7; i++){ const x = 120 + r() * 560, y = 60 + r() * 120, s = .6 + r() * .7; bats += `<path transform="translate(${x.toFixed(0)} ${y.toFixed(0)}) scale(${s.toFixed(2)})" d="M0 0Q-8-8-18-4Q-12 0-14 6Q-8 2 0 6Q8 2 14 6Q12 0 18-4Q8-8 0 0Z" fill="#050806"/>`; }
+    return build(sky, [orb(150, 110, 34, "#dfe8d8", "#bfe0c4", .25), bats, house, fog(320, 130, "#9fb8a8", .35), ridge(r, 410, 14, .8, "#030504")]); }];
+  S["horror-fog"] = ["Bois brumeux", "horror", r => { const sky = lin([[0, "#0d0f12"], [1, "#3a3f45"]]);
+    return build(sky, [pines(r, 330, 34, 80, 180, "#2a2f35"), fog(240, 140, "#c9d0d6", .28), pines(r, 390, 26, 110, 230, "#16191d"), `<g fill="#ff2a2a"><circle cx="392" cy="352" r="3"/><circle cx="406" cy="352" r="3"/></g><g fill="#ff2a2a" opacity=".25"><circle cx="399" cy="352" r="16"/></g>`, fog(330, 120, "#aab3ba", .3), pines(r, 450, 10, 220, 400, "#07080a")]); }];
+  S["drama-rain"] = ["Pluie sur la ville", "drama", r => { const sky = lin([[0, "#151b26"], [1, "#3c4a5c"]]);
+    let rain = ""; for(let i = 0; i < 140; i++){ const x = r() * 820, y = r() * 450; rain += `<path d="M${x.toFixed(0)} ${y.toFixed(0)}l-6 ${(16 + r() * 18).toFixed(0)}" stroke="#c9d6e6" stroke-opacity="${(.15 + r() * .3).toFixed(2)}" stroke-width="1"/>`; }
+    return build(sky, [bokeh(r, 18, ["#ffcf8a", "#9fc4ff", "#ff9a8a"], 220, 440), skyline(r, 400, 60, 200, "#1c2433", "#ffd58a", .08), skyline(r, 450, 40, 120, "#0e131c", "#ffd58a", .05), rain]); }];
+  S["drama-shore"] = ["Phare au crépuscule", "drama", r => { const sky = lin([[0, "#2d2a52"], [.55, "#d98ca0"], [1, "#ffd9a8"]]);
+    const [sg, sd] = lin([[0, "#d98ca0"], [1, "#2d2a52"]]);
+    return build(sky, [orb(260, 300, 40, "#fff2d8", "#ffc4a0", .45), { def: sd, svg: `<rect x="0" y="300" width="800" height="150" fill="url(#${sg})"/>` }, `<path d="M240 304h40v2h-40zM230 320h60v2h-60zM250 340h20v2h-20z" fill="#fff2d8" opacity=".6"/>`,
+      `<path d="M520 450L540 360Q600 340 680 352L800 380V450Z" fill="#1d1b33"/><g fill="#1d1b33"><path d="M612 352l6-110h20l6 110z"/><rect x="608" y="226" width="40" height="18"/><path d="M612 226l16-18 16 18z"/></g><path d="M628 236L380 200V272Z" fill="#fff4c9" opacity=".18"/><circle cx="628" cy="236" r="5" fill="#fff4c9"/>`]); }];
+  S["drama-cafe"] = ["Lumières du soir", "drama", r => { const sky = lin([[0, "#1a0f0a"], [1, "#4a2a18"]]);
+    return build(sky, [bokeh(r, 46, ["#ffb85c", "#ffd99a", "#ff8a5c", "#fff0c8"], 0, 450), fog(300, 150, "#ffb85c", .12), `<rect y="360" width="800" height="90" fill="#0f0805" opacity=".75"/>`]); }];
+  S["misc-waves"] = ["Vagues abstraites", "misc", r => { const sky = lin([[0, "#1b1530"], [1, "#2a1f3d"]]);
+    let w = ""; const cols = ["#d97757", "#e8957a", "#8f6bb0", "#4d4a8a", "#2b2a55"]; for(let i = 0; i < 5; i++){ const y = 140 + i * 60; w += `<path d="M0 ${H}V${y}C200 ${y - 80 + r() * 60} 400 ${y + 60 - r() * 60} 800 ${y - 30}V${H}Z" fill="${cols[i]}" opacity=".9"/>`; }
+    return build(sky, [w]); }];
+  S["misc-aurora"] = ["Aurore", "misc", r => { const sky = lin([[0, "#020812"], [1, "#0b2236"]]);
+    const [ag, ad] = lin([[0, "#3dffb0", 0], [.4, "#3dffb0", .45], [.7, "#7a8cff", .3], [1, "#7a8cff", 0]], 1, 0);
+    return build(sky, [stars(r, 200, 300), { def: ad, svg: `<path d="M-20 200Q150 60 330 150T660 80T820 110V190Q640 170 470 230T120 250T-20 280Z" fill="url(#${ag})"/><path d="M-20 160Q200 120 380 190T820 150V200Q600 230 380 240T-20 230Z" fill="url(#${ag})" opacity=".6"/>` }, peaks(r, 380, 6, 30, 120, "#061420"), ridge(r, 420, 14, .8, "#020a10")]); }];
+  S["misc-dunes"] = ["Dunes", "misc", r => { const sky = lin([[0, "#f3c9a6"], [1, "#f7e2c4"]]);
+    let d = ""; const cols = ["#e8a87c", "#d98c62", "#c4734f", "#a35a3e"]; for(let i = 0; i < 4; i++){ const y = 230 + i * 50; d += `<path d="M0 ${H}V${y + 20}Q${150 + r() * 200} ${y - 50} ${400 + r() * 100} ${y + 10}T800 ${y - 10}V${H}Z" fill="${cols[i]}"/>`; }
+    return build(sky, [orb(600, 120, 34, "#fff6e4", "#fff1d0", .6), d]); }];
+  S["worlds-islands"] = ["Îles flottantes", "worlds", r => { const sky = lin([[0, "#5b8fd1"], [.7, "#b5d3ef"], [1, "#f2e6d2"]]);
+    const isl = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-80 0h160l-30 30-40 50-20 40-14-40-36-30z" fill="#6b4f3f"/><path d="M-84 2q84-26 168 0" fill="#4f8a4a"/><path d="M-30-6l8-40 8 40zM18-4l10-50 10 50z" fill="#2e5e3a"/><path d="M60 4q8 40 2 120" stroke="#e8f4ff" stroke-width="5" opacity=".7" fill="none"/></g>`;
+    let clouds = ""; for(let i = 0; i < 8; i++) clouds += `<ellipse cx="${(r() * 800).toFixed(0)}" cy="${(300 + r() * 150).toFixed(0)}" rx="${(80 + r() * 120).toFixed(0)}" ry="${(18 + r() * 20).toFixed(0)}" fill="#fff" opacity=".55"/>`;
+    return build(sky, [isl(560, 140, 1.2), isl(200, 230, .8), isl(680, 300, .5), clouds]); }];
+  S["worlds-moons"] = ["Deux lunes", "worlds", r => { const sky = lin([[0, "#0a0f26"], [.6, "#23305e"], [1, "#4b4f7e"]]);
+    const [sg, sd] = lin([[0, "#3a4677"], [1, "#0a0f26"]]);
+    return build(sky, [stars(r, 160, 260), orb(560, 110, 56, "#f2ecd6", "#cfd6ff", .35), orb(660, 190, 20, "#ffd6b0", "#ffb38a", .35), { def: sd, svg: `<rect y="300" width="800" height="150" fill="url(#${sg})"/>` }, `<path d="M520 300h80v3h-80zM540 320h40v2h-40zM650 310h20v2h-20z" fill="#f2ecd6" opacity=".5"/>`, peaks(r, 300, 8, 20, 70, "#141a3a")]); }];
+  S["worlds-ranges"] = ["Montagnes infinies", "worlds", r => { const sky = lin([[0, "#c9d6e8"], [1, "#eef1f4"]]);
+    const cols = ["#9fb3cc", "#7f96b5", "#5f7899", "#3f587a", "#253a57"]; return build(sky, [orb(240, 120, 36, "#fffaf0", "#ffffff", .7), ...cols.map((c, i) => ridge(r, 190 + i * 55, 70 - i * 6, 1.6, c))]); }];
+  return {
+    list: Object.entries(S).map(([id, [name, genre]]) => ({ id, name, genre })),
+    svg(id){ const s = S[id]; if(!s) return null; gid = 0; let h = 7; for(const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0; return s[2](rng(h)); },
+    url(id){ const s = this.svg(id); return s ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s).replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/'/g, "%27") : null; }
+  };
+})();
+
 /* ================= Cloud sync (Supabase) ================= */
 const SYNC_DEFAULT = { url: "https://rqidaozmanuobnxtrben.supabase.co", key: "sb_publishable_lNsHLffLaByfKkCa-sCgXQ_MwoyAt23" };
 function syncConf(){ const c = LS.get("lan.syncconf", {}); return { url: (c.url || SYNC_DEFAULT.url || "").trim().replace(/\/+$/, ""), key: (c.key || SYNC_DEFAULT.key || "").trim() }; }
@@ -1737,7 +1913,7 @@ function renderLookTab(body){
   sec(body, "Image de couverture");
   const pc = coverFramer(body, () => adv.hasCover ? getCover(adv.id) : null, () => adv.coverPos, v => { adv.coverPos = v; saveAdv(); });
   if(!adv.hasCover) pc.textContent = "＋ Choisir une image";
-  pc.onclick = async () => { const img = await pickImage(); if(img && LS.set("lan.cover." + adv.id, img)){ adv.hasCover = true; adv.coverPos = 50; saveAdv(); openAdventureSheet("look"); } };
+  pc.onclick = async () => { const img = await chooseCover(); if(img && LS.set("lan.cover." + adv.id, img)){ adv.hasCover = true; adv.coverPos = 50; saveAdv(); openAdventureSheet("look"); } };
   if(adv.hasCover) btn(body, "Retirer l'image", "ghost small", () => { LS.del("lan.cover." + adv.id); adv.hasCover = false; saveAdv(); renderBanner(); openAdventureSheet("look"); });
 }
 function renderMiscTab(body){

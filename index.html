@@ -89,20 +89,36 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .feat .play{width:46px;height:46px}
 @media (hover:hover){.trash{opacity:0}.feat:hover .trash,.item:hover .trash,.trash:focus-visible{opacity:.6}.trash:hover{opacity:1}}
 .app.wide{max-width:1180px}
+.newtile{display:none}
 @media (min-width:900px){
-  .app.wide .pad{padding:24px 32px}
-  .app.wide .hero{display:grid;grid-template-columns:1fr 1fr;column-gap:24px;align-items:end}
-  .app.wide .hero .greet,.app.wide .hero .sub{grid-column:1}
-  .app.wide .hero > .wide{grid-column:2;grid-row:1 / span 2;margin-top:0 !important;align-self:end}
-  .app.wide .hero .stats,.app.wide .hero .syncline{grid-column:1 / -1}
-  .app.wide .hero .syncline{justify-self:start}
-  .app.wide .feat{display:flex;align-items:stretch}
-  .app.wide .feat .cover{width:46%;height:auto;min-height:220px;flex:none}
-  .app.wide .feat .in{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:22px 24px}
-  .app.wide .feat .t{font-size:22px}
-  .app.wide .feat .s{-webkit-line-clamp:4;font-size:14px}
-  .app.wide .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
-  .app.wide .grid .item{margin-bottom:0}
+  .app.wide .pad{padding:28px 40px 40px}
+  .app.wide .hero{display:grid;grid-template-columns:1fr auto;column-gap:32px;align-items:end;padding-bottom:6px}
+  .app.wide .hero .greet{grid-column:1;grid-row:1;font-size:34px;align-self:end}
+  .app.wide .hero .sub{grid-column:1;grid-row:2;align-self:start;margin-top:6px}
+  .app.wide .hero .stats{grid-column:2;grid-row:1;margin:0;gap:28px;justify-content:flex-end}
+  .app.wide .hero .stats div{background:none;border:0;padding:0;text-align:right;flex:none}
+  .app.wide .hero .stats b{font-size:20px}
+  .app.wide .hero > .wide{grid-column:2;grid-row:2;width:auto;margin-top:12px !important;padding:11px 22px}
+  .app.wide .hero .syncline{grid-column:1 / -1;justify-self:start;margin-top:10px}
+  .app.wide .feat{height:320px;border-radius:20px}
+  .app.wide .feat .cover{position:absolute;inset:0;height:auto}
+  .app.wide .feat .cover::after{background:linear-gradient(90deg,rgba(0,0,0,.78) 0%,rgba(0,0,0,.45) 45%,rgba(0,0,0,.05) 100%),linear-gradient(0deg,rgba(0,0,0,.5),transparent 55%)}
+  .app.wide .feat .cover .ph{justify-items:end;padding-right:9%;font-size:150px;color:rgba(255,255,255,.18)}
+  .app.wide .feat .in{position:absolute;left:0;right:0;bottom:0;padding:32px 36px;z-index:1}
+  .app.wide .feat .row2{align-items:flex-end;gap:24px;justify-content:space-between}
+  .app.wide .feat .grow{max-width:620px}
+  .app.wide .feat .t{font-family:var(--serif);font-weight:500;font-size:34px;line-height:1.15;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.4)}
+  .app.wide .feat .s{-webkit-line-clamp:3;font-size:15px;line-height:1.5;color:rgba(255,255,255,.78);margin-top:10px}
+  .app.wide .feat .play{width:58px;height:58px}
+  .app.wide .feat .play svg{width:20px;height:20px}
+  .app.wide .feat .trash{color:rgba(255,255,255,.75)}
+  .app.wide .secT{margin-top:30px}
+  .app.wide .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .app.wide .grid .item{margin-bottom:0;padding:12px;transition:border-color .15s,background .15s}
+  .app.wide .grid .item:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:color-mix(in srgb,var(--acc) 4%,var(--bg2))}
+  .app.wide .newtile{display:flex;align-items:center;justify-content:center;gap:10px;min-height:84px;border:1px dashed var(--line);border-radius:14px;color:var(--tx3);background:transparent;font-size:14px;transition:color .15s,border-color .15s}
+  .app.wide .newtile:hover{color:var(--acc);border-color:var(--acc)}
+  .app.wide .newtile b{font-size:22px;font-weight:400}
 }
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
 .card .t{font-weight:600}
@@ -616,8 +632,9 @@ function showLibrary(){
   fin.appendChild(r2); acts(first, r2);
   clickable(f, first.id);
   lib.appendChild(f);
-  if(rest.length){
-    lib.appendChild(el("div", "secT", "Toutes les aventures"));
+  const wideLib = matchMedia("(min-width:900px)").matches;
+  if(rest.length || wideLib){
+    lib.appendChild(el("div", "secT", rest.length ? "Toutes les aventures" : "Bibliothèque"));
     const grid = el("div", "grid"); lib.appendChild(grid);
     rest.forEach(x => {
       const it = el("div", "item");
@@ -626,6 +643,7 @@ function showLibrary(){
       acts(x, it); clickable(it, x.id);
       grid.appendChild(it);
     });
+    const nt = el("button", "newtile", "<b>+</b> Nouvelle aventure"); nt.onclick = () => adventureWizard(); grid.appendChild(nt);
   }
 }
 

@@ -646,7 +646,7 @@ function setHeaderTitle(text, withLogo){ $("#title").innerHTML = (withLogo ? LOG
 const TAGLINES = ["Prêt pour l'aventure ?", "Qui seras-tu aujourd'hui ?", "Un monde t'attend. À toi de jouer.", "Où est-ce qu'on part ?", "Le donjon est ouvert."];
 function coverMenu(btnEl, x){
   document.querySelectorAll(".menu").forEach(m => m.remove());
-  const m = el("div", "menu", `<button data-a="cover">🖼  Changer l'image</button>${x.hasCover ? `<button data-a="nocover">Retirer l'image</button>` : ""}`);
+  const m = el("div", "menu", `<button data-a="cover">Changer l'image</button>${x.hasCover ? `<button data-a="nocover">Retirer l'image</button>` : ""}`);
   document.body.appendChild(m);
   const r = btnEl.getBoundingClientRect(), mh = m.offsetHeight;
   m.style.left = Math.max(8, Math.min(r.right - 190, innerWidth - 198)) + "px";

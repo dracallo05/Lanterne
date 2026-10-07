@@ -157,6 +157,43 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .app.wide .grid .item:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:color-mix(in srgb,var(--acc) 4%,var(--bg2))}
 }
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.sbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.sbar::-webkit-scrollbar{display:none}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:12.5px;color:var(--tx2);white-space:nowrap;flex:none}
+.pill b{color:var(--tx);font-weight:600}
+.pill svg{width:14px;height:14px}
+.pill .sep{width:1px;height:12px;background:var(--line)}
+.pill .hpb{width:30px;height:5px;border-radius:9px;background:var(--bg3);overflow:hidden}
+.pill .hpb i{display:block;height:100%;background:#7fc79a;border-radius:9px;transition:width .3s}
+.pill.low .hpb i{background:var(--err)}
+.pill.sug{color:var(--acc2);border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
+.pill.busy{color:var(--tx3)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.roll{display:inline-block;margin-left:10px;font:500 11.5px var(--sans);font-style:normal;padding:2px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--tx2);vertical-align:2px;white-space:nowrap}
+.roll.crit{color:#7fc79a;border-color:color-mix(in srgb,#7fc79a 45%,var(--line))}
+.roll.fail{color:var(--tx3)}
+.roll.fumble{color:var(--err);border-color:color-mix(in srgb,var(--err) 45%,var(--line))}
+.rpgd{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 14px;font-family:var(--sans)}
+.rpgd span{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line)}
+.rpgd .neg{color:var(--err)}
+.rpgd .pos{color:#7fc79a}
+.subopts{margin:-4px 0 10px 14px;padding-left:12px;border-left:2px solid var(--line)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:13px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--tx2)}
+.tag button{width:20px;height:20px;border-radius:50%;color:var(--tx3);background:transparent;border:0;font-size:15px;line-height:1}
+.tag button:hover{color:var(--err)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sug{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.sug .row:first-child{gap:6px;margin-bottom:8px}
+.sug .t{font-weight:600;margin-bottom:4px}
+.sug .why{font-size:13px;color:var(--tx3);margin-bottom:8px}
+.sug details{margin-bottom:10px;font-size:13px;color:var(--tx3)}
+.sug details .old{white-space:pre-wrap;margin-top:6px;padding:8px 10px;border-radius:10px;background:var(--bg3)}
+.sug textarea,.sug input{background:var(--bg)}
+.rcbox{height:auto !important;max-height:none}
+.rctext{color:var(--tx2);line-height:1.5;margin:0 0 14px;font-size:15px}
+.rccode{font:600 20px/1.4 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;text-align:center;padding:16px 10px;border-radius:14px;background:var(--bg2);border:1px dashed var(--acc);color:var(--tx);margin-bottom:16px;word-break:break-all;user-select:all}
 .card .t{font-weight:600}
 .card .s{color:var(--tx3);font-size:13px;margin-top:3px}
 /* Story */
@@ -310,6 +347,7 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
   <main id="storyView" class="hidden"><div id="bannerHost"></div><div class="story" id="story"></div></main>
   <div class="bar hidden" id="bar">
     <div class="ideas hidden" id="ideas"></div>
+    <div class="sbar hidden" id="sbar"></div>
     <div class="modes" id="modes">
       <button class="mode on" data-m="do">Faire</button>
       <button class="mode" data-m="say">Dire</button>
@@ -363,6 +401,7 @@ const SCRIPT_GLUE = `The user message contains the full story context. Continue 
 const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »</em>`;
 const KEYS_HINT = "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.";
 const TYPES = ["personnage","lieu","objet","faction","concept","autre"];
+const SCRIPT_DEF = () => ({ ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true });
 
 const THEMES = {
   braise:    { name: "Braise",    v: { bg:"#1f1e1c", bg2:"#262624", bg3:"#30302e", line:"#3d3c39", tx:"#e8e6dc", tx2:"#b5b3aa", tx3:"#85837b", acc:"#d97757", acc2:"#e8957a", onacc:"#1b1410" } },
@@ -458,13 +497,14 @@ function indexEntry(a){ return { id: a.id, title: a.title, updated: a.updated, s
 function blankAdventure(){
   return { id: uid(), title: "", created: Date.now(), updated: Date.now(), spent: 0,
     instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "", cards: [], actions: [],
-    style: Object.assign({}, DEFAULT_STYLE), scripts: { ac: false, is: false, names: "", player: "" }, scriptState: {} };
+    style: Object.assign({}, DEFAULT_STYLE), scripts: SCRIPT_DEF(), scriptState: {}, pending: [], scIgnore: [] };
 }
 function migrate(a){
   a.spent ||= 0; a.cards ||= []; a.actions ||= [];
   a.instructions ??= DEFAULT_INSTRUCTIONS; a.essentials ??= ""; a.authorsNote ??= ""; a.summary ??= "";
   a.style = Object.assign({}, DEFAULT_STYLE, a.style || {});
-  a.scripts = Object.assign({ ac: false, is: false, names: "", player: "" }, a.scripts || {});
+  a.scripts = Object.assign(SCRIPT_DEF(), a.scripts || {});
+  a.pending ||= []; a.scIgnore ||= []; a.arOff ||= []; a.arUser ??= "";
   a.scriptState ||= {};
   a.cards = a.cards.map(normalizeCard);
   return a;
@@ -857,7 +897,7 @@ Return ONLY the instructions, no preamble.`;
 /* ================= Adventure wizard ================= */
 function adventureWizard(pre){
   const d = Object.assign({ title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [], cover: null,
-    scripts: { ac: false, is: false, names: "", player: "" } }, pre || {});
+    scripts: SCRIPT_DEF() }, pre || {});
   let idea = "", genOpen = false, wish = "";
   const render = (b) => {
     b.innerHTML = "";
@@ -895,8 +935,8 @@ function adventureWizard(pre){
     d.cards.forEach(c => b.appendChild(cardTile(c, () => editCard(c, d.cards, wizardCtx(d), reopen))));
     btn(b, "+ Ajouter une carte", "ghost small", () => editCard(null, d.cards, wizardCtx(d), reopen)).style.marginBottom = "6px";
 
-    sec(b, "Scripts (optionnel)");
-    scriptToggles(b, d.scripts, () => {});
+    sec(b, "Outils et scripts (optionnel)");
+    scriptToggles(b, d.scripts, () => {}, () => render(b));
 
     sec(b, "Avancé");
     const det = el("details", "fold", `<summary>Instructions de l'IA</summary><div class="in"></div>`);
@@ -933,8 +973,14 @@ function instructionsEditor(b, get, set, getWish, setWish){
   });
   btn(r, "Par défaut", "ghost small", () => { set(DEFAULT_INSTRUCTIONS); ta.value = DEFAULT_INSTRUCTIONS; });
 }
-function scriptToggles(b, s, onChange){
-  toggle(b, "Auto-Cards", "Crée et met à jour tout seul des Story Cards pour les personnages, lieux et objets importants.", () => s.ac, v => { s.ac = v; onChange(); });
+function scriptToggles(b, s, onChange, live){
+  smartToggles(b, s, onChange, live);
+  sec(b, "Scripts AI Dungeon");
+  toggle(b, "Auto-Cards", "Le script d'origine : crée tout seul des Story Cards pour les personnages, lieux et objets importants.", () => s.ac, v => {
+    s.ac = v;
+    if(v && s.sc){ s.sc = false; toast("Cartes intelligentes désactivées : un seul système de cartes à la fois"); onChange(); if(live) return live(); }
+    onChange();
+  });
   let names;
   toggle(b, "Inner Self", "Donne aux personnages une mémoire, des objectifs et des pensées qui évoluent au fil de l'histoire.", () => s.is, v => { s.is = v; names.classList.toggle("hidden", !v); onChange(); });
   names = el("div", s.is ? "" : "hidden"); b.appendChild(names);
@@ -966,8 +1012,10 @@ function renderStory(scroll){
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player"));
     d.dataset.id = a.id;
     d.textContent = visible(a.text);
+    if(a.roll && a.type !== "ai"){ const n = a.roll; d.appendChild(el("span", "roll" + (n >= 20 ? " crit" : n <= 1 ? " fumble" : n <= 7 ? " fail" : ""), `d20 · ${n} · ${rollLabel(n)}`)); }
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
+    if(a.rpgDelta?.length && adv.scripts.rpg) s.appendChild(el("div", "rpgd", a.rpgDelta.map(x => `<span class="${x.s > 0 ? "pos" : "neg"}">${esc(x.t)}</span>`).join("")));
     if(a.type === "ai" && a.alts?.length > 1){
       const i = a.altIdx ?? a.alts.length - 1;
       const nav = el("div", "alts", `<button data-d="-1" ${i <= 0 ? "disabled" : ""} aria-label="Précédente">‹</button><span>version ${i + 1} / ${a.alts.length}</span><button data-d="1" ${i >= a.alts.length - 1 ? "disabled" : ""} aria-label="Suivante">›</button>`);
@@ -983,7 +1031,7 @@ function renderStory(scroll){
   const m = el("div", "meta");
   m.textContent = (lastCost != null ? "ce tour : " + money(lastCost) + " · " : "") + "aventure : " + money(adv.spent || 0);
   s.appendChild(m);
-  updateTools();
+  updateTools(); refreshSmartBar();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
 }
 function updateTools(){
@@ -1049,7 +1097,8 @@ function buildMessages(guide){
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
   const cards = triggeredCards();
   if(cards.length) parts.push("[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n"));
-  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
+  const extra = [rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
+  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "") + (extra ? "\n\n" + extra : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   let budget = settings.contextTokens - estTok(system) - estTok(an) - settings.max_tokens - 50;
   const hist = [];
@@ -1064,12 +1113,18 @@ function buildMessages(guide){
     const last = msgs[msgs.length - 1];
     if(last && last.role === role) last.content += "\n\n" + content; else msgs.push({ role, content });
   };
-  hist.forEach(a => push(a.type === "ai" ? "assistant" : "user", visible(a.text)));
+  const ra = rollAction(acts);
+  hist.forEach(a => push(a.type === "ai" ? "assistant" : "user", visible(a.text) + (a === ra ? "\n" + rollNote(a.roll) : "")));
   if(!msgs.length || msgs[msgs.length - 1].role === "assistant") push("user", "(Continue the story.)");
   if(msgs[0].role === "assistant") msgs.unshift({ role: "user", content: "(Begin.)" });
   if(an){ const last = msgs[msgs.length - 1]; last.content = an + "\n\n" + last.content; }
   if(guide){ const last = msgs[msgs.length - 1]; last.content += "\n\n" + guideNote(guide); }
   return [{ role: "system", content: system }, ...msgs];
+}
+function rollAction(list){
+  if(!adv.scripts.rpg) return null;
+  for(let i = list.length - 1; i >= 0; i--){ if(list[i].type === "ai" && !list[i].hidden) return null; if(list[i].roll) return list[i]; }
+  return null;
 }
 /* AI Dungeon–style single-text context, used when scripts are enabled */
 const ctxCharLimit = () => Math.max(6000, Math.floor((settings.contextTokens - settings.max_tokens) * 3.5));
@@ -1085,8 +1140,9 @@ function buildAIDContext(){
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   let budget = limit - head.length - an.length - 40;
   const parts = [];
+  const ra = rollAction(adv.actions);
   for(let i = adv.actions.length - 1; i >= 0; i--){
-    const t = adv.actions[i].text.replace(/^\s+|\s+$/g, "");
+    const t = adv.actions[i].text.replace(/^\s+|\s+$/g, "") + (adv.actions[i] === ra ? "\n" + rollNote(ra.roll) : "");
     if(!t) continue;
     if(budget - t.length < 0 && parts.length) break;
     budget -= t.length; parts.unshift(t);
@@ -1101,7 +1157,8 @@ function aidHistory(){
   }));
 }
 function scriptMessages(ctxText){
-  return [{ role: "system", content: (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + SCRIPT_GLUE }, { role: "user", content: ctxText }];
+  const extra = [rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
+  return [{ role: "system", content: (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + SCRIPT_GLUE + (extra ? "\n\n" + extra : "") }, { role: "user", content: ctxText }];
 }
 
 /* ================= Scripts engine (AI Dungeon scripting emulation) ================= */
@@ -1206,29 +1263,43 @@ async function generate(input, opts = {}){
   const playerText = input ? input.raw : "";
   try{
     if(!scriptsOn()){
-      if(input) adv.actions.push({ id: uid(), type: input.kind === "story" ? "story" : "player", kind: input.kind, text: formatPlayer(input.kind, input.raw) });
+      if(input){ const pa = { id: uid(), type: input.kind === "story" ? "story" : "player", kind: input.kind, text: formatPlayer(input.kind, input.raw) }; if(wantsRoll(input)) pa.roll = d20(); adv.actions.push(pa); }
       renderStory(true);
       const ph = placeholder();
       if(guide) ph.setStatus("🧭 guidé");
-      let started = false, partial = "";
       const view = $("#storyView");
-      let r;
-      try{
-        r = await callModel(buildMessages(guide), { signal, onDelta: delta => {
-          partial += delta;
-          if(!started){ delta = delta.replace(/^\s+/, ""); if(!delta) return; started = true; ph.el.innerHTML = ""; }
-          const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
-          const sp = el("span", "fi"); sp.textContent = delta; ph.el.appendChild(sp);
-          if(stick) view.scrollTop = view.scrollHeight;
-        } });
-      }catch(e){ if(e.name === "AbortError") r = { text: partial, cost: 0 }; else throw e; }
-      lastCost = r.cost || 0;
-      final = cleanOutput(r.text);
-      if(final){ finalAction = { id: uid(), type: "ai", text: final }; adv.actions.push(finalAction); }
+      const msgs0 = buildMessages(guide);
+      let r, attempt = 0;
+      lastCost = 0;
+      while(true){
+        let started = false, cut = false, partial = "";
+        try{
+          r = await callModel(attempt ? withRepeatNote(msgs0) : msgs0, { signal, onDelta: delta => {
+            partial += delta;
+            if(cut) return;
+            const mi = partial.search(/⟦|\[\[/);
+            if(mi >= 0){ cut = true; const keep = delta.length - (partial.length - mi); delta = keep > 0 ? delta.slice(0, keep) : ""; if(!delta) return; }
+            if(!started){ delta = delta.replace(/^\s+/, ""); if(!delta) return; started = true; ph.el.innerHTML = ""; }
+            const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
+            const sp = el("span", "fi"); sp.textContent = delta; ph.el.appendChild(sp);
+            if(stick) view.scrollTop = view.scrollHeight;
+          } });
+        }catch(e){ if(e.name === "AbortError") r = { text: partial, cost: 0 }; else throw e; }
+        lastCost += r.cost || 0;
+        if(!attempt && adv.scripts.ar && adv.scripts.arRetry !== false && !signal.aborted && isRepeat(extractRpg(r.text).text)){
+          attempt = 1; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`; ph.setStatus("Répétition détectée, nouvelle version…");
+          continue;
+        }
+        break;
+      }
+      const ex = extractRpg(r.text);
+      final = cleanOutput(ex.text);
+      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
     } else {
       if(input){
         const ri = await runHook("input", formatPlayer(input.kind, input.raw));
-        adv.actions.push({ id: uid(), type: input.kind === "story" ? "story" : "player", kind: input.kind, text: ri.text });
+        const pa = { id: uid(), type: input.kind === "story" ? "story" : "player", kind: input.kind, text: ri.text }; if(wantsRoll(input)) pa.roll = d20();
+        adv.actions.push(pa);
       }
       renderStory(true);
       const ph = placeholder();
@@ -1244,14 +1315,15 @@ async function generate(input, opts = {}){
         const ctxText = guide && !gen ? c.text + "\n\n" + guideNote(guide) : c.text;
         const r = await callModel(scriptMessages(ctxText), { signal, stream: true });
         lastCost += r.cost || 0;
-        const o = await runHook("output", cleanOutput(r.text));
+        const ex = extractRpg(r.text);
+        const o = await runHook("output", cleanOutput(ex.text));
         const out = { id: uid(), type: "ai", text: o.text || "" };
         if(/>>>[\s\S]*please select[\s\S]*<<</i.test(out.text)){
           out.hidden = true; adv.actions.push(out); saveAdv();
           ph.setStatus("✨ Auto-Cards crée une carte…");
           continue;
         }
-        if(visible(out.text)){ adv.actions.push(out); final = out.text; finalAction = out; }
+        if(visible(out.text)){ if(adv.scripts.rpg) applyRpgTo(adv, out, ex.ops); adv.actions.push(out); final = out.text; finalAction = out; }
         break;
       }
     }
@@ -1262,7 +1334,7 @@ async function generate(input, opts = {}){
     if(guide) finalAction.guide = guide;
     if(opts.alts?.length){ finalAction.alts = [...opts.alts, final]; finalAction.altIdx = finalAction.alts.length - 1; }
     recordTurn(final, playerText);
-  } else if(opts.alts?.length && opts.restore){ adv.actions.push(opts.restore); }
+  } else if(opts.alts?.length && opts.restore){ adv.actions.push(opts.restore); if(opts.restore.rpgAfter) adv.rpg = clone(opts.restore.rpgAfter); }
   generating = null;
   saveAdv();
   renderStory(false);
@@ -1273,8 +1345,9 @@ async function generate(input, opts = {}){
   if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
   const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
   if(final && settings.ttsAuto) speak(final);
-  if(!errMsg) maybeSummarize();
+  if(!errMsg){ maybeSummarize(); maybeSmartCards(); }
 }
+const wantsRoll = input => !!(adv.scripts.rpg && adv.scripts.rpgDice !== false && input && input.kind === "do");
 let summarizing = false;
 function windowStart(){
   // index (in adv.actions) of the oldest action that still fits in the AI's memory
@@ -1330,6 +1403,286 @@ function submit(){
 }
 function autosize(){ const t = $("#inp"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, innerHeight * 0.3) + "px"; }
 function popTrailingHidden(){ while(adv.actions.length && adv.actions[adv.actions.length - 1].hidden) adv.actions.pop(); }
+
+/* ================= Outils Lanterne : Cartes intelligentes, Anti-répétition, Mode RPG ================= */
+const CARD_FORMATS = {
+  personnage: "Apparence · Personnalité · Relation avec le joueur · Situation actuelle · Secrets connus",
+  lieu: "Description · Ambiance · Qui s'y trouve · Dangers ou intérêts",
+  objet: "Description · Pouvoirs ou usage · Propriétaire actuel · Origine",
+  faction: "Objectifs · Membres importants · Territoire · Relation avec le joueur",
+  concept: "Définition · Règles · Importance dans l'histoire",
+  autre: "Faits importants, concis"
+};
+const mergeKeys = (...lists) => { const seen = new Set(), out = []; lists.join(",").split(",").map(k => k.trim()).filter(Boolean).forEach(k => { const l = k.toLowerCase(); if(!seen.has(l)){ seen.add(l); out.push(k); } }); return out.join(", "); };
+const userCards = a => a.cards.filter(c => !isSystem(c) && !isBrain(c));
+const sameName = (x, y) => String(x || "").trim().toLowerCase() === String(y || "").trim().toLowerCase();
+let carding = false;
+async function maybeSmartCards(force){
+  if(!adv || !adv.scripts.sc || carding) return;
+  const a = adv;
+  a.scFrom = Math.min(a.scFrom ?? 0, a.actions.length);
+  const acts = a.actions.slice(a.scFrom).filter(x => !x.hidden && visible(x.text));
+  const aiCount = acts.filter(x => x.type === "ai").length;
+  if(!force && aiCount < (a.scripts.scEvery || 3)) return;
+  if(!acts.length){ if(force) toast("Rien de nouveau à analyser"); return; }
+  carding = true; refreshSmartBar();
+  try{
+    const lim = settings.cardLimit;
+    const story = acts.map(x => visible(x.text)).join("\n\n").slice(-12000);
+    const list = userCards(a).map(c => `#${c.id} [${c.type}] ${cardName(c)} | keys: ${c.keys} | ${visible(c.entry).slice(0, 600)}`).join("\n") || "(none)";
+    const pend = a.pending.map(p => p.title).filter(Boolean);
+    const ignored = [...(a.scIgnore || []).slice(-40), ...pend].join(", ");
+    const prompt =
+`You are the archivist of an interactive story (the player is "you"). You maintain its story cards (world info).
+Plot essentials (context only):
+${visible(a.essentials).slice(0, 1500) || "(none)"}
+
+Existing cards:
+${list}
+
+Recent story:
+"""
+${story}
+"""
+
+Tasks:
+1. NEW — create a card only for a named or clearly important character, place, item, faction or concept that has NO card yet and is likely to matter again. Never for the player character ("you"), never for trivial or one-off things.
+2. UPDATE — when something meaningful changed for an existing card (new facts revealed, relationship change, injury, betrayal, new location, change of owner, death…), rewrite its FULL entry: keep the important old facts and integrate the new ones. Do not update for trivial details.
+3. MERGE — when two existing cards describe the same entity (nickname, alias, title), merge them into one.
+Do not propose anything about: ${ignored || "(nothing)"}
+Entry format by type (as short labelled sentences):
+${Object.entries(CARD_FORMATS).map(([k, v]) => "- " + k + ": " + v).join("\n")}
+Rules: factual, third person, present tense, written in the language of the story, each entry STRICTLY under ${Math.round(lim * 0.92)} characters. keys = comma-separated trigger words (name, nicknames, distinctive words — no common words). At most 4 new, 4 updates. If nothing is worth doing, return empty lists.
+Return ONLY JSON:
+{"new":[{"type":"personnage|lieu|objet|faction|concept|autre","title":"","keys":"","entry":""}],
+ "update":[{"id":"card id without #","entry":"full new entry","keys":"","why":"very short reason, in French"}],
+ "merge":[{"keep":"card id","remove":["card id"],"title":"","entry":"merged entry","keys":""}]}`;
+    const r = parseJSON(await complete(prompt, 2200));
+    const ops = [];
+    const byId = id => a.cards.find(c => c.id === String(id || "").replace(/^#/, ""));
+    (r.new || []).forEach(n => {
+      if(!n || !visible(n.title) || !visible(n.entry)) return;
+      if((a.scIgnore || []).some(t => sameName(t, n.title)) || a.pending.some(p => sameName(p.title, n.title))) return;
+      const ex = userCards(a).find(c => sameName(cardName(c), n.title) || (c.keys || "").split(",").some(k => sameName(k, n.title)));
+      if(ex) ops.push({ op: "update", cardId: ex.id, title: cardName(ex), type: ex.type, entry: n.entry, keys: n.keys, why: "nouvelles informations" });
+      else ops.push({ op: "new", title: visible(n.title), type: TYPES.includes(n.type) ? n.type : "autre", entry: n.entry, keys: n.keys || n.title });
+    });
+    (r.update || []).forEach(u => {
+      const c = u && byId(u.id); if(!c || !visible(u.entry) || visible(u.entry) === visible(c.entry)) return;
+      ops.push({ op: "update", cardId: c.id, title: cardName(c), type: c.type, entry: u.entry, keys: u.keys, why: u.why || "" });
+    });
+    (r.merge || []).forEach(m => {
+      const k = m && byId(m.keep); if(!k) return;
+      const rm = (m.remove || []).map(byId).filter(c => c && c.id !== k.id);
+      if(!rm.length) return;
+      ops.push({ op: "merge", cardId: k.id, removeIds: rm.map(c => c.id), removeNames: rm.map(cardName), title: visible(m.title) || cardName(k), type: k.type, entry: m.entry || k.entry, keys: m.keys || "" });
+    });
+    ops.forEach(o => { o.id = uid(); o.entry = visible(o.entry).slice(0, lim); });
+    a.scFrom = a.actions.length;
+    if(a.scripts.scAuto){
+      ops.forEach(o => applyCardOp(a, o));
+      if(ops.length) toast(cardOpsSummary(ops));
+    } else {
+      ops.forEach(o => { if(o.cardId) a.pending = a.pending.filter(p => p.cardId !== o.cardId); a.pending.push(o); });
+    }
+    if(adv === a) saveAdv(); else LS.set("lan.adv." + a.id, a);
+    if(force) toast(ops.length ? (a.scripts.scAuto ? cardOpsSummary(ops) : `${ops.length} suggestion${ops.length > 1 ? "s" : ""} de cartes`) : "Rien à changer pour l'instant");
+  }catch(e){ console.warn("smart cards", e); if(force) toast("Analyse impossible : " + e.message); }
+  carding = false; refreshSmartBar();
+}
+function cardOpsSummary(ops){
+  const n = ops.filter(o => o.op === "new").length, u = ops.filter(o => o.op === "update").length, m = ops.filter(o => o.op === "merge").length;
+  return [n && `${n} carte${n > 1 ? "s" : ""} créée${n > 1 ? "s" : ""}`, u && `${u} mise${u > 1 ? "s" : ""} à jour`, m && `${m} fusion${m > 1 ? "s" : ""}`].filter(Boolean).join(", ");
+}
+function applyCardOp(a, p){
+  const lim = settings.cardLimit;
+  if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: p.entry.slice(0, lim), auto: true }));
+  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = p.entry.slice(0, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); } }
+  else if(p.op === "merge"){
+    const k = a.cards.find(x => x.id === p.cardId); if(!k) return;
+    const rm = a.cards.filter(c => p.removeIds.includes(c.id));
+    k.title = p.title || k.title; k.entry = p.entry.slice(0, lim); k.keys = mergeKeys(k.keys, ...rm.map(c => c.keys), ...rm.map(cardName), p.keys);
+    a.cards = a.cards.filter(c => !p.removeIds.includes(c.id));
+  }
+}
+function openPending(){
+  const render = (_, b) => {
+    b.innerHTML = "";
+    if(!adv.pending.length){ closeSheet(); renderStory(false); return; }
+    hint(b, "Le bibliothécaire propose ces changements. Tu peux corriger le texte avant d'accepter.");
+    const top = el("div", "row"); top.style.marginBottom = "14px"; b.appendChild(top);
+    btn(top, "Tout accepter", "small", () => { adv.pending.forEach(p => applyCardOp(adv, p)); adv.pending = []; saveAdv(); toast("Cartes mises à jour"); closeSheet(); renderStory(false); });
+    btn(top, "Tout ignorer", "ghost small", () => { adv.pending.forEach(p => { if(p.op === "new") adv.scIgnore.push(p.title); }); adv.pending = []; saveAdv(); closeSheet(); renderStory(false); });
+    adv.pending.forEach(p => {
+      const tag = p.op === "new" ? "Nouvelle carte" : p.op === "update" ? "Mise à jour" : "Fusion";
+      const d = el("div", "sug " + p.op, `<div class="row"><span class="chip ${p.op === "new" ? "acc" : ""}">${tag}</span><span class="chip">${esc(p.type)}</span></div>`);
+      b.appendChild(d);
+      if(p.op === "new") field(d, "Nom", p.title, v => p.title = v);
+      else d.appendChild(el("div", "t", esc(p.title)));
+      if(p.op === "merge") d.appendChild(el("div", "why", "Regroupe : " + esc([p.title, ...p.removeNames].join(" + "))));
+      if(p.op === "update" && p.why) d.appendChild(el("div", "why", esc(p.why)));
+      if(p.op === "update"){ const c = adv.cards.find(x => x.id === p.cardId); if(c){ const det = el("details", "", `<summary>Voir l'ancienne version</summary><div class="old">${esc(visible(c.entry))}</div>`); d.appendChild(det); } }
+      field(d, "Contenu", p.entry, v => p.entry = v, { multiline: true, rows: 5 });
+      const r = el("div", "row"); d.appendChild(r);
+      btn(r, "Accepter", "small", () => { applyCardOp(adv, p); adv.pending = adv.pending.filter(x => x !== p); saveAdv(); render(_, b); }).style.flex = "1";
+      btn(r, "Ignorer", "ghost small", () => { if(p.op === "new") adv.scIgnore.push(p.title); adv.pending = adv.pending.filter(x => x !== p); saveAdv(); render(_, b); }).style.flex = "1";
+    });
+  };
+  openSheet("Suggestions de cartes", null, render);
+}
+
+/* ---- Anti-répétition ---- */
+const STOPW = new Set(("le la les un une des de du et à au aux en dans sur sous par pour pas ne se sa son ses ton ta tes te tu toi vous il elle ils elles on qui que quoi dont où est était sont être avoir as ai avait avec comme mais ou donc ni car ce cet cette ces ça cela plus très tout tous toute toutes y lui leur leurs je me mon ma mes nous votre vos puis encore déjà même si bien " +
+  "the a an of to and in is it you your that his her he she they them with as for on at by be was are this from").split(" "));
+const toks = t => visible(t).toLowerCase().replace(/[’]/g, "'").replace(/[^\p{L}\p{N}'\s]/gu, " ").split(/\s+/).filter(Boolean);
+function detectTics(a){
+  const outs = a.actions.filter(x => x.type === "ai" && !x.hidden).slice(-12).map(x => toks(x.text));
+  if(outs.length < 4) return [];
+  const names = new Set(userCards(a).flatMap(c => (c.keys + "," + cardName(c)).toLowerCase().split(/[,\s]+/)).filter(Boolean));
+  const N = 4, df = new Map();
+  const ok = g => g.filter(w => w.length > 2 && !STOPW.has(w) && !names.has(w)).length >= 2;
+  outs.forEach(tk => { const seen = new Set(); for(let i = 0; i + N <= tk.length; i++){ const k = tk.slice(i, i + N).join(" "); if(!seen.has(k)){ seen.add(k); df.set(k, (df.get(k) || 0) + 1); } } });
+  const freq = k => (df.get(k) || 0) >= 3;
+  const spans = new Map();
+  outs.forEach(tk => {
+    let i = 0;
+    while(i + N <= tk.length){
+      if(!freq(tk.slice(i, i + N).join(" "))){ i++; continue; }
+      let j = i; while(j + 1 + N <= tk.length && freq(tk.slice(j + 1, j + 1 + N).join(" "))) j++;
+      const words = tk.slice(i, j + N);
+      for(let c = 0; c < words.length; c += 12){ let w = words.slice(c, c + 12); if(w.length < N && c) w = words.slice(-N); if(ok(w)){ const k = w.join(" "); spans.set(k, (spans.get(k) || 0) + 1); } }
+      i = j + N;
+    }
+  });
+  const out = [];
+  [...spans].sort((x, y) => y[1] - x[1] || y[0].length - x[0].length).forEach(([k]) => { if(out.length < 8 && !out.some(o => o.includes(k) || k.includes(o))) out.push(k); });
+  return out;
+}
+function ticList(a){
+  const off = a.arOff || [];
+  const user = (a.arUser || "").split("\n").map(s => s.trim()).filter(Boolean);
+  return [...detectTics(a).filter(p => !off.includes(p)), ...user];
+}
+function arNote(a){
+  if(!a.scripts.ar) return "";
+  const l = ticList(a);
+  return `[Style — avoid repetition. ${l.length ? `These phrases are overused in this story, do NOT use them or close variants: ${l.map(p => `"${p}"`).join(", ")}. ` : ""}Vary sentence openings, gestures, reactions and imagery; never reuse a sentence from earlier in the story.]`;
+}
+function grams3(t){ const tk = toks(t), s = new Set(); for(let i = 0; i + 3 <= tk.length; i++) s.add(tk.slice(i, i + 3).join(" ")); return s; }
+function isRepeat(text){
+  const A = grams3(text); if(A.size < 10) return false;
+  return adv.actions.filter(x => x.type === "ai" && !x.hidden).slice(-4).some(p => {
+    const B = grams3(p.text); let k = 0; A.forEach(g => { if(B.has(g)) k++; }); return k / A.size > 0.4;
+  });
+}
+function withRepeatNote(msgs){
+  const m = msgs.map(x => Object.assign({}, x)); const last = m[m.length - 1];
+  last.content += "\n\n[Your previous attempt copied earlier passages almost word for word. Write something genuinely new: new events, new wording, new imagery.]";
+  return m;
+}
+
+/* ---- Mode RPG ---- */
+const RPG_DEF = () => ({ hp: 20, hpMax: 20, gold: 0, inv: [], status: [] });
+function ensureRpg(a){ a.rpg = Object.assign(RPG_DEF(), a.rpg || {}); return a.rpg; }
+const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+const d20 = () => 1 + Math.floor(Math.random() * 20);
+const rollLabel = n => n === 1 ? "Échec critique" : n <= 7 ? "Échec" : n <= 12 ? "Succès partiel" : n <= 19 ? "Succès" : "Succès critique";
+const rollNote = n => `[d20 roll for this action: ${n} → ${rollLabel(n)}. Narrate the outcome to match this result; ignore it if the action is trivial.]`;
+function rpgBlock(a){
+  if(!a.scripts.rpg) return "";
+  const r = ensureRpg(a);
+  return `[RPG rules]
+Player sheet — HP ${r.hp}/${r.hpMax} · Gold ${r.gold} · Inventory: ${r.inv.length ? r.inv.join(", ") : "empty"} · Status: ${r.status.length ? r.status.join(", ") : "none"}
+- Some player actions come with a d20 roll result in brackets. Narrate the outcome to match it: critical failure = it goes badly wrong; failure = it fails; partial success = success with a cost or complication; success = it works; critical success = exceptional result. Ignore the roll for trivial actions.
+- Keep the sheet consistent: the player can only use items they actually have. Combat, traps, healing, loot, purchases and gifts change the sheet.
+- When HP, gold, inventory or status change, end your reply with ONE last line in exactly this format and nothing after it:
+⟦HP -3 | GOLD +10 | +item name | -item name | +status: poisoned | -status: wounded⟧
+Only include what changed; write item and status names in the language of the story. If nothing changed, do not write the line.${r.hp <= 0 ? "\n- The player is at 0 HP: they are defeated (unconscious, captured or dying — follow the tone of the story)." : ""}`;
+}
+const RPG_TAG = /(?:⟦|\[\[)([^⟧\]]{1,400})(?:⟧|\]\])?/g;
+function extractRpg(text){
+  const ops = []; const t = String(text || "").replace(RPG_TAG, (_, o) => { ops.push(o); return ""; }).replace(/\s+$/, "");
+  return { text: t, ops: ops.join("|") };
+}
+function applyRpgOps(r, ops){
+  const d = [];
+  const findIdx = (list, name) => { const l = name.toLowerCase(); let i = list.findIndex(x => x.toLowerCase() === l); if(i < 0) i = list.findIndex(x => x.toLowerCase().includes(l) || l.includes(x.toLowerCase())); return i; };
+  ops.split("|").map(s => s.trim()).filter(Boolean).forEach(o => {
+    let m;
+    if((m = o.match(/^(?:HP|PV)\s*:?\s*([+-])\s*(\d+)/i))){ const v = (m[1] === "-" ? -1 : 1) * Number(m[2]); const before = r.hp; r.hp = Math.max(0, Math.min(r.hpMax, r.hp + v)); if(r.hp !== before) d.push({ t: (v > 0 ? "+" : "−") + Math.abs(r.hp - before) + " PV", s: v > 0 ? 1 : -1 }); }
+    else if((m = o.match(/^(?:GOLD|OR|PO)\s*:?\s*([+-])\s*(\d+)/i))){ const v = (m[1] === "-" ? -1 : 1) * Number(m[2]); r.gold = Math.max(0, r.gold + v); d.push({ t: (v > 0 ? "+" : "−") + Math.abs(v) + " or", s: v > 0 ? 1 : -1 }); }
+    else if((m = o.match(/^([+-])\s*(?:status|statut|état|etat)\s*:\s*(.+)$/i))){ const n = m[2].trim(); const i = findIdx(r.status, n); if(m[1] === "+"){ if(i < 0){ r.status.push(n); d.push({ t: n, s: -1 }); } } else if(i >= 0){ d.push({ t: "fin : " + r.status[i], s: 1 }); r.status.splice(i, 1); } }
+    else if((m = o.match(/^([+-])\s*(.+)$/))){ const n = m[2].trim(); if(m[1] === "+"){ r.inv.push(n); d.push({ t: "+ " + n, s: 1 }); } else { const i = findIdx(r.inv, n); if(i >= 0){ d.push({ t: "− " + r.inv[i], s: -1 }); r.inv.splice(i, 1); } } }
+  });
+  return d;
+}
+function applyRpgTo(a, action, ops){
+  ensureRpg(a); action.rpgPrev = clone(a.rpg);
+  if(ops){ const d = applyRpgOps(a.rpg, ops); if(d.length) action.rpgDelta = d; }
+  action.rpgAfter = clone(a.rpg);
+}
+function openRpgSheet(){
+  const r = ensureRpg(adv);
+  const save = () => { saveAdv(); refreshSmartBar(); };
+  const render = (_, b) => {
+    b.innerHTML = "";
+    const g = el("div", "grid3"); b.appendChild(g);
+    [["PV", "hp"], ["PV max", "hpMax"], ["Or", "gold"]].forEach(([l, k]) => field(g, l, String(r[k]), v => { r[k] = Math.max(0, parseInt(v) || 0); if(k !== "gold") r.hp = Math.min(r.hp, r.hpMax); save(); }, { type: "number" }));
+    const listEd = (title, key, ph) => {
+      sec(b, title);
+      const box = el("div", "tags"); b.appendChild(box);
+      if(!r[key].length) box.appendChild(el("span", "hint", "Vide"));
+      r[key].forEach((it, i) => { const t = el("span", "tag", `${esc(it)}<button aria-label="Retirer">×</button>`); t.querySelector("button").onclick = () => { r[key].splice(i, 1); save(); render(_, b); }; box.appendChild(t); });
+      const row = el("div", "row"); row.style.marginTop = "8px"; b.appendChild(row);
+      let v = ""; const inp = field(row, "", "", x => v = x, { placeholder: ph }); inp.parentElement.style.cssText = "flex:1;margin:0";
+      inp.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); add(); } };
+      const add = () => { if(v.trim()){ r[key].push(v.trim()); save(); render(_, b); } };
+      btn(row, "Ajouter", "ghost small", add);
+    };
+    listEd("Inventaire", "inv", "Ex. : épée courte");
+    listEd("États", "status", "Ex. : blessé à l'épaule");
+    sec(b, "Dés");
+    toggle(b, "Jet de d20 sur les actions « Faire »", "Le résultat s'affiche à côté de ton action et l'IA raconte en conséquence. 1 = échec critique, 20 = succès critique.", () => adv.scripts.rpgDice !== false, v => { adv.scripts.rpgDice = v; save(); });
+    hint(b, "L'IA met la fiche à jour toute seule pendant l'histoire (dégâts, butin, achats…). Tu peux corriger ici à tout moment.");
+  };
+  openSheet("Fiche du personnage", null, render);
+}
+
+/* ---- Barre d'état (au-dessus de la saisie) ---- */
+function refreshSmartBar(){
+  const s = $("#sbar"); if(!s) return;
+  s.innerHTML = "";
+  if(!adv){ s.classList.add("hidden"); return; }
+  if(adv.scripts.rpg){
+    const r = ensureRpg(adv); const pct = r.hpMax ? Math.round(100 * r.hp / r.hpMax) : 0;
+    const p = el("button", "pill hud" + (pct <= 30 ? " low" : ""), `<span>PV <b>${r.hp}</b>/${r.hpMax}</span><span class="hpb"><i style="width:${pct}%"></i></span><span class="sep"></span><span>Or <b>${r.gold}</b></span><span class="sep"></span><span>Sac <b>${r.inv.length}</b></span>`);
+    p.onclick = openRpgSheet; s.appendChild(p);
+  }
+  if(carding){ s.appendChild(el("span", "pill busy", `<span class="dot"></span>Cartes…`)); }
+  else if(adv.pending?.length){
+    const p = el("button", "pill sug", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>${adv.pending.length} carte${adv.pending.length > 1 ? "s" : ""} à valider`);
+    p.onclick = openPending; s.appendChild(p);
+  }
+  s.classList.toggle("hidden", !s.children.length);
+}
+function smartToggles(b, s, onChange, live){
+  sec(b, "Outils Lanterne");
+  const sub = (on) => { const d = el("div", "subopts" + (on ? "" : " hidden")); return d; };
+  let scSub;
+  toggle(b, "Cartes intelligentes", "Repère les personnages, lieux, objets et factions importants, crée leurs cartes, les met à jour quand ils évoluent et fusionne les doublons.", () => s.sc, v => {
+    s.sc = v; scSub.classList.toggle("hidden", !v);
+    if(v && s.ac){ s.ac = false; toast("Auto-Cards (LewdLeah) désactivé : les Cartes intelligentes le remplacent"); if(live) live(); }
+    onChange();
+  });
+  scSub = sub(s.sc); b.appendChild(scSub);
+  toggle(scSub, "Me demander avant", "Les changements arrivent en suggestions à valider. Désactivé, ils s'appliquent tout seuls.", () => !s.scAuto, v => { s.scAuto = !v; onChange(); });
+  slider(scSub, "Analyse tous les … tours", "scEvery", 2, 6, 1, "Une petite requête en plus à chaque analyse.", s, onChange);
+  let arSub;
+  toggle(b, "Anti-répétition", "Repère les tics d'écriture de l'IA (phrases et tournures qui reviennent) et les lui interdit.", () => s.ar, v => { s.ar = v; arSub.classList.toggle("hidden", !v); onChange(); });
+  arSub = sub(s.ar); b.appendChild(arSub);
+  toggle(arSub, "Relancer si l'IA se recopie", "Si une réponse reprend presque mot pour mot un passage récent, une nouvelle version est générée automatiquement.", () => s.arRetry !== false, v => { s.arRetry = v; onChange(); });
+  toggle(b, "Mode RPG", "Points de vie, or, inventaire et états, tenus à jour par l'IA. Jet de d20 sur tes actions « Faire ».", () => s.rpg, v => { s.rpg = v; onChange(); });
+}
 
 /* ================= Ideas ================= */
 function hideIdeas(){ const i = $("#ideas"); if(i){ i.classList.add("hidden"); i.innerHTML = ""; } }
@@ -1557,7 +1910,7 @@ function startFromScenario(sc){
     title: sc.title || "", opening: sc.opening || "", essentials: sc.essentials || "", authorsNote: sc.authorsNote || "",
     instructions: sc.instructions || DEFAULT_INSTRUCTIONS,
     cards: (sc.cards || []).map(c => normalizeCard({ title: c.title, type: c.type, keys: c.keys, entry: c.entry })),
-    scripts: Object.assign({ ac: false, is: false, names: "", player: "" }, sc.scripts || {}),
+    scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}),
     cover: sc.cover || null, coverPos: sc.coverPos ?? 50, style: sc.style
   });
 }
@@ -1707,8 +2060,86 @@ const SYNC_DEFAULT = { url: "https://rqidaozmanuobnxtrben.supabase.co", key: "sb
 function syncConf(){ const c = LS.get("lan.syncconf", {}); return { url: (c.url || SYNC_DEFAULT.url || "").trim().replace(/\/+$/, ""), key: (c.key || SYNC_DEFAULT.key || "").trim() }; }
 let auth = LS.get("lan.auth", null);
 const syncState = { busy: false, last: LS.get("lan.sync.when", 0), err: "", offline: false };
+let recovery = null; // { pw } while the account password no longer opens the vault
+
+/* ---- Chiffrement de bout en bout ----
+   Une clé de données aléatoire (DEK) chiffre tout ce qui part sur le serveur.
+   Elle est elle-même enfermée deux fois dans un « coffre » (_vault) : avec le mot de passe, et avec le code de secours.
+   Le serveur ne voit jamais ni la clé, ni le mot de passe, ni le code. */
+const TE = new TextEncoder(), TD = new TextDecoder();
+const b64 = buf => { const u = new Uint8Array(buf); let s = ""; for(let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const randB64 = n => b64(crypto.getRandomValues(new Uint8Array(n)));
+async function kekFrom(secret, saltB64){
+  const base = await crypto.subtle.importKey("raw", TE.encode(secret), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: unb64(saltB64), iterations: 210000 }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function seal(bytes, key){ const iv = crypto.getRandomValues(new Uint8Array(12)); return { iv: b64(iv), ct: b64(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, bytes)) }; }
+async function unseal(box, key){ return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(box.iv) }, key, unb64(box.ct))); }
+const RC_ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newRecoveryCode(){ const r = crypto.getRandomValues(new Uint8Array(20)); let s = ""; r.forEach((x, i) => { s += RC_ALPHA[x % 32]; if(i % 4 === 3 && i < 19) s += "-"; }); return s; }
+const normCode = c => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+let dekObj = null;
+const hasKey = () => !!localStorage.getItem("lan.ekey");
+function setDek(bytes){ localStorage.setItem("lan.ekey", b64(bytes)); dekObj = null; }
+async function dek(){
+  if(dekObj) return dekObj;
+  const r = localStorage.getItem("lan.ekey"); if(!r) throw new Error("synchro verrouillée");
+  return dekObj = await crypto.subtle.importKey("raw", unb64(r), "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+async function encData(obj){ return Object.assign({ e2e: 1 }, await seal(TE.encode(JSON.stringify(obj)), await dek())); }
+async function decData(d){ return JSON.parse(TD.decode(await unseal(d, await dek()))); }
+async function getVault(){ const rows = await sbFetch(`/rest/v1/lanterne_docs?select=data&user_id=eq.${auth.user.id}&key=eq._vault`); return rows?.[0]?.data || null; }
+async function putVault(v){
+  await sbFetch("/rest/v1/lanterne_docs?on_conflict=user_id,key", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify([{ user_id: auth.user.id, key: "_vault", data: v, mtime: Date.now(), deleted: false }]) });
+}
+async function buildVault(bytes, pw, code){
+  const salt = randB64(16), rsalt = randB64(16);
+  return { v: 1, salt, rsalt, pw: await seal(bytes, await kekFrom(pw, salt)), rc: await seal(bytes, await kekFrom(normCode(code), rsalt)) };
+}
+class NeedRecovery extends Error {}
+async function unlockWith(pw){ // → new recovery code if the vault was just created
+  const v = await getVault();
+  if(!v){ const bytes = crypto.getRandomValues(new Uint8Array(32)), code = newRecoveryCode(); await putVault(await buildVault(bytes, pw, code)); setDek(bytes); return code; }
+  try{ setDek(await unseal(v.pw, await kekFrom(pw, v.salt))); return null; }
+  catch(e){ recovery = { pw }; throw new NeedRecovery("ton mot de passe a changé : entre ton code de secours"); }
+}
+async function recoverWith(code, pw){
+  const v = await getVault(); if(!v) throw new Error("aucune donnée chiffrée sur ce compte");
+  let bytes; try{ bytes = await unseal(v.rc, await kekFrom(normCode(code), v.rsalt)); }catch(e){ throw new Error("code de secours incorrect"); }
+  v.salt = randB64(16); v.pw = await seal(bytes, await kekFrom(pw, v.salt)); await putVault(v); setDek(bytes); recovery = null;
+}
+async function rewrapPassword(pw){
+  const v = await getVault(); if(!v || !hasKey()) return;
+  v.salt = randB64(16); v.pw = await seal(unb64(localStorage.getItem("lan.ekey")), await kekFrom(pw, v.salt)); await putVault(v);
+}
+async function renewRecoveryCode(){
+  const v = await getVault(); if(!v || !hasKey()) throw new Error("synchro verrouillée");
+  const code = newRecoveryCode(); v.rsalt = randB64(16); v.rc = await seal(unb64(localStorage.getItem("lan.ekey")), await kekFrom(normCode(code), v.rsalt)); await putVault(v);
+  return code;
+}
+async function resetEncryption(pw){ // pas de code : on efface la copie du serveur et on repart de cet appareil
+  await sbFetch(`/rest/v1/lanterne_docs?user_id=eq.${auth.user.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  const bytes = crypto.getRandomValues(new Uint8Array(32)), code = newRecoveryCode();
+  await putVault(await buildVault(bytes, pw, code)); setDek(bytes); recovery = null;
+  return code;
+}
+function showRecoveryCode(code){
+  return new Promise(resolve => {
+    const ov = el("div", "gal"); const box = el("div", "galbox rcbox"); ov.appendChild(box); document.body.appendChild(ov);
+    box.innerHTML = `<div class="galhd"><b>Ton code de secours</b></div>
+      <p class="rctext">Il permet de récupérer tes aventures si tu oublies ton mot de passe. Note-le maintenant (capture d'écran, gestionnaire de mots de passe, papier…) : <b>il ne sera plus affiché</b>.</p>
+      <div class="rccode">${esc(code)}</div>`;
+    const r = el("div", "row"); box.appendChild(r);
+    btn(r, "Copier", "ghost", async () => { try{ await navigator.clipboard.writeText(code); toast("Code copié"); }catch(e){ toast("Copie impossible : note-le à la main"); } }).style.flex = "1";
+    btn(r, "C'est noté", "", () => { ov.remove(); resolve(); }).style.flex = "1";
+  });
+}
+
 function syncLabel(){
   if(!auth) return "☁️ <b>Connecte-toi</b> pour synchroniser PC et téléphone";
+  if(!hasKey()) return recovery ? "🔒 <b>Entre ton code de secours</b> pour reprendre la synchro" : "🔒 <b>Entre ton mot de passe</b> pour reprendre la synchro";
   if(syncState.err) return "⚠️ Synchro : " + esc(syncState.err);
   if(syncState.busy) return "☁️ Synchronisation…";
   const d = Object.keys(LS.get("lan.dirty", {})).length;
@@ -1720,18 +2151,18 @@ async function sbFetch(path, opts = {}, withAuth = true){
   const c = syncConf();
   if(!c.url || !c.key) throw new Error("serveur non configuré");
   const headers = Object.assign({ apikey: c.key, "Content-Type": "application/json" }, opts.headers || {});
-  if(withAuth) headers.Authorization = "Bearer " + await accessToken();
+  if(withAuth) headers.Authorization = "Bearer " + (typeof withAuth === "string" ? withAuth : await accessToken());
   const r = await fetch(c.url + path, Object.assign({}, opts, { headers }));
   if(!r.ok){
     let j = null; try{ j = await r.json(); }catch(e){}
     const msg = j && (j.msg || j.message || j.error_description || j.error) || ("HTTP " + r.status);
-    const err = new Error(String(msg)); err.status = r.status; throw err;
+    const err = new Error(String(msg)); err.status = r.status; err.code = j && j.code; throw err;
   }
   const t = await r.text(); return t ? JSON.parse(t) : null;
 }
 function setAuth(j){
   auth = { access_token: j.access_token, refresh_token: j.refresh_token,
-    expires_at: j.expires_at || (Math.floor(Date.now() / 1000) + (j.expires_in || 3600)), user: { id: j.user.id, email: j.user.email } };
+    expires_at: j.expires_at || (Math.floor(Date.now() / 1000) + Number(j.expires_in || 3600)), user: { id: j.user.id, email: j.user.email } };
   localStorage.setItem("lan.auth", JSON.stringify(auth));
 }
 async function accessToken(){
@@ -1745,10 +2176,14 @@ async function accessToken(){
 const authMsg = m => /invalid login|invalid_grant|invalid credentials/i.test(m) ? "e-mail ou mot de passe incorrect"
   : /already registered|already exists/i.test(m) ? "un compte existe déjà avec cet e-mail : connecte-toi"
   : /password/i.test(m) && /6|short|least/i.test(m) ? "mot de passe trop court (6 caractères minimum)"
-  : /not confirmed/i.test(m) ? "e-mail pas encore confirmé (regarde ta boîte mail)" : m;
+  : /same.*password|different from the old/i.test(m) ? "le nouveau mot de passe doit être différent de l'ancien"
+  : /not confirmed/i.test(m) ? "e-mail pas encore confirmé (regarde ta boîte mail)"
+  : /rate limit|too many/i.test(m) ? "trop de tentatives, réessaie dans quelques minutes" : m;
 async function signIn(email, password){
   try{ setAuth(await sbFetch("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) }, false)); }
   catch(e){ throw new Error(authMsg(e.message)); }
+  const code = await unlockWith(password); // peut lever NeedRecovery
+  if(code) showRecoveryCode(code);
   await firstSync();
 }
 async function signUp(email, password){
@@ -1756,12 +2191,94 @@ async function signUp(email, password){
   try{ j = await sbFetch("/auth/v1/signup", { method: "POST", body: JSON.stringify({ email, password }) }, false); }
   catch(e){ throw new Error(authMsg(e.message)); }
   if(!j || !j.access_token) throw new Error("compte créé : confirme ton e-mail (lien reçu par mail), puis connecte-toi");
-  setAuth(j); await firstSync();
+  setAuth(j);
+  const code = await unlockWith(password);
+  if(code) showRecoveryCode(code);
+  await firstSync();
 }
 function signOut(silent){
-  const a = auth; auth = null; localStorage.removeItem("lan.auth"); localStorage.removeItem("lan.sync.last");
+  const a = auth; auth = null; recovery = null; localStorage.removeItem("lan.auth"); localStorage.removeItem("lan.sync.last");
+  localStorage.removeItem("lan.ekey"); dekObj = null;
   if(a && !silent) fetch(syncConf().url + "/auth/v1/logout", { method: "POST", headers: { apikey: syncConf().key, Authorization: "Bearer " + a.access_token } }).catch(() => {});
   refreshSyncLine();
+}
+async function changePassword(pw){
+  try{ await sbFetch("/auth/v1/user", { method: "PUT", body: JSON.stringify({ password: pw }) }); }
+  catch(e){ throw new Error(authMsg(e.message)); }
+  if(hasKey()) await rewrapPassword(pw); else recovery = { pw };
+}
+async function sendPasswordReset(email){
+  const back = location.origin + location.pathname;
+  try{ await sbFetch("/auth/v1/recover?redirect_to=" + encodeURIComponent(back), { method: "POST", body: JSON.stringify({ email }) }, false); }
+  catch(e){ throw new Error(authMsg(e.message)); }
+}
+async function handleAuthRedirect(){
+  const h = new URLSearchParams(location.hash.replace(/^#/, ""));
+  if(!h.get("access_token") && !h.get("error_description")) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if(h.get("error_description")) return toast("Lien invalide ou expiré : redemande un e-mail");
+  if(h.get("type") !== "recovery") return;
+  try{
+    const tok = h.get("access_token");
+    const user = await sbFetch("/auth/v1/user", {}, tok);
+    const owner = localStorage.getItem("lan.sync.owner");
+    if(auth && auth.user.id !== user.id){ localStorage.removeItem("lan.ekey"); dekObj = null; }
+    if(owner && owner !== user.id){ localStorage.removeItem("lan.ekey"); dekObj = null; }
+    setAuth({ access_token: tok, refresh_token: h.get("refresh_token"), expires_in: h.get("expires_in"), user });
+    newPasswordSheet();
+  }catch(e){ toast("Réinitialisation impossible : " + e.message); }
+}
+function newPasswordSheet(){
+  let p1 = "", p2 = "";
+  openSheet("Nouveau mot de passe", null, (_, b) => {
+    hint(b, "Choisis un nouveau mot de passe pour " + esc(auth.user.email) + ".");
+    field(b, "Nouveau mot de passe", "", v => p1 = v, { type: "password", placeholder: "6 caractères minimum" });
+    field(b, "Confirme-le", "", v => p2 = v, { type: "password" });
+    const go = btn(b, "Enregistrer", "wide", async () => {
+      if(p1.length < 6) return toast("6 caractères minimum");
+      if(p1 !== p2) return toast("Les deux mots de passe sont différents");
+      go.disabled = true;
+      try{
+        await changePassword(p1);
+        toast("Mot de passe changé ✓");
+        if(hasKey()){ await firstSync(); closeSheet(); } else openSettings("sync");
+      }catch(e){ toast(e.message); go.disabled = false; }
+    });
+  });
+}
+async function deleteAccount(pw, wipeDevice){
+  const email = auth.user.email;
+  try{ setAuth(await sbFetch("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password: pw }) }, false)); }
+  catch(e){ throw new Error(authMsg(e.message)); }
+  let full = true;
+  try{ await sbFetch("/rest/v1/rpc/lanterne_delete_me", { method: "POST", body: "{}" }); }
+  catch(e){
+    if(!(e.status === 404 || /PGRST202|could not find/i.test(e.code + " " + e.message))) throw e;
+    full = false; // fonction absente du serveur : on efface au moins toutes les données
+    await sbFetch(`/rest/v1/lanterne_docs?user_id=eq.${auth.user.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  }
+  signOut(true);
+  localStorage.removeItem("lan.sync.owner");
+  if(wipeDevice){ wipeLocalSynced(); localStorage.removeItem("lan.stats"); }
+  return full;
+}
+function deleteAccountSheet(){
+  let pw = "", wipe = false;
+  openSheet("Supprimer mon compte", null, (_, b) => {
+    hint(b, `Le compte <b>${esc(auth.user.email)}</b> et toutes ses données synchronisées seront définitivement effacés du serveur. C'est irréversible.`);
+    toggle(b, "Effacer aussi les aventures de cet appareil", "Sinon, elles restent ici et tu peux continuer à jouer sans compte.", () => wipe, v => wipe = v);
+    field(b, "Ton mot de passe, pour confirmer", "", v => pw = v, { type: "password" });
+    const go = btn(b, "Supprimer définitivement", "danger wide", async () => {
+      if(!pw) return toast("Entre ton mot de passe");
+      if(!confirm("Dernière vérification : supprimer le compte pour de bon ?")) return;
+      go.disabled = true; go.textContent = "Suppression…";
+      try{
+        const full = await deleteAccount(pw, wipe);
+        toast(full ? "Compte supprimé" : "Données supprimées (le compte de connexion sera retiré par l'admin)");
+        closeSheet(); adv = null; showLibrary();
+      }catch(e){ toast(e.message); go.disabled = false; go.textContent = "Supprimer définitivement"; }
+    });
+  });
 }
 function wipeLocalSynced(){
   const ks = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(SYNC_RE.test(k)) ks.push(k); }
@@ -1789,14 +2306,14 @@ async function syncPush(){
   const dirty = LS.get("lan.dirty", {}), mt = LS.get("lan.mtime", {});
   const keys = Object.keys(dirty);
   if(!keys.length) return;
-  const snap = {};
-  const rows = keys.map(k => {
+  const snap = {}, rows = [];
+  for(const k of keys){
     snap[k] = mt[k] || Date.now();
     const raw = localStorage.getItem(k);
     let data = raw ? JSON.parse(raw) : null;
     if(k === "lan.settings" && data && !settings.syncApiKey){ data = Object.assign({}, data); delete data.apiKey; }
-    return { user_id: auth.user.id, key: k.slice(4), data, mtime: snap[k], deleted: !raw };
-  });
+    rows.push({ user_id: auth.user.id, key: k.slice(4), data: raw ? await encData(data) : null, mtime: snap[k], deleted: !raw });
+  }
   for(let i = 0; i < rows.length; i += 15){
     await sbFetch("/rest/v1/lanterne_docs?on_conflict=user_id,key", { method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows.slice(i, i + 15)) });
@@ -1807,30 +2324,33 @@ async function syncPush(){
 }
 async function syncPull(){
   let last = localStorage.getItem("lan.sync.last") || "1970-01-01T00:00:00Z";
-  const changed = [];
+  const changed = []; let bad = 0;
   for(let page = 0; page < 20; page++){
     const rows = await sbFetch(`/rest/v1/lanterne_docs?select=key,data,mtime,deleted,updated_at&user_id=eq.${auth.user.id}&updated_at=gt.${encodeURIComponent(last)}&order=updated_at.asc&limit=200`);
     if(!rows || !rows.length) break;
     const mt = LS.get("lan.mtime", {}), dirty = LS.get("lan.dirty", {});
-    rows.forEach(r => {
+    for(const r of rows){
       last = r.updated_at;
       const k = "lan." + r.key;
-      if(!SYNC_RE.test(k)) return;
-      const localM = mt[k] || 0;
-      if(Number(r.mtime) <= localM) return;
+      if(!SYNC_RE.test(k)) continue;
+      if(Number(r.mtime) <= (mt[k] || 0)) continue;
+      let plain = false;
       if(r.deleted) localStorage.removeItem(k);
       else{
         let data = r.data;
-        if(k === "lan.settings"){ const cur = LS.get(k, {}); if(!data.apiKey && cur.apiKey) data = Object.assign({}, data, { apiKey: cur.apiKey }); }
+        if(data && data.e2e){ try{ data = await decData(data); }catch(e){ bad++; continue; } }
+        else if(data != null) plain = true; // ancienne copie non chiffrée : on la renverra chiffrée
+        if(k === "lan.settings" && data){ const cur = LS.get(k, {}); if(!data.apiKey && cur.apiKey) data = Object.assign({}, data, { apiKey: cur.apiKey }); }
         localStorage.setItem(k, JSON.stringify(data));
       }
-      mt[k] = Number(r.mtime); delete dirty[k]; changed.push(k);
-    });
+      mt[k] = Number(r.mtime); if(plain) dirty[k] = 1; else delete dirty[k]; changed.push(k);
+    }
     localStorage.setItem("lan.mtime", JSON.stringify(mt)); localStorage.setItem("lan.dirty", JSON.stringify(dirty));
     localStorage.setItem("lan.sync.last", last);
     if(rows.length < 200) break;
   }
   if(changed.length) applyPulled(changed);
+  if(bad) throw new Error(`${bad} élément${bad > 1 ? "s" : ""} illisible${bad > 1 ? "s" : ""} (chiffré${bad > 1 ? "s" : ""} avec une autre clé)`);
 }
 function applyPulled(keys){
   let advChanged = false;
@@ -1857,7 +2377,7 @@ function applyPulled(keys){
   }
 }
 async function syncNow(manual){
-  if(!auth || !syncConf().url){ refreshSyncLine(); return; }
+  if(!auth || !syncConf().url || !hasKey()){ refreshSyncLine(); return; }
   if(!localStorage.getItem("lan.sync.owner")) localStorage.setItem("lan.sync.owner", auth.user.id);
   if(syncState.busy){ if(manual) toast("Synchronisation déjà en cours"); return; }
   syncState.busy = true; refreshSyncLine();
@@ -1872,13 +2392,14 @@ async function syncNow(manual){
   syncState.busy = false; refreshSyncLine();
 }
 setInterval(() => { if(document.visibilityState === "visible") syncNow(false); }, 25000);
-document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") syncNow(false); else syncPush().catch(() => {}); });
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") syncNow(false); else if(auth && hasKey()) syncPush().catch(() => {}); });
 window.addEventListener("online", () => syncNow(false));
 
 function renderSyncTab(body){
   const c = syncConf();
-  hint(body, "Crée un compte pour retrouver tes aventures, réglages et stats sur tous tes appareils (PC, téléphone…). Chaque compte est privé : tes potes ont le leur.");
+  hint(body, "Crée un compte pour retrouver tes aventures, réglages et stats sur tous tes appareils (PC, téléphone…). Tout est <b>chiffré avec ton mot de passe</b> avant d'être envoyé : personne d'autre ne peut lire tes parties, même le propriétaire du serveur.");
   const st = el("div", "card"); st.id = "syncTabStatus"; st.innerHTML = syncLabel(); body.appendChild(st);
+  const busyBtn = async (b, fn) => { b.disabled = true; const t = b.textContent; b.textContent = "…"; try{ await fn(); }catch(e){ toast(e.message); } b.disabled = false; b.textContent = t; };
   if(!c.url || !c.key){
     hint(body, "⚠ Le serveur de synchronisation n'est pas encore configuré. Remplis les deux champs ci-dessous (dans « Serveur »).");
   } else if(!auth){
@@ -1886,20 +2407,65 @@ function renderSyncTab(body){
     field(body, "E-mail", "", v => email = v.trim(), { type: "email", placeholder: "toi@exemple.com" });
     field(body, "Mot de passe", "", v => pw = v, { type: "password", placeholder: "6 caractères minimum" });
     const r = el("div", "row"); body.appendChild(r);
-    const go = (fn, label) => async (ev) => {
-      const b = ev.currentTarget; if(!email || !pw) return toast("Remplis l'e-mail et le mot de passe");
-      b.disabled = true; const t = b.textContent; b.textContent = "…";
-      try{ await fn(email, pw); toast(label); openSettings("sync"); }catch(e){ toast(e.message); }
-      b.disabled = false; b.textContent = t;
-    };
+    const go = (fn, label) => ev => busyBtn(ev.currentTarget, async () => {
+      if(!email || !pw) throw new Error("Remplis l'e-mail et le mot de passe");
+      try{ await fn(email, pw); toast(label); }catch(e){ if(!(e instanceof NeedRecovery)) throw e; toast(e.message); }
+      openSettings("sync");
+    });
     btn(r, "Se connecter", "", go(signIn, "Connecté ✓")).style.flex = "1";
     btn(r, "Créer un compte", "ghost", go(signUp, "Compte créé ✓")).style.flex = "1";
-    hint(body, "À la première connexion sur un appareil, les aventures déjà présentes sont fusionnées avec celles du compte (rien n'est perdu : la version la plus récente gagne).").style.marginTop = "12px";
+    const fp = btn(body, "Mot de passe oublié ?", "ghost small", ev => busyBtn(ev.currentTarget, async () => {
+      if(!email) throw new Error("Écris d'abord ton e-mail dans le champ du dessus");
+      await sendPasswordReset(email);
+      toast("Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé");
+    }));
+    fp.style.marginTop = "12px";
+    hint(body, "À la première connexion sur un appareil, les aventures déjà présentes sont fusionnées avec celles du compte (la version la plus récente gagne). Après un changement de mot de passe, ton <b>code de secours</b> te sera demandé une fois.").style.marginTop = "12px";
+  } else if(!hasKey() && recovery){
+    hint(body, "Le mot de passe de ce compte a changé, il n'ouvre plus le coffre qui protège tes données. Entre le <b>code de secours</b> qui t'a été donné à la création du compte.");
+    let code = "";
+    field(body, "Code de secours", "", v => code = v, { placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX" });
+    btn(body, "Récupérer mes données", "wide", ev => busyBtn(ev.currentTarget, async () => { await recoverWith(code, recovery.pw); toast("Données récupérées ✓"); await firstSync(); openSettings("sync"); }));
+    const lost = el("details", "fold", `<summary>Je n'ai plus mon code</summary><div class="in"></div>`); body.appendChild(lost); lost.style.marginTop = "16px";
+    const li = lost.querySelector(".in");
+    hint(li, "Sans code, la copie du serveur ne peut plus être lue. Tu peux repartir des aventures présentes <b>sur cet appareil</b> : la copie du serveur sera effacée et remplacée. Les aventures qui n'existent que sur un autre appareil y restent : connecte-toi depuis celui-ci en premier si c'est lui qui a tout.");
+    btn(li, "Repartir de cet appareil", "danger small", ev => busyBtn(ev.currentTarget, async () => {
+      if(!confirm("Effacer la copie du serveur et la remplacer par les aventures de cet appareil ?")) return;
+      const nc = await resetEncryption(recovery.pw); await showRecoveryCode(nc); await firstSync(); openSettings("sync");
+    }));
+    btn(body, "Se déconnecter", "ghost small", () => { signOut(); openSettings("sync"); }).style.marginTop = "12px";
+  } else if(!hasKey()){
+    hint(body, "La synchro est maintenant <b>chiffrée de bout en bout</b>. Entre ton mot de passe une fois sur cet appareil pour l'activer.");
+    let pw = "";
+    field(body, "Mot de passe de " + auth.user.email, "", v => pw = v, { type: "password" });
+    btn(body, "Déverrouiller", "wide", ev => busyBtn(ev.currentTarget, async () => {
+      if(!pw) throw new Error("Entre ton mot de passe");
+      try{ await signIn(auth.user.email, pw); toast("Chiffrement activé ✓"); }catch(e){ if(!(e instanceof NeedRecovery)) throw e; toast(e.message); }
+      openSettings("sync");
+    }));
+    btn(body, "Se déconnecter", "ghost small", () => { signOut(); openSettings("sync"); }).style.marginTop = "12px";
   } else {
     body.appendChild(el("div", "stat", `<span>Connecté</span><b>${esc(auth.user.email)}</b>`));
-    btn(body, "Synchroniser maintenant", "wide", () => syncNow(true)).style.marginBottom = "16px";
-    toggle(body, "Synchroniser aussi la clé API", "Pratique : rien à recoller sur le PC. Elle est stockée dans ton compte, visible par toi seul.", () => settings.syncApiKey, v => { settings.syncApiKey = v; saveSettings(); });
-    btn(body, "Se déconnecter", "ghost small", async () => { if(confirm("Se déconnecter ? Tes aventures restent sur cet appareil. Si un autre compte se connecte ici ensuite, elles seront retirées de l'appareil (elles restent dans ton compte).")){ await syncNow(false); signOut(); openSettings("sync"); } });
+    body.appendChild(el("div", "stat", `<span>Chiffrement</span><b>de bout en bout</b>`));
+    btn(body, "Synchroniser maintenant", "wide", () => syncNow(true)).style.margin = "8px 0 16px";
+    toggle(body, "Synchroniser aussi la clé API", "Pratique : rien à recoller sur le PC. Elle est chiffrée comme le reste : personne d'autre ne peut la lire.", () => settings.syncApiKey, v => { settings.syncApiKey = v; saveSettings(); });
+
+    const sec1 = el("details", "fold", `<summary>Mot de passe et code de secours</summary><div class="in"></div>`); body.appendChild(sec1); sec1.style.marginTop = "14px";
+    const s1 = sec1.querySelector(".in");
+    let p1 = "", p2 = "";
+    field(s1, "Nouveau mot de passe", "", v => p1 = v, { type: "password", placeholder: "6 caractères minimum" });
+    field(s1, "Confirme-le", "", v => p2 = v, { type: "password" });
+    btn(s1, "Changer le mot de passe", "small", ev => busyBtn(ev.currentTarget, async () => {
+      if(p1.length < 6) throw new Error("6 caractères minimum");
+      if(p1 !== p2) throw new Error("Les deux mots de passe sont différents");
+      await changePassword(p1); toast("Mot de passe changé ✓"); openSettings("sync");
+    }));
+    hint(s1, "Le code de secours sert si tu oublies ton mot de passe. Tu l'as perdu ? Génère-en un nouveau : l'ancien ne marchera plus.").style.marginTop = "14px";
+    btn(s1, "Générer un nouveau code de secours", "ghost small", ev => busyBtn(ev.currentTarget, async () => { await showRecoveryCode(await renewRecoveryCode()); }));
+
+    const r = el("div", "row"); r.style.cssText = "margin-top:16px;flex-wrap:wrap"; body.appendChild(r);
+    btn(r, "Se déconnecter", "ghost small", async () => { if(confirm("Se déconnecter ? Tes aventures restent sur cet appareil. Si un autre compte se connecte ici ensuite, elles seront retirées de l'appareil (elles restent dans ton compte).")){ await syncNow(false); signOut(); openSettings("sync"); } });
+    btn(r, "Supprimer mon compte", "danger small", deleteAccountSheet);
   }
   const det = el("details", "fold", `<summary>Serveur (avancé)</summary><div class="in"></div>`);
   if(!c.url || !c.key) det.open = true;
@@ -1923,13 +2489,42 @@ function openAdventureSheet(start){
     }
     if(k === "cards") renderCardsTab(body);
     if(k === "scripts"){
-      hint(body, "Les scripts ajoutent des comportements avancés, comme sur AI Dungeon. Tu peux en activer un, l'autre ou les deux.");
-      scriptToggles(body, adv.scripts, () => saveAdv());
+      hint(body, "Des outils pour enrichir tes parties. Tu peux en activer autant que tu veux.");
+      scriptToggles(body, adv.scripts, () => { saveAdv(); refreshSmartBar(); }, () => openAdventureSheet("scripts"));
+      renderSmartExtras(body);
     }
     if(k === "instr") instructionsEditor(body, () => adv.instructions, v => { adv.instructions = v; saveAdv(); }, () => wish, v => wish = v);
     if(k === "look") renderLookTab(body);
     if(k === "misc") renderMiscTab(body);
   }, start);
+}
+function renderSmartExtras(body){
+  if(adv.scripts.sc){
+    sec(body, "Cartes intelligentes");
+    const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
+    const ab = btn(r, carding ? "Analyse en cours…" : "Analyser l'histoire maintenant", "ghost small", async () => { ab.disabled = true; ab.textContent = "Analyse en cours…"; await maybeSmartCards(true); if($("#sheetHost").innerHTML) openAdventureSheet("scripts"); });
+    if(carding) ab.disabled = true;
+    if(adv.pending.length) btn(r, `Voir les suggestions (${adv.pending.length})`, "small", openPending);
+    if(adv.scIgnore.length) btn(r, `Oublier les refus (${adv.scIgnore.length})`, "ghost small", () => { adv.scIgnore = []; saveAdv(); openAdventureSheet("scripts"); });
+  }
+  if(adv.scripts.ar){
+    sec(body, "Tics repérés");
+    const tics = detectTics(adv).filter(p => !adv.arOff.includes(p));
+    if(!tics.length) hint(body, adv.actions.filter(x => x.type === "ai").length < 4 ? "L'analyse commence après quelques tours." : "Aucun tic repéré pour l'instant. Bravo l'IA.");
+    else {
+      hint(body, "Ces expressions reviennent trop souvent : l'IA a pour consigne de les éviter. Touche × si une expression est normale dans ton histoire.");
+      const box = el("div", "tags"); body.appendChild(box);
+      tics.forEach(t => { const tg = el("span", "tag", `${esc(t)}<button aria-label="Autoriser">×</button>`); tg.querySelector("button").onclick = () => { adv.arOff.push(t); saveAdv(); openAdventureSheet("scripts"); }; box.appendChild(tg); });
+    }
+    if(adv.arOff.length) btn(body, `Réinitialiser les expressions autorisées (${adv.arOff.length})`, "ghost small", () => { adv.arOff = []; saveAdv(); openAdventureSheet("scripts"); }).style.marginTop = "8px";
+    field(body, "Mes expressions interdites", adv.arUser, v => { adv.arUser = v; saveAdv(); }, { multiline: true, rows: 3, placeholder: "Une par ligne. Ex. : un frisson parcourt ton échine", hint: "Ajoute les tournures qui t'agacent : l'IA ne les utilisera plus." }).parentElement.style.marginTop = "14px";
+  }
+  if(adv.scripts.rpg){
+    sec(body, "Mode RPG");
+    const r = ensureRpg(adv);
+    hint(body, `PV ${r.hp}/${r.hpMax} · Or ${r.gold} · ${r.inv.length} objet${r.inv.length > 1 ? "s" : ""} dans le sac.`);
+    btn(body, "Ouvrir la fiche du personnage", "ghost small", openRpgSheet);
+  }
 }
 function renderLookTab(body){
   const save = () => { saveAdv(); applyStyle(adv.style); };
@@ -1993,6 +2588,12 @@ function renderCardsTab(body){
   const reopen = () => { saveAdv(); openAdventureSheet("cards"); };
   hint(body, `Une carte est envoyée à l'IA quand un de ses mots-clés apparaît dans les ${settings.cardScanDepth} derniers passages.`);
   btn(body, "+ Nouvelle carte", "wide", () => editCard(null, adv.cards, advCtx(), reopen)).style.marginBottom = "14px";
+  if(adv.scripts.sc){
+    const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;margin:-4px 0 14px"; body.appendChild(r);
+    const ab = btn(r, carding ? "Analyse en cours…" : "✨ Analyser l'histoire", "ghost small", async () => { ab.disabled = true; ab.textContent = "Analyse en cours…"; await maybeSmartCards(true); if($("#sheetHost").innerHTML) openAdventureSheet("cards"); });
+    if(carding) ab.disabled = true;
+    if(adv.pending.length) btn(r, `Suggestions (${adv.pending.length})`, "small", openPending);
+  }
   const active = new Set(triggeredCards().map(c => c.id));
   const user = adv.cards.filter(c => !isBrain(c) && !isSystem(c));
   const brains = adv.cards.filter(isBrain);
@@ -2401,6 +3002,7 @@ $("#retryBtn").onclick = () => {
   let alts = null, restore = null, guide = "";
   if(last && last.type === "ai" && adv.actions.length > 1){
     restore = adv.actions.pop();
+    if(restore.rpgPrev) adv.rpg = clone(restore.rpgPrev);
     alts = restore.alts?.length ? [...restore.alts] : [restore.text];
     guide = restore.guide || "";
   }
@@ -2412,9 +3014,10 @@ $("#undoBtn").onclick = () => {
   if(generating) return;
   popTrailingHidden();
   if(!adv.actions.length) return;
-  redoStack.push(adv.actions.pop()); popTrailingHidden(); saveAdv(); renderStory(true);
+  const u = adv.actions.pop(); if(u.rpgPrev) adv.rpg = clone(u.rpgPrev);
+  redoStack.push(u); popTrailingHidden(); saveAdv(); renderStory(true);
 };
-$("#redoBtn").onclick = () => { if(generating || !redoStack.length) return; adv.actions.push(redoStack.pop()); saveAdv(); renderStory(true); };
+$("#redoBtn").onclick = () => { if(generating || !redoStack.length) return; const r = redoStack.pop(); if(r.rpgAfter) adv.rpg = clone(r.rpgAfter); adv.actions.push(r); saveAdv(); renderStory(true); };
 $("#inp").addEventListener("input", autosize);
 $("#ideaBtn").onclick = fetchIdeas;
 $("#ttsBtn").onclick = () => { if(speaking()) stopSpeaking(); else { const a = [...adv.actions].reverse().find(x => x.type === "ai" && !x.hidden); if(a) speak(a.text); else toast("Rien à lire"); } };
@@ -2430,7 +3033,7 @@ window.addEventListener("beforeunload", () => saveAdv());
 updateTools();
 showLibrary();
 onboarding();
-syncNow(false);
+handleAuthRedirect().finally(() => syncNow(false));
 loadFx().then(() => { if(!adv && !$("#sheetHost").innerHTML) showLibrary(); });
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(() => {});

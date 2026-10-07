@@ -1084,7 +1084,6 @@ function adventureWizard(pre, opts = {}){
   let idea = "", genOpen = false, wish = "", keep = true, dirty = false;
   const render = (b) => {
     b.innerHTML = "";
-    if(mode === "scenario") hint(b, L("🔒 Un scénario est privé : il reste chez toi (et dans ton compte chiffré). Il n'est publié dans Découvrir que si tu le demandes. Le modifier ne touche à aucune partie déjà lancée.", "🔒 A scenario is private: it stays with you (and in your encrypted account). It only goes to Discover if you ask. Editing it never touches games already started.")).style.marginBottom = "12px";
     const pc = coverFramer(b, () => d.cover, () => d.coverPos, v => { d.coverPos = v; dirty = true; });
     if(!d.cover) pc.textContent = "＋ Image de couverture (optionnel)";
     pc.onclick = async () => { const img = await chooseCover(); if(img){ d.cover = img; d.coverPos = 50; dirty = true; render(b); } };
@@ -1223,21 +1222,20 @@ function scnTarget(t){ return { obj: t, save: o => saveScn(o), sc: () => scnToSc
 function openScn(id){ const t = LS.get(scnKey(id), null); if(!t) return toast(L("Scénario introuvable", "Scenario not found")); adventureWizard(scnPre(t), { scn: t }); }
 function renderMyScenarios(lib, icons){
   getRole().catch(() => {});
-  const top = el("div", "row"); top.style.cssText = "flex-wrap:wrap;gap:8px;margin:14px 0 6px"; lib.appendChild(top);
+  const top = el("div", "row"); top.style.cssText = "flex-wrap:wrap;gap:8px;margin:14px 0 12px"; lib.appendChild(top);
   btn(top, L("+ Nouveau scénario", "+ New scenario"), "small", () => adventureWizard(null, { mode: "scenario" }));
   btn(top, L("📥 Importer", "📥 Import"), "ghost small", () => openSheet(L("Importer un scénario", "Import a scenario"), null, (_, b) => {
     const opt = (t, d, f) => { const o = el("button", "mdl", `<div class="grow"><div class="n">${t}</div><div class="d">${d}</div></div>`); o.onclick = f; b.appendChild(o); };
     opt(L("Scénario Lanterne", "Lanterne scenario"), L("Un fichier envoyé par un pote (« Partager le scénario » ou « Exporter »).", "A file sent by a friend (“Share scenario” or “Export”)."), () => { closeSheet(); importScenarioFile(true); });
     opt(L("Scénario AI Dungeon", "AI Dungeon scenario"), L("Un fichier JSON exporté avec le script Lanterne depuis une page de scénario AI Dungeon.", "A JSON file exported with the Lanterne script from an AI Dungeon scenario page."), () => { closeSheet(); importAIDFile(); });
   }));
-  hint(lib, L("🔒 Tes scénarios sont privés. Les modifier ne touche à aucune partie déjà lancée, et chaque partie peut être recommencée de zéro. Rien n'est publié sans ton accord.", "🔒 Your scenarios are private. Editing one never touches games already started, and every game can be restarted from scratch. Nothing is published without your say."));
   const list = scnList();
   if(!list.length){ lib.appendChild(el("div", "empty", L("Aucun scénario pour l'instant.<br>Crée-en un, ou coche « Garder dans Mes scénarios » en lançant une aventure.", "No scenarios yet.<br>Create one, or tick “Keep in My scenarios” when starting an adventure."))); return; }
   const grid = el("div", "grid"); lib.appendChild(grid);
   list.forEach(t => {
     const it = el("div", "item");
     it.appendChild(coverEl("", t.hasCover ? t.id : null, t.title, t.coverPos));
-    it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(t.title)}</div><div class="m">${t.publishedId ? L("Publié", "Published") : L("🔒 Privé", "🔒 Private")} · ${ago(t.updated)}</div>`));
+    it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(t.title)}</div><div class="m">${t.publishedId ? L("Public", "Public") : L("Privé", "Private")} · ${ago(t.updated)}</div>`));
     const a = el("div", "acts", `<div class="mini"><button class="trash" aria-label="${L("Supprimer", "Delete")}" title="${L("Supprimer", "Delete")}">${icons.TRASH}</button></div><button class="play" aria-label="${L("Jouer", "Play")}" title="${L("Jouer", "Play")}">${icons.PLAY}</button>`);
     a.querySelector(".trash").onclick = e => { e.stopPropagation(); if(deleteScn(t)) showLibrary(); };
     a.querySelector(".play").onclick = e => { e.stopPropagation(); playScenario(scnToSc(t), null, { scenarioId: t.id }); };

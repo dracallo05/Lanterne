@@ -185,6 +185,22 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .rpgd span{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line)}
 .rpgd .neg{color:var(--err)}
 .rpgd .pos{color:#7fc79a}
+.rpgd.mind{margin-top:-6px}
+.rpgd.mind span{color:var(--tx3)}
+.rpgd.mind .pos{color:#c9a7ff}
+.rpgd.mind .neg{color:var(--err)}
+.pill.chars{color:var(--tx2)}
+.pill.chars span.noi18n{max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.mmood{font-family:var(--serif);font-style:italic;color:var(--tx2);font-size:16px;margin:-4px 0 12px}
+.rels{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-bottom:16px}
+.relr{display:grid;grid-template-columns:78px 1fr 30px;align-items:center;gap:10px;padding:5px 0;font-size:13px;color:var(--tx2)}
+.relr b{text-align:right;font-variant-numeric:tabular-nums;color:var(--tx)}
+.relb{position:relative;height:6px;border-radius:9px;background:var(--bg3)}
+.relb.c::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line)}
+.relb i{position:absolute;top:0;bottom:0;border-radius:9px}
+.relb i.trust{background:#7fc79a}.relb i.affection{background:#e8957a}.relb i.fear{background:#9fb3cc}.relb i.tension{background:var(--err)}
+.mrel{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--tx3);margin:6px 0 2px}
+.mrel b{color:var(--tx2);font-weight:600}
 .subopts{margin:-4px 0 10px 14px;padding-left:12px;border-left:2px solid var(--line)}
 .tags{display:flex;flex-wrap:wrap;gap:6px}
 .tag{display:inline-flex;align-items:center;gap:4px;font-size:13px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--tx2)}
@@ -408,7 +424,7 @@ const SCRIPT_GLUE = `The user message contains the full story context. Continue 
 const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »</em>`;
 const KEYS_HINT = "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.";
 const TYPES = ["personnage","lieu","objet","faction","concept","autre"];
-const SCRIPT_DEF = () => ({ ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true });
+const SCRIPT_DEF = () => ({ ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true, minds: false, mindEvery: 2, mindChips: true });
 
 const THEMES = {
   braise:    { name: "Braise",    v: { bg:"#1f1e1c", bg2:"#262624", bg3:"#30302e", line:"#3d3c39", tx:"#e8e6dc", tx2:"#b5b3aa", tx3:"#85837b", acc:"#d97757", acc2:"#e8957a", onacc:"#1b1410" } },
@@ -445,6 +461,8 @@ const LOC = () => isEN() ? "en-US" : "fr-FR";
 const L = (fr, en) => isEN() ? en : fr;
 const I18N = {}, I18N_RE = [];
 Object.assign(I18N, {"(licence MIT), adaptés pour Lanterne.": "(MIT license), adapted for Lanterne.", "(sans titre)": "(untitled)", "+ Ajouter une carte": "+ Add a card", "+ Nouvelle aventure": "+ New adventure", "+ Nouvelle carte": "+ New card", ", sous licence MIT.": ", under the MIT license.", ". Entre ton mot de passe une fois sur cet appareil pour l'activer.": ". Enter your password once on this device to turn it on.", "6 caractères minimum": "6 characters minimum", ": la copie du serveur sera effacée et remplacée. Les aventures qui n'existent que sur un autre appareil y restent : connecte-toi depuis celui-ci en premier si c'est lui qui a tout.": ": the server copy will be erased and replaced. Adventures that only exist on another device stay there: sign in from that one first if it has everything.", "Accepter": "Accept", "Action-aventure": "Action-adventure", "Activée": "Enabled", "Actuelle": "Current", "Adresse de l'API": "API address", "Adresse du projet Supabase": "Supabase project URL", "Ajoute les tournures qui t'agacent : l'IA ne les utilisera plus.": "Add the phrasings that annoy you: the AI won't use them anymore.", "Ajoute ta clé API": "Add your API key", "Ajoute ta clé API dans les réglages": "Add your API key in the settings", "Ajouter": "Add", "Analyse tous les … tours": "Analyze every … turns", "Analyser l'histoire maintenant": "Analyze the story now", "Annuler": "Undo", "Anti-répétition": "Anti-repetition", "Apparence": "Look", "Arbre mort": "Dead tree", "Aucun résultat.": "No results.", "Aucune aventure pour l'instant.": "No adventures yet.", "Audacieux · Peu de refus": "Bold · Few refusals", "Aurore": "Aurora", "Auto-Cards (LewdLeah) désactivé : les Cartes intelligentes le remplacent": "Auto-Cards (LewdLeah) turned off: Smart cards replace it", "Autre API compatible OpenAI": "Other OpenAI-compatible API", "Avancé": "Advanced", "Avec un script actif, chaque tour coûte un peu plus (environ +20 à 50 %) et le texte apparaît d'un coup à la fin. Scripts créés par": "With a script on, each turn costs a bit more (about +20 to 50%) and the text appears all at once at the end. Scripts made by", "Aventure": "Adventure", "Aventure introuvable": "Adventure not found", "Aventure supprimée": "Adventure deleted", "Bienvenue dans Lanterne": "Welcome to Lanterne", "Bois brumeux": "Misty woods", "Bon après-midi.": "Good afternoon.", "Bonjour.": "Good morning.", "Bonsoir.": "Good evening.", "Braise": "Ember", "C'est noté": "Got it", "C'est parti": "Let's go", "Canyon au soleil": "Sunlit canyon", "Cartes intelligentes": "Smart cards", "Cartes intelligentes désactivées : un seul système de cartes à la fois": "Smart cards turned off: one card system at a time", "Cartes mises à jour": "Cards updated", "Catégorie personnalisée": "Custom category", "Ce que l'IA doit toujours savoir : qui tu es, le monde, les relations, l'enjeu.": "What the AI must always know: who you are, the world, relationships, what's at stake.", "Changer de modèle": "Change model", "Changer l'image": "Change image", "Changer le mot de passe": "Change password", "Chargement des modèles et des prix…": "Loading models and prices…", "Chiffrement": "Encryption", "Chiffrement activé ✓": "Encryption on ✓", "Choisir un modèle": "Choose a model", "Château au clair de lune": "Moonlit castle", "Cité néon": "Neon city", "Classique · Stable": "Classic · Stable", "Clé API": "API key", "Clé OK": "Key OK", "Clé publique (anon / publishable)": "Public key (anon / publishable)", "Code copié": "Code copied", "Code de secours": "Recovery code", "Combien de passages récents l'app relit pour chercher les mots-clés des cartes. À 4, une carte reste active tant que son mot-clé est apparu dans les 4 derniers passages.": "How many recent passages the app scans for card keywords. At 4, a card stays active as long as its keyword appeared in the last 4 passages.", "Combien de tokens d'histoire l'IA voit à chaque tour. Plus = meilleure mémoire, mais chaque tour coûte plus.": "How many tokens of story the AI sees each turn. More = better memory, but each turn costs more.", "Commencer l'aventure": "Start the adventure", "Comment jouer": "How to play", "Comment l'IA raconte : style, ton, règles. Les instructions par défaut fonctionnent bien.": "How the AI narrates: style, tone, rules. The default instructions work well.", "Compte": "Account", "Confirme-le": "Confirm it", "Connecte-toi": "Sign in", "Connecté": "Signed in", "Connecté ✓": "Signed in ✓", "Contenu": "Content", "Continuer": "Continue", "Copie créée": "Copy created", "Copie impossible : note-le à la main": "Can't copy: write it down by hand", "Copier": "Copy", "Crédits": "Credits", "Crée un compte pour retrouver tes aventures, réglages et stats sur tous tes appareils (PC, téléphone…). Tout est": "Create an account to get your adventures, settings and stats on all your devices (PC, phone…). Everything is", "Crée un compte sur openrouter.ai, ajoute quelques euros de crédit, puis crée une clé et colle-la dans les réglages (icône en haut à droite). Un tour coûte une fraction de centime.": "Create an account on openrouter.ai, add a few dollars of credit, then create a key and paste it in the settings (icon at the top right). A turn usually costs a cent or two at most.", "Crée-en une pour commencer.": "Create one to get started.", "Créer un compte": "Create an account", "Compte créé ✓": "Account created ✓", "Dans le top roleplay d'OpenRouter. Bon dépannage pas cher.": "In OpenRouter's top roleplay models. A good cheap backup.", "Dernière vérification : supprimer le compte pour de bon ?": "Last check: delete the account for good?", "Des aventures et du jeu de rôle avec l'IA. Tu joues, elle raconte, et tout reste sur ton téléphone.": "Adventures and roleplay with AI. You play, it narrates, and everything stays on your device.", "Des outils pour enrichir tes parties. Tu peux en activer autant que tu veux.": "Tools to enrich your games. Turn on as many as you like.", "Deux lunes": "Twin moons", "Devise": "Currency", "Dire": "Say", "Divers": "Misc", "Dollar ($)": "Dollar ($)", "Donne aux personnages une mémoire, des objectifs et des pensées qui évoluent au fil de l'histoire.": "Gives characters memories, goals and thoughts that evolve over the story.", "Données": "Data", "Données récupérées ✓": "Data recovered ✓", "Drame": "Drama", "Dunes": "Dunes", "Dupliquer": "Duplicate", "Décris le style que tu veux, l'IA réécrit les instructions.": "Describe the style you want, the AI rewrites the instructions.", "Décris une envie en une phrase, ou laisse vide pour une surprise. L'IA remplit le titre, l'ouverture, les essentiels et la note d'auteur.": "Describe what you feel like in one sentence, or leave it empty for a surprise. The AI fills in the title, opening, essentials and author's note.", "Dépenses": "Spending", "Dépenses par mois": "Spending per month", "Dépensé sur cette aventure": "Spent on this adventure", "Dés": "Dice", "Désactive sans supprimer.": "Turns it off without deleting it.", "Désactiver le raisonnement": "Turn off reasoning", "Déverrouiller": "Unlock", "E-mail": "Email", "Effacer aussi les aventures de cet appareil": "Also erase the adventures on this device", "Effacer ce cerveau ?": "Erase this brain?", "Effacer la copie du serveur et la remplacer par les aventures de cet appareil ?": "Erase the server copy and replace it with the adventures on this device?", "Elara\nCapitaine Rhéa": "Elara\nCaptain Rhea", "En caractères. 1000 comme AI Dungeon : au-delà, l'IA retient moins bien les détails.": "In characters. 1000 like AI Dungeon: beyond that, the AI remembers details less well.", "Encre": "Ink", "Enregistrer": "Save", "Entre ton code de secours": "Enter your recovery code", "Entre ton mot de passe": "Enter your password", "Envoyer": "Send", "Euro (€)": "Euro (€)", "Ex. : Elara": "E.g. Elara", "Ex. : Elara, la forgeronne": "E.g. Elara, the blacksmith", "Ex. : Kaelen": "E.g. Kaelen", "Ex. : ambiance horreur, narrateur froid et précis, peu de descriptions, beaucoup de tension": "E.g. horror mood, cold and precise narrator, few descriptions, lots of tension", "Ex. : artefact, créature, sort…": "E.g. artifact, creature, spell…", "Ex. : blessé à l'épaule": "E.g. wounded shoulder", "Ex. : une enquête dans un Paris des années 20 où la magie est interdite": "E.g. an investigation in 1920s Paris where magic is forbidden", "Ex. : épée courte": "E.g. short sword", "Exiger le support des réglages": "Require settings support", "Exporter": "Export", "Faire": "Do", "Fantasy": "Fantasy", "Fermer": "Close", "Fiche du personnage": "Character sheet", "Fichier téléchargé : envoie-le à tes potes": "File downloaded: send it to your friends", "Forêt": "Forest", "Forêt enchantée": "Enchanted forest", "Fournisseur": "Provider", "Français natif": "Native French", "Fusion": "Merge", "Gestion": "Manage", "Gratuit": "Free", "Gratuite et hors ligne, mais robotique.": "Free and offline, but robotic.", "Guide": "Guide", "Génération": "Generation", "Générer": "Generate", "Génération…": "Generating…", "Générer un nouveau code de secours": "Generate a new recovery code", "Haut de gamme": "Top of the line", "Hauteur de la voix": "Voice pitch", "Histoire": "Story", "Horreur": "Horror", "Identifiant personnalisé": "Custom ID", "Idées": "Ideas", "Ignorer": "Dismiss", "Il permet de récupérer tes aventures si tu oublies ton mot de passe. Note-le maintenant (capture d'écran, gestionnaire de mots de passe, papier…) :": "It lets you recover your adventures if you forget your password. Write it down now (screenshot, password manager, paper…):", "Il te faut une clé API": "You need an API key", "Il était une fois": "Once upon a time", "Image de couverture": "Cover image", "Image illisible": "Unreadable image", "Image trop lourde pour le stockage": "Image too large to store", "Importer": "Import", "Importer depuis l'appareil": "Import from device", "Instructions": "Instructions", "Instructions de l'IA": "AI instructions", "Instructions générées": "Instructions generated", "Intrigue": "Plot", "Inventaire": "Inventory", "Je n'ai plus mon code": "I lost my code", "Jet de d20 sur les actions « Faire »": "d20 roll on “Do” actions", "Jouer": "Play", "Jungle": "Jungle", "Kokoro (économique)": "Kokoro (budget)", "L'IA met la fiche à jour toute seule pendant l'histoire (dégâts, butin, achats…). Tu peux corriger ici à tout moment.": "The AI updates the sheet on its own during the story (damage, loot, purchases…). You can fix it here anytime.", "L'analyse commence après quelques tours.": "Analysis starts after a few turns.", "L'identifiant exact sur openrouter.ai/models.": "The exact ID on openrouter.ai/models.", "La grande version de GLM. Histoires profondes, très bon avec les personnages complexes.": "The big GLM. Deep stories, very good with complex characters.", "La grande version de MiMo, plus nuancée que la Flash.": "The big MiMo, more nuanced than Flash.", "La langue est détectée automatiquement pour chaque passage.": "The language is detected automatically for each passage.", "La lecture vocale n'est pas disponible ici": "Read-aloud isn't available here", "La synchro est maintenant": "Sync is now", "Lanterne": "Lanterne", "Le bibliothécaire propose ces changements. Tu peux corriger le texte avant d'accepter.": "The librarian suggests these changes. You can edit the text before accepting.", "Le choix par défaut. Prose riche, bonne mémoire, très bon en français. La version la plus récente (0813) est un peu meilleure et un peu plus chère.": "The default choice. Rich prose, good memory, great in French and English. The newest version (0813) is a bit better and a bit pricier.", "Le code de secours sert si tu oublies ton mot de passe. Tu l'as perdu ? Génère-en un nouveau : l'ancien ne marchera plus.": "The recovery code is for when you forget your password. Lost it? Generate a new one: the old one will stop working.", "Le compte": "The account", "Le donjon est ouvert.": "The dungeon is open.", "Le début de l'histoire, à la 2e personne. L'IA continuera à partir de là.": "The beginning of the story, in second person. The AI will continue from there.", "Le favori des joueurs exigeants : écriture fine, nuancée, personnages crédibles.": "The demanding players' favorite: fine, nuanced writing, believable characters.", "Le modèle occidental le plus utilisé sur SillyTavern. Vif et cohérent, mais moins de réglages (température ignorée).": "The most used Western model on SillyTavern. Sharp and coherent, but fewer settings (temperature ignored).", "Le mot de passe de ce compte a changé, il n'ouvre plus le coffre qui protège tes données. Entre le": "This account's password changed, it no longer opens the vault protecting your data. Enter the", "Le nom de ton aventure": "Your adventure's name", "Le plus haut niveau d'écriture et de cohérence sur les très longues histoires. Cher.": "The highest level of writing and coherence over very long stories. Expensive.", "Le plus utilisé en jeu de rôle sur OpenRouter. Moins fin que le Pro, mais imbattable pour les longues sessions.": "The most used for roleplay on OpenRouter. Less refined than Pro, but unbeatable for long sessions.", "Le résultat s'affiche à côté de ton action et l'IA raconte en conséquence. 1 = échec critique, 20 = succès critique.": "The result shows next to your action and the AI narrates accordingly. 1 = critical failure, 20 = critical success.", "Le script d'origine : crée tout seul des Story Cards pour les personnages, lieux et objets importants.": "The original script: creates Story Cards on its own for important characters, places and items.", "Le « DeepSeek V4.1 » d'AI Dungeon. Efficace et économique.": "AI Dungeon's “DeepSeek V4.1”. Efficient and cheap.", "Le « DeepSeek » de base d'AI Dungeon. Stylé et fiable, pour retrouver les sensations.": "AI Dungeon's base “DeepSeek”. Stylish and reliable, to get that familiar feel.", "Lecture automatique": "Auto read-aloud", "Les changements arrivent en suggestions à valider. Désactivé, ils s'appliquent tout seuls.": "Changes arrive as suggestions to approve. Turned off, they apply on their own.", "Les deux mots de passe sont différents": "The two passwords don't match", "Les passages déjà écoutés sont gardés en mémoire pendant la session : les réécouter ne coûte rien.": "Passages you already listened to are kept during the session: replaying them costs nothing.", "Les statistiques se remplissent au fil de tes parties.": "Stats fill up as you play.", "Les voix de qualité passent par OpenRouter, avec ta clé : rien à installer. Le prix est indiqué pour un passage d'environ 1000 caractères, une réplique typique de l'IA.": "Quality voices go through OpenRouter, with your key: nothing to install. The price shown is for a passage of about 1000 characters, a typical AI reply.", "Lien invalide ou expiré : redemande un e-mail": "Invalid or expired link: request a new email", "Limite aux K mots les plus probables. 0 = désactivé.": "Limits to the K most likely words. 0 = off.", "Lit chaque nouveau passage dès qu'il est écrit.": "Reads each new passage as soon as it's written.", "Attention, chaque lecture est facturée.": "Careful, each reading is billed.", "Lit chaque nouveau passage dès qu'il est écrit. Attention, chaque lecture est facturée.": "Reads each new passage as soon as it's written. Careful, each reading is billed.", "Littéraire · Dialogues": "Literary · Dialogue", "Longueur de réponse": "Response length", "Lumières du soir": "Evening lights", "Manoir": "Manor", "Me demander avant": "Ask me first", "Mer déchaînée": "Raging sea", "Mes expressions interdites": "My banned phrases", "Mise à jour": "Update", "Mode RPG": "RPG mode", "Modifier": "Edit", "Modifier la carte": "Edit card", "Modèle": "Model", "Modèle :": "Model:", "Modèle actuel": "Current model", "Modèles utilisés": "Models used", "Modèle français : le plus à l'aise avec les expressions et le registre de la langue.": "French model: the most at ease with French expressions and register.", "Moins cher d'abord": "Cheapest first", "Mondes": "Worlds", "Montagnes infinies": "Endless mountains", "Mot de passe": "Password", "Mot de passe changé ✓": "Password changed ✓", "Mot de passe et code de secours": "Password and recovery code", "Mot de passe oublié ?": "Forgot password?", "Moteur de voix": "Voice engine", "Mots-clés": "Keywords", "Mémoire": "Memory", "Mémoire de l'IA": "AI memory", "Mémoire longue. Mis à jour automatiquement quand des passages sortent de la mémoire de l'IA. Tu peux le corriger à la main.": "Long-term memory. Updated automatically when passages leave the AI's memory. You can edit it by hand.", "Mémoire longue : les événements importants qui sont sortis de la mémoire de l'IA. (Résumé automatique désactivé dans les réglages.)": "Long-term memory: important events that left the AI's memory. (Auto-summary is off in the settings.)", "Narration · Français · Réglable": "Narration · Multilingual · Tunable", "Naturelle et vivante, détecte la langue toute seule. 5 voix.": "Natural and lively, detects the language on its own. 5 voices.", "Ne garde que les mots dont la probabilité cumulée atteint ce seuil.": "Only keeps words whose cumulative probability reaches this threshold.", "Nom": "Name", "Nombre maximum de tokens par réponse.": "Maximum number of tokens per response.", "Note d'auteur": "Author's note", "Notes": "Notes", "Nouveau mot de passe": "New password", "Nouveautés": "What's new", "Nouvelle aventure": "New adventure", "Nouvelle carte": "New card", "Nuit": "Night", "OpenRouter (recommandé)": "OpenRouter (recommended)", "Options": "Options", "Or": "Gold", "Orbite": "Orbit", "Oriente la suite (invisible dans l'histoire)…": "Steer what happens next (invisible in the story)…", "Outils Lanterne": "Lanterne tools", "Outils et scripts (optionnel)": "Tools and scripts (optional)", "Ouvrir la fiche du personnage": "Open the character sheet", "Où est-ce qu'on part ?": "Where are we headed?", "PV": "HP", "PV max": "Max HP", "Papier": "Paper", "Par défaut": "Default", "Parchemin": "Parchment", "Partager le scénario": "Share scenario", "Pas de clé": "No key", "Pas de voix disponible sur cet appareil.": "No voice available on this device.", "Aucune voix trouvée": "No voice found", "Passer": "Skip", "Pensées": "Thoughts", "Personnages qui pensent": "Thinking characters", "Personnages · Cohérence": "Characters · Coherence", "Personnages, lieux, objets… Tu peux en ajouter maintenant ou plus tard.": "Characters, places, items… You can add them now or later.", "Phare au crépuscule": "Lighthouse at dusk", "Planète géante": "Giant planet", "Plot Essentials": "Plot Essentials", "Pluie sur la ville": "Rain on the city", "Plus belle prose · Personnages vivants": "Finest prose · Living characters", "Plus haut = plus imprévisible.": "Higher = more unpredictable.", "Plus rapide et moins cher pour la narration. Désactive si un modèle refuse.": "Faster and cheaper for narration. Turn off if a model refuses.", "Plus récents": "Newest", "Points de vie, or, inventaire et états, tenus à jour par l'IA. Jet de d20 sur tes actions « Faire ».": "Hit points, gold, inventory and status, kept up to date by the AI. d20 roll on your “Do” actions.", "Police de l'histoire": "Story font", "Polyvalent · Rigoureux": "Versatile · Rigorous", "Pratique : rien à recoller sur le PC. Elle est chiffrée comme le reste : personne d'autre ne peut la lire.": "Handy: nothing to paste again on PC. It's encrypted like everything else: nobody else can read it.", "Presque gratuite et correcte, mais une seule voix française.": "Almost free and decent, but only one French voice.", "Profondeur des Story Cards": "Story Cards depth", "Précédente": "Previous", "Prêt pour l'aventure ?": "Ready for adventure?", "Pénalise les mots déjà apparus, une seule fois.": "Penalizes words that already appeared, once.", "Pénalise selon le nombre d'apparitions.": "Penalizes based on how often they appeared.", "Qualité studio, la plus naturelle pour la narration. Voix françaises natives.": "Studio quality, the most natural for narration. Native French and English voices.", "Quand des passages sortent de la mémoire de l'IA, ils sont résumés tout seuls dans le résumé de l'histoire.": "When passages leave the AI's memory, they're summarized on their own into the story summary.", "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.": "When one of these words appears in the story, the card is sent to the AI so it remembers. Separate them with commas.", "Que dis-tu ?": "What do you say?", "Que fais-tu ?": "What do you do?", "Qui ou ce que c'est : apparence, personnalité, motivations, secrets…": "Who or what it is: appearance, personality, motives, secrets…", "Qui seras-tu aujourd'hui ?": "Who will you be today?", "Rapide · Français · Contexte immense": "Fast · Multilingual · Huge context", "Rapide · Presque gratuit": "Fast · Almost free", "Rapide · Économique": "Fast · Cheap", "Rechercher": "Search", "Rechercher (deepseek, glm, claude…)": "Search (deepseek, glm, claude…)", "Rechercher dans l'histoire": "Search the story", "Recommandés": "Recommended", "Relancer si l'IA se recopie": "Retry if the AI copies itself", "Remettre le compteur à zéro": "Reset the counter", "Remettre le total dépensé à zéro ?": "Reset the total spent to zero?", "Remplis l'e-mail et le mot de passe": "Fill in the email and password", "Repartir de cet appareil": "Start over from this device", "Repetition penalty": "Repetition penalty", "Reprendre": "Continue playing", "Repère les personnages, lieux, objets et factions importants, crée leurs cartes, les met à jour quand ils évoluent et fusionne les doublons.": "Spots important characters, places, items and factions, creates their cards, updates them as they evolve and merges duplicates.", "Repère les tics d'écriture de l'IA (phrases et tournures qui reviennent) et les lui interdit.": "Spots the AI's writing tics (recurring sentences and phrasings) and bans them.", "Retirer": "Remove", "Retirer l'image": "Remove image", "Retour": "Back", "← Retour": "← Back", "Revoir le tutoriel": "Replay the tutorial", "Rien de nouveau à analyser": "Nothing new to analyze", "Rien à changer pour l'instant": "Nothing to change for now", "Rien à lire": "Nothing to read", "Rien à réessayer": "Nothing to retry", "Récupérer mes données": "Recover my data", "Réduit les répétitions. 1 = désactivé.": "Reduces repetition. 1 = off.", "Réessayer": "Retry", "Réglages": "Settings", "Répétition détectée, nouvelle version…": "Repetition detected, new version…", "Résumé automatique": "Auto-summary", "Résumé de l'histoire": "Story summary", "Rétablir": "Redo", "Sac": "Bag", "Sans code, la copie du serveur ne peut plus être lue. Tu peux repartir des aventures présentes": "Without a code, the server copy can't be read anymore. You can start over from the adventures", "Sauvegarde": "Backup", "Science-fiction": "Sci-fi", "Scripts": "Scripts", "Scripts AI Dungeon": "AI Dungeon scripts", "Scripts Auto-Cards et Inner Self par": "Auto-Cards and Inner Self scripts by", "Scripts introuvables : envoie le fichier innerself.js sur GitHub avec l'app.": "Scripts not found: upload the innerself.js file to GitHub with the app.", "Scénario généré, ajuste-le à ton goût": "Scenario generated, adjust it to your taste", "Se connecter": "Sign in", "Se déconnecter": "Sign out", "Se déconnecter ? Tes aventures restent sur cet appareil. Si un autre compte se connecte ici ensuite, elles seront retirées de l'appareil (elles restent dans ton compte).": "Sign out? Your adventures stay on this device. If another account signs in here next, they'll be removed from the device (they stay in your account).", "Serveur (avancé)": "Server (advanced)", "Serveur enregistré": "Server saved", "Seuls les fournisseurs qui respectent top K, min P, etc. sont utilisés.": "Only providers that support top K, min P, etc. are used.", "Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé": "If this account exists, a reset email was just sent", "Si une réponse reprend presque mot pour mot un passage récent, une nouvelle version est générée automatiquement.": "If a reply copies a recent passage almost word for word, a new version is generated automatically.", "Sinon, elles restent ici et tu peux continuer à jouer sans compte.": "Otherwise, they stay here and you can keep playing without an account.", "Stats": "Stats", "Stockée uniquement sur cet appareil, envoyée seulement au fournisseur choisi.": "Stored only on this device, sent only to the chosen provider.", "Story Cards": "Story Cards", "Style littéraire et dialogues naturels. Créatif, parfois un peu verbeux.": "Literary style and natural dialogue. Creative, sometimes a bit wordy.", "Suggestions de cartes": "Card suggestions", "Suivant": "Next", "Suivante": "Next", "Supprimer": "Delete", "Supprimer ce passage et tout ce qui suit ?": "Delete this passage and everything after it?", "Supprimer définitivement": "Delete permanently", "Supprimer définitivement cette aventure ?": "Permanently delete this adventure?", "Supprimer mon compte": "Delete my account", "Supprimer à partir d'ici": "Delete from here", "Synchronisation déjà en cours": "Sync already in progress", "Synchroniser aussi la clé API": "Also sync the API key", "Synchroniser maintenant": "Sync now", "Synchronisé ✓": "Synced ✓", "Taille de la mémoire": "Memory size", "Taille du texte": "Text size", "Taille max d'une Story Card": "Max Story Card size", "Tape au moins 2 lettres. Touche un résultat pour y aller.": "Type at least 2 letters. Tap a result to jump there.", "Temperature": "Temperature", "Tester la connexion": "Test connection", "Texte d'ouverture": "Opening text", "Texte de l'IA": "AI text", "Thème": "Theme", "Tics repérés": "Detected tics", "Titre": "Title", "Ton code de secours": "Your recovery code", "Ton direct et peu de refus. Bon pour les histoires sombres ou décalées.": "Direct tone and few refusals. Good for dark or offbeat stories.", "Ton mot de passe, pour confirmer": "Your password, to confirm", "Ton action": "Your action", "Ton prénom dans l'histoire (optionnel)": "Your name in the story (optional)", "Top K": "Top K", "Top P": "Top P", "Touche ici pour la coller. Elle reste sur ce téléphone.": "Tap here to paste it. It stays on this device.", "Touche pour voir les prix et changer": "Tap to see prices and change", "Toujours envoyé à l'IA. Personnage, monde, relations, objectifs.": "Always sent to the AI. Character, world, relationships, goals.", "Tour du mage": "Wizard's tower", "Tours joués · mots": "Turns played · words", "Tous": "All", "Tous les modèles": "All models", "Tout accepter": "Accept all", "Tout est enregistré sur ce téléphone. Exporte régulièrement une sauvegarde : si tu effaces les données de l'app, tout part avec.": "Everything is saved on this device. Export a backup regularly: if you clear the app's data, everything goes with it.", "Tout exporter": "Export all", "Tout ignorer": "Dismiss all", "Toutes les aventures": "All adventures", "Très apprécié des joueurs, cohérent et peu cher. Il réfléchit toujours avant de répondre, donc un peu plus lent.": "Very popular with players, coherent and cheap. It always thinks before answering, so a bit slower.", "Très expressive, idéale pour faire vivre les personnages. Toutes ses voix parlent français et anglais.": "Very expressive, ideal to bring characters to life. All its voices speak French and English.", "Très solide et logique, suit bien les consignes et les règles du monde.": "Very solid and logical, follows instructions and world rules well.", "Tu pousses la porte de l'auberge. Dehors, la tempête redouble…": "You push open the inn's door. Outside, the storm grows stronger…", "Type": "Type", "Un monde t'attend. À toi de jouer.": "A world awaits. Your move.", "Un nom, un lieu, un mot…": "A name, a place, a word…", "Un prénom par ligne. Leur « cerveau » se crée quand ils apparaissent dans l'histoire. Le premier de la liste est prioritaire.": "One name per line. Their “brain” is created when they appear in the story. The first one in the list has priority.", "Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples :": "A short instruction, slipped in right before your last action. It's the most influential setting for tone and pacing. Examples:", "Une par ligne. Ex. : un frisson parcourt ton échine": "One per line. E.g. a shiver runs down your spine", "Une petite requête en plus à chaque analyse.": "One small extra request per analysis.", "Utiliser cet identifiant": "Use this ID", "Utilisée à": "Used at", "Vagues abstraites": "Abstract waves", "Valeurs par défaut": "Defaults", "Versions précédentes": "Previous versions", "Vide": "Empty", "Vitesse": "Speed", "Voir ce que l'IA reçoit (avancé)": "See what the AI receives (advanced)", "Ce que l'IA reçoit": "What the AI receives", "Avec les scripts actifs, ils modifient encore ce texte juste avant l'envoi.": "With scripts on, they still modify this text right before sending.", "Le message système, puis l'histoire récente.": "The system message, then the recent story.", "Cartes que l'IA voit en ce moment :": "Cards the AI sees right now:", "Voir l'ancienne version": "See the old version", "Voix": "Voice", "Voix :": "Voice:", "Voix anglaise": "English voice", "Voix du téléphone": "Device voice", "Voix française": "French voice", "⚠ Ces voix demandent le fournisseur OpenRouter. En attendant, la voix du téléphone sera utilisée.": "⚠ These voices require the OpenRouter provider. Meanwhile, the device voice will be used.", "XXXX-XXXX-XXXX-XXXX-XXXX": "XXXX-XXXX-XXXX-XXXX-XXXX", "aucune aventure trouvée": "no adventure found", "aucune donnée chiffrée sur ce compte": "no encrypted data on this account", "aucune idée": "no ideas", "autre": "other", "avant d'être envoyé : personne d'autre ne peut lire tes parties, même le propriétaire du serveur.": "before being sent: nobody else can read your games, not even the server owner.", "aventure": "adventure", "aventures": "adventures", "ce n'est pas un scénario Lanterne": "this isn't a Lanterne scenario", "chiffré avec ton mot de passe": "encrypted with your password", "chiffrée de bout en bout": "end-to-end encrypted", "code de secours": "recovery code", "code de secours incorrect": "wrong recovery code", "compte créé : confirme ton e-mail (lien reçu par mail), puis connecte-toi": "account created: confirm your email (link sent by email), then sign in", "concept": "concept", "de bout en bout": "end-to-end", "dépensé au total": "spent in total", "et toutes ses données synchronisées seront définitivement effacés du serveur. C'est irréversible.": "and all its synced data will be permanently erased from the server. This can't be undone.", "eyJ… ou sb_publishable_…": "eyJ… or sb_publishable_…", "faction": "faction", "garde toutes les versions.": "keeps every version.", "il ne sera plus affiché": "it won't be shown again", "jour de jeu": "day played", "jours de jeu": "days played", "lecture audio impossible": "audio playback failed", "lieu": "place", "mots écrits par l'IA": "words written by the AI", "mots écrits par toi": "words written by you", "non connecté": "not signed in", "objet": "item", "ou": "or", "personnage": "character", "populaire": "popular", "recommandé": "recommended", "pour agir,": "to act,", "pour orienter l'IA sans que ça apparaisse. Touche un passage pour le modifier, et": "to steer the AI without it showing. Tap a passage to edit it, and", "pour parler,": "to talk,", "pour reprendre la synchro": "to resume sync", "pour synchroniser PC et téléphone": "to sync PC and phone", "pour écrire toi-même la suite,": "to write what happens next yourself,", "qui t'a été donné à la création du compte.": "you were given when you created the account.", "réponse illisible, réessaie": "unreadable response, try again", "serveur non configuré": "server not configured", "session expirée, reconnecte-toi": "session expired, sign in again", "sur cet appareil": "on this device", "synchro verrouillée": "sync locked", "te sera demandé une fois.": "will be asked once.", "toi@exemple.com": "you@example.com", "tours joués": "turns played", "« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »": "“Light, humorous mood. Characters talk casually.”", "« Partager le scénario » envoie le début de l'aventure (ouverture, essentiels, cartes, réglages) sans ta partie jouée. Ton pote l'importe depuis « Nouvelle aventure ».": "“Share scenario” sends the start of the adventure (opening, essentials, cards, settings) without your playthrough. Your friend imports it from “New adventure”.", "« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »": "“Dark, melancholic tone. Slow pacing, lots of dialogue.”", "À la première connexion sur un appareil, les aventures déjà présentes sont fusionnées avec celles du compte (la version la plus récente gagne). Après un changement de mot de passe, ton": "On first sign-in on a device, the adventures already there are merged with the account's (the newest version wins). After a password change, your", "Écarte les mots trop improbables par rapport au meilleur. 0 = désactivé.": "Removes words too unlikely compared to the best one. 0 = off.", "Économique · Réfléchit avant d'écrire": "Cheap · Thinks before writing", "Écouter": "Listen", "Écris d'abord ton e-mail dans le champ du dessus": "First type your email in the field above", "Écris la suite de l'histoire...": "Write what happens next...", "Équilibré": "Balanced", "États": "Status", "Îles flottantes": "Floating islands", "à l'instant": "just now", "⏹ Arrêter la lecture": "⏹ Stop reading", "☁️ Synchronisation en attente": "☁️ Sync pending", "☁️ Synchronisation…": "☁️ Syncing…", "☁️ Synchronisé": "☁️ Synced", "☁️": "☁️", "⚖️ Milieu de gamme": "⚖️ Mid-range", "✨ Analyser l'histoire": "✨ Analyze the story", "✨ Auto-Cards crée une carte…": "✨ Auto-Cards is creating a card…", "✨ Auto-Cards travaille…": "✨ Auto-Cards is working…", "✨ Compléter avec l'IA": "✨ Complete with AI", "✨ Générer avec l'IA ▾": "✨ Generate with AI ▾", "✨ Générer des instructions": "✨ Generate instructions", "✨ Pas d'idée ? Générer": "✨ No idea? Generate", "＋ Choisir une image": "＋ Choose an image", "＋ Image de couverture": "＋ Cover image", "＋ Image de couverture (optionnel)": "＋ Cover image (optional)", "💎 Premium": "💎 Premium", "💡 Idées d'actions…": "💡 Action ideas…", "💡 Touche une idée pour la reprendre": "💡 Tap an idea to use it", "💰 Meilleur rapport qualité/prix": "💰 Best value", "📥 Importer un scénario": "📥 Import a scenario", "🧭 guidé": "🧭 guided", "Analyse en cours…": "Analyzing…", "Suppression…": "Deleting…", "Masquer les cartes techniques": "Hide technical cards", "Cartes de configuration des scripts (en anglais). À modifier seulement si tu sais ce que tu fais.": "Script configuration cards. Only edit them if you know what you're doing.", "🎭 Cerveaux (Inner Self)": "🎭 Brains (Inner Self)", "Les pensées que chaque personnage a formées. Tu peux les lire et les modifier.": "The thoughts each character has formed. You can read and edit them.", "Pas encore de pensées.": "No thoughts yet.", "Une pensée par ligne, sous la forme": "One thought per line, in the form", "sujet: numéro → pensée": "subject: number → thought", ". Inner Self les met à jour tout seul.": ". Inner Self updates them on its own.", "Aucune carte pour l'instant.": "No cards yet.", "active": "active", "off": "off", "Contenu trop long :": "Content too long:", "L'histoire est vide. Écris une action, ou passe en mode": "The story is empty. Write an action, or switch to", "pour poser la scène.": "mode to set the scene.", "aventure :": "adventure:", "ce tour :": "this turn:", "Tics repérés ": "Detected tics", "Ces expressions reviennent trop souvent : l'IA a pour consigne de les éviter. Touche × si une expression est normale dans ton histoire.": "These phrases come up too often: the AI is told to avoid them. Tap × if a phrase is normal in your story.", "Aucun tic repéré pour l'instant. Bravo l'IA.": "No tics detected yet. Well done, AI.", "Autoriser": "Allow", "Ajoute les tournures qui t'agacent : l'IA ne les utilisera plus. ": "Add the phrasings that annoy you: the AI won't use them anymore.", "Glisse pour choisir la partie de l'image qui reste visible.": "Slide to choose which part of the image stays visible.", "Cadrage": "Framing", "haut ↕ bas": "top ↕ bottom", "Analyse impossible :": "Analysis failed:", "Idées indisponibles :": "Ideas unavailable:", "Import impossible :": "Import failed:", "Réinitialisation impossible :": "Reset failed:", "Sauvegarde impossible :": "Save failed:", "Synchro impossible :": "Sync failed:", "Échec :": "Failed:", "Langue · Language": "Langue · Language", "Frequency penalty": "Frequency penalty", "Presence penalty": "Presence penalty", "Min P": "Min P", "Mot de passe de": "Password for", "Story Cards (0)": "Story Cards (0)", "50 premiers résultats affichés, du plus récent au plus ancien.": "First 50 results shown, newest to oldest.", "Apparence · Personnalité · Relation avec le joueur · Situation actuelle · Secrets connus": "Appearance · Personality · Relationship with the player · Current situation · Known secrets", "Description · Ambiance · Qui s'y trouve · Dangers ou intérêts": "Description · Atmosphere · Who is there · Dangers or points of interest", "Description · Pouvoirs ou usage · Propriétaire actuel · Origine": "Description · Powers or use · Current owner · Origin", "Objectifs · Membres importants · Territoire · Relation avec le joueur": "Goals · Key members · Territory · Relationship with the player", "Définition · Règles · Importance dans l'histoire": "Definition · Rules · Importance in the story", "Choisis un nouveau mot de passe pour": "Choose a new password for", "Compte supprimé": "Account deleted", "Données supprimées (le compte de connexion sera retiré par l'admin)": "Data deleted (the login account will be removed by the admin)", "L'adresse de base d'une API compatible OpenAI (DeepSeek, OpenAI, un serveur local…). Le suivi des dépenses ne marche qu'avec OpenRouter.": "The base address of an OpenAI-compatible API (DeepSeek, OpenAI, a local server…). Spending tracking only works with OpenRouter.", "L'identifiant du modèle chez ce fournisseur.": "The model's ID at this provider.", "La pluie tombe sur les remparts. Au loin, une lanterne vacille, et quelqu'un murmure ton nom.": "La pluie tombe sur les remparts. Au loin, une lanterne vacille, et quelqu'un murmure ton nom.", "Pensées de": "Thoughts of", "Échec critique": "Critical failure", "Échec": "Failure", "Succès partiel": "Partial success", "Succès": "Success", "Succès critique": "Critical success", "Utilisé par les scripts.": "Used by the scripts.", "Version précédente, un peu moins chère.": "Previous version, a bit cheaper.", "e-mail pas encore confirmé (regarde ta boîte mail)": "email not confirmed yet (check your inbox)", "e-mail ou mot de passe incorrect": "wrong email or password", "le nouveau mot de passe doit être différent de l'ancien": "the new password must be different from the old one", "mot de passe trop court (6 caractères minimum)": "password too short (6 characters minimum)", "ton mot de passe a changé : entre ton code de secours": "your password changed: enter your recovery code", "trop de tentatives, réessaie dans quelques minutes": "too many attempts, try again in a few minutes", "un compte existe déjà avec cet e-mail : connecte-toi": "an account already exists with this email: sign in", "· ton action": "· your action", "⚠ Le serveur de synchronisation n'est pas encore configuré. Remplis les deux champs ci-dessous (dans « Serveur »).": "⚠ The sync server isn't set up yet. Fill in both fields below (in “Server”).", "hors ligne": "offline", "Données supprimées": "Data deleted", "Session expirée": "Session expired", "Aucun résultat": "No results", "Tester": "Test", "▶ Tester": "▶ Test", "Écouter un extrait": "Play a sample", "Arrêter": "Stop", "Stop": "Stop", "Lecture…": "Playing…", "Chargement…": "Loading…", "Clé invalide": "Invalid key", "Crédit restant :": "Remaining credit:", "Réponse vide": "Empty response", "Erreur du fournisseur": "Provider error", "Fichier téléchargé": "File downloaded", "Rien à analyser": "Nothing to analyze", "Mise à jour des cartes…": "Updating cards…", "Cartes…": "Cards…", "Repart de zéro": "Start from scratch", "Version": "Version"});
+Object.assign(I18N, {"Esprit des personnages": "Character minds", "Chaque personnage important a ses humeurs, sa relation avec toi, ses objectifs, ce qu'il sait et sa façon de parler. Ils vivent même quand tu n'es pas là.": "Every important character has moods, a relationship with you, goals, what they know and a way of speaking. They keep living even when you're not around.", "Pour que l'IA ne te crée pas d'esprit à toi.": "So the AI doesn't create a mind for you.", "Afficher les changements de relation": "Show relationship changes", "Petites étiquettes sous les réponses, ex. « Ashlyn · confiance +1 ».": "Small tags under replies, e.g. “Ashlyn · trust +1”.", "Mise à jour tous les … tours": "Update every … turns", "Une petite requête en plus à chaque mise à jour.": "One small extra request per update.", "Esprits des personnages": "Character minds", "Les esprits se créent quand des personnages importants apparaissent dans l'histoire.": "Minds are created when important characters appear in the story.", "Voir les personnages": "See characters", "Mettre à jour maintenant": "Update now", "Cartes intelligentes et Esprit des personnages inspirés des scripts Auto-Cards et Inner Self de": "Smart cards and Character minds are inspired by the Auto-Cards and Inner Self scripts by", "(licence MIT).": "(MIT license).", "Esprits mis à jour": "Minds updated"});
+Object.assign(I18N, {"Recommandés · Outils Lanterne": "Recommended · Lanterne tools", "Les scripts d'origine de LewdLeah, pour retrouver le comportement d'AI Dungeon. Les outils Lanterne au-dessus font la même chose en mieux : un seul des deux à la fois.": "LewdLeah's original scripts, to get AI Dungeon's behavior back. The Lanterne tools above do the same thing, better: only one of the two at a time.", "Crée tout seul des Story Cards pour les personnages, lieux et objets importants.": "Creates Story Cards on its own for important characters, places and items.", "Esprit des personnages désactivé : un seul système d'esprits à la fois": "Character minds turned off: one mind system at a time", "Auto-Cards désactivé : les Cartes intelligentes le remplacent": "Auto-Cards turned off: Smart cards replace it", "Inner Self désactivé : l'Esprit des personnages le remplace": "Inner Self turned off: Character minds replace it", "Avec un de ces scripts actif, chaque tour coûte un peu plus (environ +20 à 50 %) et le texte apparaît d'un coup à la fin. Scripts créés par": "With one of these scripts on, each turn costs a bit more (about +20 to 50%) and the text appears all at once at the end. Scripts made by", ", sous licence MIT. Les Cartes intelligentes et l'Esprit des personnages s'en inspirent.": ", under the MIT license. Smart cards and Character minds are inspired by them.", "🎭 Cerveaux (Inner Self)": "🎭 Brains (Inner Self)"});
 const I18N_GV = {"ferme": "firm", "légère": "light", "jeune": "young", "lumineuse": "bright", "chaleureuse": "warm", "douce": "soft", "posée": "calm", "fluide": "smooth", "mûre": "mature", "claire": "clear", "détendue": "relaxed", "vive": "lively", "enjouée": "upbeat", "affirmée": "assertive", "conteur": "storyteller", "enjoué": "upbeat", "intense": "intense", "souffle grave": "deep, breathy", "velouté": "velvety", "égal": "even", "rauque": "gravelly", "clair": "clear", "décontracté": "laid-back", "posé": "calm", "savant": "knowledgeable", "amical": "friendly", "familier": "casual", "vif": "lively"};
 const _plural = (n, w) => n == 1 ? w : w + "s";
 const _PFX = { "Échec": "Failed", "Analyse impossible": "Analysis failed", "Import impossible": "Import failed", "Synchro impossible": "Sync failed", "Réinitialisation impossible": "Reset failed", "Idées indisponibles": "Ideas unavailable", "Sauvegarde impossible": "Save failed", "Copie impossible": "Can't copy" };
@@ -586,7 +604,8 @@ function migrate(a){
   a.instructions ??= DEFAULT_INSTRUCTIONS; a.essentials ??= ""; a.authorsNote ??= ""; a.summary ??= "";
   a.style = Object.assign({}, DEFAULT_STYLE, a.style || {});
   a.scripts = Object.assign(SCRIPT_DEF(), a.scripts || {});
-  a.pending ||= []; a.scIgnore ||= []; a.arOff ||= []; a.arUser ??= "";
+  a.pending ||= []; a.scIgnore ||= []; a.arOff ||= []; a.arUser ??= ""; a.minds ||= {};
+
   a.scriptState ||= {};
   a.cards = a.cards.map(normalizeCard);
   return a;
@@ -773,8 +792,10 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "7.1";
+const APP_VERSION = "7.2";
 const CHANGELOG = [
+  { v: "7.2", fr: ["Esprit des personnages : humeur, relation avec toi (confiance, affection, peur, tension), objectifs, plan, ce qu'ils savent, secrets, façon de parler", "Les personnages vivent hors champ et ne savent que ce qu'ils ont vu ou entendu", "Onglet Scripts réorganisé : outils Lanterne recommandés en haut, scripts AI Dungeon (Auto-Cards, Inner Self) à part en dessous"],
+    en: ["Character minds: mood, relationship with you (trust, affection, fear, tension), goals, plan, what they know, secrets, way of speaking", "Characters live off-screen and only know what they saw or heard", "Scripts tab reorganized: recommended Lanterne tools on top, AI Dungeon scripts (Auto-Cards, Inner Self) separately below"] },
   { v: "7.1", fr: ["Version anglaise complète : interface, textes générés, cartes et menus (Réglages → Données → Langue)", "Numéro de version et nouveautés : touche le numéro à côté de « Lanterne »"],
     en: ["Full English version: interface, generated text, cards and menus (Settings → Data → Language)", "Version number and changelog: tap the number next to “Lanterne”"] },
   { v: "7", fr: ["Cartes intelligentes : création, mise à jour et fusion automatiques des Story Cards, avec validation", "Anti-répétition : les tics d'écriture de l'IA sont repérés et interdits", "Mode RPG : PV, or, inventaire, états et jet de d20 sur les actions", "Synchro chiffrée de bout en bout, code de secours", "Compte : changer de mot de passe, mot de passe oublié, supprimer son compte"],
@@ -1093,17 +1114,22 @@ function instructionsEditor(b, get, set, getWish, setWish){
 function scriptToggles(b, s, onChange, live){
   smartToggles(b, s, onChange, live);
   sec(b, "Scripts AI Dungeon");
-  toggle(b, "Auto-Cards", "Le script d'origine : crée tout seul des Story Cards pour les personnages, lieux et objets importants.", () => s.ac, v => {
+  hint(b, "Les scripts d'origine de LewdLeah, pour retrouver le comportement d'AI Dungeon. Les outils Lanterne au-dessus font la même chose en mieux : un seul des deux à la fois.");
+  toggle(b, "Auto-Cards", "Crée tout seul des Story Cards pour les personnages, lieux et objets importants.", () => s.ac, v => {
     s.ac = v;
     if(v && s.sc){ s.sc = false; toast("Cartes intelligentes désactivées : un seul système de cartes à la fois"); onChange(); if(live) return live(); }
     onChange();
   });
   let names;
-  toggle(b, "Inner Self", "Donne aux personnages une mémoire, des objectifs et des pensées qui évoluent au fil de l'histoire.", () => s.is, v => { s.is = v; names.classList.toggle("hidden", !v); onChange(); });
+  toggle(b, "Inner Self", "Donne aux personnages une mémoire, des objectifs et des pensées qui évoluent au fil de l'histoire.", () => s.is, v => {
+    s.is = v;
+    if(v && s.minds){ s.minds = false; toast("Esprit des personnages désactivé : un seul système d'esprits à la fois"); onChange(); if(live) return live(); }
+    names.classList.toggle("hidden", !v); onChange();
+  });
   names = el("div", s.is ? "" : "hidden"); b.appendChild(names);
   field(names, "Personnages qui pensent", s.names, v => { s.names = v; onChange(); }, { multiline: true, rows: 3, placeholder: "Elara\nCapitaine Rhéa", hint: "Un prénom par ligne. Leur « cerveau » se crée quand ils apparaissent dans l'histoire. Le premier de la liste est prioritaire." });
-  field(names, "Ton prénom dans l'histoire (optionnel)", s.player, v => { s.player = v; onChange(); }, { placeholder: "Ex. : Kaelen" });
-  hint(b, `Avec un script actif, chaque tour coûte un peu plus (environ +20 à 50 %) et le texte apparaît d'un coup à la fin. Scripts créés par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a> (licence MIT), adaptés pour Lanterne.`);
+  if(!s.minds) field(names, "Ton prénom dans l'histoire (optionnel)", s.player, v => { s.player = v; onChange(); }, { placeholder: "Ex. : Kaelen" });
+  hint(b, `Avec un de ces scripts actif, chaque tour coûte un peu plus (environ +20 à 50 %) et le texte apparaît d'un coup à la fin. Scripts créés par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a> (licence MIT), adaptés pour Lanterne.`);
 }
 
 /* ================= Story view ================= */
@@ -1133,6 +1159,7 @@ function renderStory(scroll){
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
     if(a.rpgDelta?.length && adv.scripts.rpg) s.appendChild(el("div", "rpgd", a.rpgDelta.map(x => `<span class="${x.s > 0 ? "pos" : "neg"}">${esc(x.t)}</span>`).join("")));
+    if(a.mindDelta?.length && adv.scripts.minds && adv.scripts.mindChips !== false) s.appendChild(el("div", "rpgd mind", a.mindDelta.map(x => `<span class="${x.s > 0 ? "pos" : x.s < 0 ? "neg" : ""}">${esc(x.t)}</span>`).join("")));
     if(a.type === "ai" && a.alts?.length > 1){
       const i = a.altIdx ?? a.alts.length - 1;
       const nav = el("div", "alts", `<button data-d="-1" ${i <= 0 ? "disabled" : ""} aria-label="Précédente">‹</button><span>version ${i + 1} / ${a.alts.length}</span><button data-d="1" ${i >= a.alts.length - 1 ? "disabled" : ""} aria-label="Suivante">›</button>`);
@@ -1214,7 +1241,7 @@ function buildMessages(guide){
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
   const cards = triggeredCards();
   if(cards.length) parts.push("[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n"));
-  const extra = [rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
+  const extra = [mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
   const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "") + (extra ? "\n\n" + extra : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   let budget = settings.contextTokens - estTok(system) - estTok(an) - settings.max_tokens - 50;
@@ -1274,7 +1301,7 @@ function aidHistory(){
   }));
 }
 function scriptMessages(ctxText){
-  const extra = [rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
+  const extra = [mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
   return [{ role: "system", content: (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + SCRIPT_GLUE + (extra ? "\n\n" + extra : "") }, { role: "user", content: ctxText }];
 }
 
@@ -1462,7 +1489,7 @@ async function generate(input, opts = {}){
   if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
   const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
   if(final && settings.ttsAuto) speak(final);
-  if(!errMsg){ maybeSummarize(); maybeSmartCards(); }
+  if(!errMsg){ maybeSummarize(); maybeSmartCards(); maybeMinds(); }
 }
 const wantsRoll = input => !!(adv.scripts.rpg && adv.scripts.rpgDice !== false && input && input.kind === "do");
 let summarizing = false;
@@ -1663,7 +1690,7 @@ const toks = t => visible(t).toLowerCase().replace(/[’]/g, "'").replace(/[^\p{
 function detectTics(a){
   const outs = a.actions.filter(x => x.type === "ai" && !x.hidden).slice(-12).map(x => toks(x.text));
   if(outs.length < 4) return [];
-  const names = new Set(userCards(a).flatMap(c => (c.keys + "," + cardName(c)).toLowerCase().split(/[,\s]+/)).filter(Boolean));
+  const names = new Set([...userCards(a).flatMap(c => (c.keys + "," + cardName(c)).toLowerCase().split(/[,\s]+/)), ...Object.values(a.minds || {}).flatMap(m => [m.name, ...(m.aliases || [])].join(" ").toLowerCase().split(/\s+/))].filter(Boolean));
   const N = 4, df = new Map();
   const ok = g => g.filter(w => w.length > 2 && !STOPW.has(w) && !names.has(w)).length >= 2;
   outs.forEach(tk => { const seen = new Set(); for(let i = 0; i + N <= tk.length; i++){ const k = tk.slice(i, i + N).join(" "); if(!seen.has(k)){ seen.add(k); df.set(k, (df.get(k) || 0) + 1); } } });
@@ -1774,6 +1801,207 @@ function openRpgSheet(){
   openSheet("Fiche du personnage", null, render);
 }
 
+/* ---- Esprit des personnages ---- */
+const REL = [["trust", "confiance", "trust", -5, 5], ["affection", "affection", "affection", -5, 5], ["fear", "peur", "fear", 0, 5], ["tension", "tension", "tension", 0, 5]];
+const mindKey = n => "m_" + String(n || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const MIND_DEF = name => ({ name, aliases: [], mood: "", rel: { trust: 0, affection: 0, fear: 0, tension: 0 }, goals: { short: "", long: "" }, plan: "", knows: [], secrets: [], voice: "", thought: "", offscreen: "", lastSeen: 0, created: Date.now() });
+function mindCard(a, m){ return userCards(a).find(c => sameName(cardName(c), m.name) || (c.keys || "").split(",").some(k => sameName(k, m.name))); }
+function mindTerms(a, m){
+  const c = mindCard(a, m);
+  return [m.name, ...(m.aliases || []), ...(c ? (c.keys || "").split(",") : [])].map(x => x.trim().toLowerCase()).filter(x => x.length > 1);
+}
+function findMind(a, name){
+  const k = mindKey(name); if(a.minds[k]) return a.minds[k];
+  return Object.values(a.minds).find(m => sameName(m.name, name) || (m.aliases || []).some(x => sameName(x, name)) || (mindCard(a, m)?.keys || "").split(",").some(x => sameName(x, name)));
+}
+function presentMinds(a, depth){
+  const acts = a.actions.filter(x => !x.hidden).slice(-(depth || Math.max(3, settings.cardScanDepth)));
+  const texts = acts.map(x => visible(x.text).toLowerCase());
+  const out = [];
+  Object.values(a.minds).forEach(m => {
+    const terms = mindTerms(a, m); let last = -1;
+    texts.forEach((t, i) => { if(terms.some(k => new RegExp("(^|[^\\p{L}])" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "($|[^\\p{L}])", "u").test(t))) last = i; });
+    if(last >= 0) out.push([last, m]);
+  });
+  return out.sort((x, y) => y[0] - x[0]).map(x => x[1]);
+}
+const signed = n => (n > 0 ? "+" : "") + n;
+function mindLine(a, m){
+  const r = m.rel || {};
+  const parts = [
+    m.mood && "mood: " + m.mood,
+    `toward the player: trust ${signed(r.trust || 0)}, affection ${signed(r.affection || 0)}, fear ${r.fear || 0}, tension ${r.tension || 0}`,
+    m.goals?.short && "wants now: " + m.goals.short,
+    m.goals?.long && "long-term goal: " + m.goals.long,
+    m.plan && "plan: " + m.plan,
+    m.knows?.length && "knows: " + m.knows.slice(-8).join("; "),
+    m.secrets?.length && "hides: " + m.secrets.join("; "),
+    m.voice && "speaks: " + m.voice,
+    m.offscreen && "since the player last saw them: " + m.offscreen,
+    m.thought && "private thought: " + m.thought
+  ].filter(Boolean);
+  return `${m.name} — ${parts.join(" · ")}`.slice(0, 900);
+}
+function mindBlock(a){
+  if(!a.scripts.minds || !a.minds) return "";
+  const p = presentMinds(a).slice(0, 3);
+  if(!p.length) return "";
+  return `[Characters in this scene — private minds (trust/affection −5…+5, fear/tension 0…5). Use them to drive what these characters feel, say and do: their goals, plans, relationship with the player and way of speaking. A character only knows what is listed under "knows" or what they witnessed in the story, and never acts on information they don't have. Never state these notes directly.]
+${p.map(m => mindLine(a, m)).join("\n")}`;
+}
+let minding = false;
+async function maybeMinds(force){
+  if(!adv || !adv.scripts.minds || minding) return;
+  const a = adv;
+  a.mindFrom = Math.min(a.mindFrom ?? 0, a.actions.length);
+  const acts = a.actions.slice(a.mindFrom).filter(x => !x.hidden && visible(x.text));
+  const aiCount = acts.filter(x => x.type === "ai").length;
+  if(!force && aiCount < (a.scripts.mindEvery || 2)) return;
+  if(!acts.length){ if(force) toast("Rien de nouveau à analyser"); return; }
+  minding = true; refreshSmartBar();
+  try{
+    const ctxActs = a.actions.filter(x => !x.hidden).slice(-Math.max(acts.length, 4));
+    const story = ctxActs.map(x => visible(x.text)).join("\n\n").slice(-12000);
+    const present = new Set(presentMinds(a, ctxActs.length + 1).map(m => m.name));
+    const known = Object.values(a.minds);
+    const full = known.filter(m => present.has(m.name)).map(m => ({ name: m.name, mood: m.mood, rel: m.rel, goals: m.goals, plan: m.plan, knows: m.knows, secrets: m.secrets, voice: m.voice, thought: m.thought }));
+    const absent = known.filter(m => !present.has(m.name) && (m.goals?.short || m.goals?.long || m.plan) && a.actions.length - (m.lastSeen || 0) >= 6)
+      .sort((x, y) => (x.lastSeen || 0) - (y.lastSeen || 0)).slice(0, 2);
+    const cardsHint = userCards(a).filter(c => c.type === "personnage").map(c => `${cardName(c)}: ${visible(c.entry).slice(0, 200)}`).join("\n");
+    const lang = isEN() ? "English" : "French";
+    const prompt =
+`You manage the inner lives of the characters of an interactive story. The player is "you"${a.scripts.player ? ` (named ${a.scripts.player})` : ""} and must never get a mind.
+Plot essentials: ${visible(a.essentials).slice(0, 1200) || "(none)"}
+Character cards:
+${cardsHint || "(none)"}
+Current minds of the characters in the scene (JSON):
+${JSON.stringify(full)}
+Other known characters: ${known.filter(m => !present.has(m.name)).map(m => m.name).join(", ") || "(none)"}
+
+Recent story:
+"""
+${story}
+"""
+
+For each important named character who appears or acts in the recent story (not the player, not crowds or one-off extras), return their updated mind:
+- name: as written in the story
+- mood: one short phrase
+- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)
+- goals: {"short": what they want right now, "long": their deeper goal} — keep the previous ones unless they changed
+- plan: what they intend to do next
+- learned: new facts this character now knows because they witnessed them or were told (never things they could not know)
+- knows: null, unless their knowledge list has more than 10 items: then return the full condensed list (max 8)
+- secrets: what they hide (full list, max 3)
+- voice: how they talk (vocabulary, tics, register) — for new characters, or if it changed; otherwise ""
+- thought: their current private thought, one sentence, first person
+${absent.length ? `Then, for these ABSENT characters, advance their life off-screen, consistent with their goals and plan: ${absent.map(m => `${m.name} (goal: ${m.goals?.short || m.goals?.long || "?"}; plan: ${m.plan || "?"})`).join("; ")}. Return what they did since the player last saw them (1 sentence) and their new plan.` : ""}
+Write every text value in the language of the story (${lang} if unsure). Keep everything concise.
+Return ONLY JSON:
+{"characters":[{"name":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
+ "offscreen":[{"name":"","offscreen":"","plan":""}]}`;
+    const r = parseJSON(await complete(prompt, 2400));
+    const deltas = [];
+    const player = (a.scripts.player || "").trim();
+    (r.characters || []).forEach(c => {
+      if(!c || !visible(c.name) || /^(you|tu|toi|vous|player|joueur)$/i.test(c.name.trim()) || (player && sameName(player, c.name))) return;
+      let m = findMind(a, c.name);
+      if(!m){ m = a.minds[mindKey(c.name)] = MIND_DEF(visible(c.name)); }
+      if(c.mood) m.mood = visible(c.mood).slice(0, 80);
+      REL.forEach(([k, fr, en, lo, hi]) => {
+        const d = Math.max(-2, Math.min(2, parseInt(c.rel?.[k]) || 0)); if(!d) return;
+        const before = m.rel[k] || 0; m.rel[k] = Math.max(lo, Math.min(hi, before + d));
+        const real = m.rel[k] - before;
+        if(real) deltas.push({ t: `${m.name} · ${L(fr, en)} ${signed(real)}`, s: (k === "fear" || k === "tension") ? -Math.sign(real) : Math.sign(real) });
+      });
+      if(c.goals){ if(visible(c.goals.short)) m.goals.short = visible(c.goals.short).slice(0, 160); if(visible(c.goals.long)) m.goals.long = visible(c.goals.long).slice(0, 160); }
+      if(visible(c.plan)) m.plan = visible(c.plan).slice(0, 200);
+      if(Array.isArray(c.knows) && c.knows.length) m.knows = c.knows.map(x => visible(x).slice(0, 160)).filter(Boolean).slice(0, 10);
+      if(Array.isArray(c.learned)) c.learned.map(x => visible(x).slice(0, 160)).filter(x => x && !m.knows.some(k => sameName(k, x))).forEach(x => m.knows.push(x));
+      if(m.knows.length > 14) m.knows = m.knows.slice(-14);
+      if(Array.isArray(c.secrets) && c.secrets.length) m.secrets = c.secrets.map(x => visible(x).slice(0, 160)).filter(Boolean).slice(0, 3);
+      if(visible(c.voice)) m.voice = visible(c.voice).slice(0, 200);
+      if(visible(c.thought)) m.thought = visible(c.thought).slice(0, 240);
+      m.offscreen = ""; m.lastSeen = a.actions.length; m.updated = Date.now();
+    });
+    (r.offscreen || []).forEach(o => {
+      const m = o && findMind(a, o.name); if(!m || present.has(m.name)) return;
+      if(visible(o.offscreen)) m.offscreen = visible(o.offscreen).slice(0, 240);
+      if(visible(o.plan)) m.plan = visible(o.plan).slice(0, 200);
+    });
+    const lastAi = [...a.actions].reverse().find(x => x.type === "ai" && !x.hidden);
+    if(lastAi && deltas.length) lastAi.mindDelta = [...(lastAi.mindDelta || []), ...deltas].slice(-8);
+    a.mindFrom = a.actions.length;
+    if(adv === a){ saveAdv(); if(!generating) renderStory(false); } else LS.set("lan.adv." + a.id, a);
+    if(force) toast(L("Esprits mis à jour", "Minds updated"));
+  }catch(e){ console.warn("minds", e); if(force) toast(L("Analyse impossible : ", "Analysis failed: ") + e.message); }
+  minding = false; refreshSmartBar();
+}
+function relBar(k, v, lo, hi, label){
+  const pct = (v - lo) / (hi - lo) * 100, mid = lo < 0 ? 50 : 0;
+  const left = Math.min(pct, mid), width = Math.abs(pct - mid);
+  return `<div class="relr"><span>${label}</span><div class="relb${lo < 0 ? " c" : ""}"><i class="${k}" style="left:${left}%;width:${Math.max(width, 1.5)}%"></i></div><b>${lo < 0 ? signed(v) : v}</b></div>`;
+}
+function openMind(key, back){
+  const m = adv.minds[key]; if(!m) return;
+  const save = () => saveAdv();
+  let showThought = false;
+  const render = (_, b) => {
+    b.innerHTML = "";
+    if(m.mood) b.appendChild(el("div", "mmood", esc(m.mood)));
+    b.appendChild(el("div", "rels", REL.map(([k, fr, en, lo, hi]) => relBar(k, m.rel[k] || 0, lo, hi, L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1)))).join("")));
+    if(m.offscreen) hint(b, `<b>${L("Hors champ", "Off-screen")} :</b> ${esc(m.offscreen)}`);
+    field(b, L("Ce qu'il veut maintenant", "What they want now"), m.goals.short, v => { m.goals.short = v; save(); });
+    field(b, L("Objectif de fond", "Deeper goal"), m.goals.long, v => { m.goals.long = v; save(); });
+    field(b, L("Son plan", "Their plan"), m.plan, v => { m.plan = v; save(); }, { multiline: true, rows: 2 });
+    field(b, L("Façon de parler", "Way of speaking"), m.voice, v => { m.voice = v; save(); }, { multiline: true, rows: 2 });
+    field(b, L("Ce qu'il sait", "What they know"), m.knows.join("\n"), v => { m.knows = v.split("\n").map(x => x.trim()).filter(Boolean); save(); }, { multiline: true, rows: 4, hint: L("Une info par ligne. Le personnage ne peut pas agir sur ce qu'il ne sait pas.", "One fact per line. The character can't act on what they don't know.") });
+    field(b, L("Secrets", "Secrets"), m.secrets.join("\n"), v => { m.secrets = v.split("\n").map(x => x.trim()).filter(Boolean); save(); }, { multiline: true, rows: 2 });
+    sec(b, L("Pensées", "Thoughts"));
+    if(!showThought) btn(b, L("Voir ses pensées", "Reveal their thoughts"), "ghost small", () => { showThought = true; render(_, b); });
+    else field(b, "", m.thought, v => { m.thought = v; save(); }, { multiline: true, rows: 3 });
+    const r = el("div", "row"); r.style.cssText = "margin-top:18px;flex-wrap:wrap"; b.appendChild(r);
+    const c = mindCard(adv, m);
+    if(c) btn(r, L("Voir sa Story Card", "See their Story Card"), "ghost small", () => editCard(c, adv.cards, advCtx(), () => { saveAdv(); openMind(key, back); }));
+    btn(r, L("Oublier ce personnage", "Forget this character"), "danger small", () => { if(confirm(L("Effacer l'esprit de ce personnage ?", "Erase this character's mind?"))){ delete adv.minds[key]; save(); back ? back() : closeSheet(); refreshSmartBar(); } });
+    if(back){ const bb = btn(b, L("← Retour", "← Back"), "ghost small", back); bb.style.marginTop = "12px"; }
+  };
+  openSheet(m.name, null, render);
+}
+function mindTile(key, m, onClick){
+  const r = m.rel || {};
+  const d = el("div", "sc mtile", `<div class="row"><div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${esc(m.mood || "—")}</span></div>
+    <div class="mrel"><span>${L("Confiance", "Trust")} <b>${signed(r.trust || 0)}</b></span><span>${L("Affection", "Affection")} <b>${signed(r.affection || 0)}</b></span><span>${L("Peur", "Fear")} <b>${r.fear || 0}</b></span><span>${L("Tension", "Tension")} <b>${r.tension || 0}</b></span></div>
+    ${m.goals?.short ? `<div class="e">${esc(m.goals.short)}</div>` : ""}`);
+  d.onclick = onClick; return d;
+}
+function openMindList(onlyPresent){
+  const render = (_, b) => {
+    b.innerHTML = "";
+    const keys = Object.keys(adv.minds);
+    const pres = presentMinds(adv).map(m => keys.find(k => adv.minds[k] === m));
+    const list = onlyPresent ? pres : [...pres, ...keys.filter(k => !pres.includes(k))];
+    if(!list.length) hint(b, L("Aucun personnage pour l'instant. Les esprits se créent quand des personnages importants apparaissent dans l'histoire.", "No characters yet. Minds are created when important characters appear in the story."));
+    if(pres.length && !onlyPresent) sec(b, L("Dans la scène", "In the scene"));
+    list.forEach((k, i) => {
+      if(!onlyPresent && i === pres.length && pres.length) sec(b, L("Ailleurs", "Elsewhere"));
+      b.appendChild(mindTile(k, adv.minds[k], () => openMind(k, () => openMindList(onlyPresent))));
+    });
+    if(onlyPresent && keys.length > pres.length) btn(b, L("Voir tous les personnages", "See all characters"), "ghost small", () => openMindList(false)).style.marginTop = "8px";
+    const ab = btn(b, minding ? L("Analyse en cours…", "Analyzing…") : L("Mettre à jour maintenant", "Update now"), "ghost small", async () => { ab.disabled = true; ab.textContent = tr("Analyse en cours…"); await maybeMinds(true); if($("#sheetHost").innerHTML) openMindList(onlyPresent); });
+    ab.style.marginTop = "8px"; if(minding) ab.disabled = true;
+  };
+  openSheet(onlyPresent ? L("Personnages en scène", "Characters in scene") : L("Personnages", "Characters"), null, render);
+}
+function seedMindsFromBrains(a){
+  if(a.mindsSeeded) return; a.mindsSeeded = true;
+  a.cards.filter(isBrain).forEach(c => {
+    const name = cardName(c); if(!name || name === L("(sans titre)", "(untitled)")) return;
+    const m = a.minds[mindKey(name)] ||= MIND_DEF(name);
+    const t = visible(c.description).replace(/^\{\}$/, "");
+    if(t && !m.thought) m.thought = t.split("\n").pop().replace(/^[^→]*→\s*/, "").slice(0, 240);
+  });
+}
+
 /* ---- Barre d'état (au-dessus de la saisie) ---- */
 function refreshSmartBar(){
   const s = $("#sbar"); if(!s) return;
@@ -1784,6 +2012,12 @@ function refreshSmartBar(){
     const p = el("button", "pill hud" + (pct <= 30 ? " low" : ""), `<span>PV <b>${r.hp}</b>/${r.hpMax}</span><span class="hpb"><i style="width:${pct}%"></i></span><span class="sep"></span><span>Or <b>${r.gold}</b></span><span class="sep"></span><span>Sac <b>${r.inv.length}</b></span>`);
     p.onclick = openRpgSheet; s.appendChild(p);
   }
+  if(adv.scripts.minds && adv.minds && Object.keys(adv.minds).length){
+    const pres = presentMinds(adv);
+    const names = pres.slice(0, 2).map(m => esc(m.name)).join(", ") + (pres.length > 2 ? ` +${pres.length - 2}` : "");
+    const p = el("button", "pill chars", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/></svg><span class="noi18n">${names || L("Personnages", "Characters")}</span>${minding ? `<span class="dot"></span>` : ""}`);
+    p.onclick = () => openMindList(!!pres.length); s.appendChild(p);
+  }
   if(carding){ s.appendChild(el("span", "pill busy", `<span class="dot"></span>Cartes…`)); }
   else if(adv.pending?.length){
     const p = el("button", "pill sug", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>${adv.pending.length} carte${adv.pending.length > 1 ? "s" : ""} à valider`);
@@ -1792,12 +2026,12 @@ function refreshSmartBar(){
   s.classList.toggle("hidden", !s.children.length);
 }
 function smartToggles(b, s, onChange, live){
-  sec(b, "Outils Lanterne");
+  sec(b, "Recommandés · Outils Lanterne");
   const sub = (on) => { const d = el("div", "subopts" + (on ? "" : " hidden")); return d; };
   let scSub;
   toggle(b, "Cartes intelligentes", "Repère les personnages, lieux, objets et factions importants, crée leurs cartes, les met à jour quand ils évoluent et fusionne les doublons.", () => s.sc, v => {
     s.sc = v; scSub.classList.toggle("hidden", !v);
-    if(v && s.ac){ s.ac = false; toast("Auto-Cards (LewdLeah) désactivé : les Cartes intelligentes le remplacent"); if(live) live(); }
+    if(v && s.ac){ s.ac = false; toast("Auto-Cards désactivé : les Cartes intelligentes le remplacent"); onChange(); if(live) return live(); }
     onChange();
   });
   scSub = sub(s.sc); b.appendChild(scSub);
@@ -1807,6 +2041,17 @@ function smartToggles(b, s, onChange, live){
   toggle(b, "Anti-répétition", "Repère les tics d'écriture de l'IA (phrases et tournures qui reviennent) et les lui interdit.", () => s.ar, v => { s.ar = v; arSub.classList.toggle("hidden", !v); onChange(); });
   arSub = sub(s.ar); b.appendChild(arSub);
   toggle(arSub, "Relancer si l'IA se recopie", "Si une réponse reprend presque mot pour mot un passage récent, une nouvelle version est générée automatiquement.", () => s.arRetry !== false, v => { s.arRetry = v; onChange(); });
+  let mSub;
+  toggle(b, "Esprit des personnages", "Chaque personnage important a ses humeurs, sa relation avec toi, ses objectifs, ce qu'il sait et sa façon de parler. Ils vivent même quand tu n'es pas là.", () => s.minds, v => {
+    s.minds = v; mSub.classList.toggle("hidden", !v);
+    if(v && adv && adv.scripts === s && adv.cards.some(isBrain)) seedMindsFromBrains(adv);
+    if(v && s.is){ s.is = false; toast("Inner Self désactivé : l'Esprit des personnages le remplace"); onChange(); if(live) return live(); }
+    onChange();
+  });
+  mSub = sub(s.minds); b.appendChild(mSub);
+  field(mSub, "Ton prénom dans l'histoire (optionnel)", s.player, v => { s.player = v; onChange(); }, { placeholder: "Ex. : Kaelen", hint: "Pour que l'IA ne te crée pas d'esprit à toi." });
+  toggle(mSub, "Afficher les changements de relation", "Petites étiquettes sous les réponses, ex. « Ashlyn · confiance +1 ».", () => s.mindChips !== false, v => { s.mindChips = v; onChange(); });
+  slider(mSub, "Mise à jour tous les … tours", "mindEvery", 1, 6, 1, "Une petite requête en plus à chaque mise à jour.", s, onChange);
   toggle(b, "Mode RPG", "Points de vie, or, inventaire et états, tenus à jour par l'IA. Jet de d20 sur tes actions « Faire ».", () => s.rpg, v => { s.rpg = v; onChange(); });
 }
 
@@ -2645,6 +2890,15 @@ function renderSmartExtras(body){
     if(adv.arOff.length) btn(body, `Réinitialiser les expressions autorisées (${adv.arOff.length})`, "ghost small", () => { adv.arOff = []; saveAdv(); openAdventureSheet("scripts"); }).style.marginTop = "8px";
     field(body, "Mes expressions interdites", adv.arUser, v => { adv.arUser = v; saveAdv(); }, { multiline: true, rows: 3, placeholder: "Une par ligne. Ex. : un frisson parcourt ton échine", hint: "Ajoute les tournures qui t'agacent : l'IA ne les utilisera plus." }).parentElement.style.marginTop = "14px";
   }
+  if(adv.scripts.minds){
+    sec(body, "Esprit des personnages");
+    const n = Object.keys(adv.minds).length;
+    hint(body, n ? L(`${n} personnage${n > 1 ? "s" : ""} suivi${n > 1 ? "s" : ""}.`, `${n} character${n > 1 ? "s" : ""} tracked.`) : "Les esprits se créent quand des personnages importants apparaissent dans l'histoire.");
+    const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
+    btn(r, "Voir les personnages", "ghost small", () => openMindList(false));
+    const ub = btn(r, minding ? "Analyse en cours…" : "Mettre à jour maintenant", "ghost small", async () => { ub.disabled = true; ub.textContent = tr("Analyse en cours…"); await maybeMinds(true); if($("#sheetHost").innerHTML) openAdventureSheet("scripts"); });
+    if(minding) ub.disabled = true;
+  }
   if(adv.scripts.rpg){
     sec(body, "Mode RPG");
     const r = ensureRpg(adv);
@@ -2734,6 +2988,12 @@ function renderCardsTab(body){
       d.onclick = () => editBrain(c, reopen); body.appendChild(d);
     });
   }
+  const mk = Object.keys(adv.minds || {});
+  if(adv.scripts.minds){
+    sec(body, "Esprits des personnages");
+    if(!mk.length) hint(body, "Les esprits se créent quand des personnages importants apparaissent dans l'histoire.");
+    mk.forEach(k => body.appendChild(mindTile(k, adv.minds[k], () => openMind(k, () => openAdventureSheet("cards")))));
+  }
   if(tech.length){
     const t = el("div"); body.appendChild(t);
     btn(t, showTech ? "Masquer les cartes techniques" : `Afficher les cartes techniques (${tech.length})`, "ghost small", () => { showTech = !showTech; openAdventureSheet("cards"); }).style.marginTop = "16px";
@@ -2790,6 +3050,7 @@ function editCard(c, list, ctx, done, tech){
     });
     gb.style.marginBottom = "16px";
     toggle(body, "Activée", "Désactive sans supprimer.", () => d.enabled !== false, v => d.enabled = v);
+    if(adv && !isNew && adv.minds){ const mm = Object.keys(adv.minds).find(k => mindCard(adv, adv.minds[k]) === c); if(mm) btn(body, L("Esprit de ", "Mind of ") + adv.minds[mm].name, "ghost small", () => openMind(mm, () => openAdventureSheet("cards"))).style.marginBottom = "14px"; }
     const r = el("div", "row"); body.appendChild(r);
     btn(r, "Enregistrer", "", () => {
       if(!tech && d.entry.length > settings.cardLimit) return toast(`Contenu trop long : ${d.entry.length} / ${settings.cardLimit} caractères`);
@@ -3079,7 +3340,7 @@ function openSettings(start){
       btn(r, "Importer", "ghost", importFile);
       btn(body, "Revoir le tutoriel", "ghost small", () => { closeSheet(); onboarding(true); }).style.marginTop = "12px";
       sec(body, "Crédits");
-      hint(body, `Scripts Auto-Cards et Inner Self par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a>, sous licence MIT.`);
+      hint(body, `Scripts Auto-Cards et Inner Self par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a>, sous licence MIT. Les Cartes intelligentes et l'Esprit des personnages s'en inspirent.`);
     }
   }, start);
 }

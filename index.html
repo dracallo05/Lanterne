@@ -164,6 +164,32 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .app.wide .grid .item:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:color-mix(in srgb,var(--acc) 4%,var(--bg2))}
 }
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.libtabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:18px 2px 4px}
+.ltab{background:none;border:0;padding:10px 0;font-weight:600;font-size:15px;color:var(--tx3);border-bottom:2px solid transparent;margin-bottom:-1px}
+.ltab.on{color:var(--tx);border-color:var(--acc)}
+.disc{padding-top:12px}
+.dtop{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.dtop input{flex:1;min-width:180px}
+.dacts{gap:6px}
+.dsort{display:flex;gap:16px;margin:2px 2px 14px;font-size:13px}
+.dsort button{background:none;border:0;padding:0;color:var(--tx3)}
+.dsort button.on{color:var(--acc);font-weight:600}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dgrid .empty{grid-column:1/-1}
+.stile{background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:border-color .15s}
+.stile:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line))}
+.stile .cover{height:96px}
+.stile .in{padding:9px 11px 10px;display:flex;flex-direction:column;gap:3px;flex:1}
+.stile .t{font-weight:600;font-size:14px;line-height:1.25}
+.stile .h{font-size:12.5px;color:var(--tx2);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:var(--serif)}
+.stile .m{display:flex;gap:4px;font-size:11px;color:var(--tx3);margin-top:auto;padding-top:4px;white-space:nowrap;overflow:hidden}
+.stile .m .grow{flex:1}
+.dcover{height:170px;border-radius:14px;margin-bottom:12px}
+.dmeta{font-size:13px;color:var(--tx3);margin-bottom:8px}
+.dmeta b{color:var(--tx2)}
+.dhook{font-family:var(--serif);font-size:16px;line-height:1.5;color:var(--tx);margin:0 0 12px}
+.dprev{white-space:pre-wrap;font-family:var(--serif);color:var(--tx2);line-height:1.55;margin:0}
+@media (min-width:900px){.app.wide .dgrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}.app.wide .stile .cover{height:130px}.app.wide .libtabs{margin-top:26px}}
 .sbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
 .sbar::-webkit-scrollbar{display:none}
 .pill{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:12.5px;color:var(--tx2);white-space:nowrap;flex:none}
@@ -792,8 +818,10 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "7.2";
+const APP_VERSION = "7.3";
 const CHANGELOG = [
+  { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés entre joueurs, avec recherche, genres, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import depuis AI Dungeon : aventures, scénarios et Story Cards"],
+    en: ["Discover tab: scenarios shared between players, with search, genres, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import from AI Dungeon: adventures, scenarios and Story Cards"] },
   { v: "7.2", fr: ["Esprit des personnages : humeur, relation avec toi (confiance, affection, peur, tension), objectifs, plan, ce qu'ils savent, secrets, façon de parler", "Les personnages vivent hors champ et ne savent que ce qu'ils ont vu ou entendu", "Onglet Scripts réorganisé : outils Lanterne recommandés en haut, scripts AI Dungeon (Auto-Cards, Inner Self) à part en dessous"],
     en: ["Character minds: mood, relationship with you (trust, affection, fear, tension), goals, plan, what they know, secrets, way of speaking", "Characters live off-screen and only know what they saw or heard", "Scripts tab reorganized: recommended Lanterne tools on top, AI Dungeon scripts (Auto-Cards, Inner Self) separately below"] },
   { v: "7.1", fr: ["Version anglaise complète : interface, textes générés, cartes et menus (Réglages → Données → Langue)", "Numéro de version et nouveautés : touche le numéro à côté de « Lanterne »"],
@@ -876,6 +904,8 @@ function showLibrary(){
     const w = el("button", "card", `<div class="t">Ajoute ta clé API</div><div class="s">Touche ici pour la coller. Elle reste sur ce téléphone.</div>`);
     w.style.cssText = "width:100%;text-align:left"; w.onclick = () => openSettings(); lib.appendChild(w);
   }
+  libTabs(lib);
+  if(libTab === "discover"){ renderDiscover(lib); return; }
   if(!list.length){
     lib.appendChild(el("div", "empty", "Aucune aventure pour l'instant.<br>Crée-en une pour commencer."));
     return;
@@ -2259,7 +2289,7 @@ function scenarioOf(a){
   const opening = a.actions.find(x => x.type === "ai" && !x.hidden);
   return { lanterne_scenario: 1, title: a.title, opening: opening ? visible(opening.text) : "", essentials: a.essentials, authorsNote: a.authorsNote,
     instructions: a.instructions, cards: a.cards.filter(c => !isBrain(c) && !isSystem(c)).map(c => ({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })),
-    scripts: { ac: !!a.scripts.ac, is: !!a.scripts.is, names: a.scripts.names || "", player: "" }, style: a.style,
+    scripts: Object.assign({}, a.scripts, { player: "" }), style: a.style,
     cover: a.hasCover ? getCover(a.id) : undefined, coverPos: a.coverPos };
 }
 async function shareScenario(){
@@ -2426,6 +2456,354 @@ const CoverArt = (() => {
   };
 })();
 
+/* ================= Découvrir : scénarios partagés ================= */
+let libTab = "mine", myRole, myLikes = null, discState = { genre: "all", sort: "likes", q: "" }, discCache = null;
+const rpc = (name, args) => sbFetch("/rest/v1/rpc/" + name, { method: "POST", body: JSON.stringify(args || {}) });
+async function getRole(force){
+  if(!auth || !hasKey()) return null;
+  if(myRole !== undefined && !force) return myRole;
+  try{ myRole = await rpc("lanterne_role", {}) || null; }catch(e){ myRole = null; }
+  return myRole;
+}
+const canPublish = () => myRole === "admin" || myRole === "publisher";
+const genreLabel = g => (COVER_GENRES.find(x => x[0] === g) || [, L("Autre", "Other")])[1];
+function libTabs(lib){
+  const t = el("div", "libtabs");
+  [["mine", L("Mes aventures", "My adventures")], ["discover", L("Découvrir", "Discover")]].forEach(([k, n]) => {
+    const b = el("button", "ltab" + (libTab === k ? " on" : ""), n); b.onclick = () => { libTab = k; showLibrary(); }; t.appendChild(b);
+  });
+  lib.appendChild(t);
+}
+async function renderDiscover(lib){
+  const box = el("div", "disc"); lib.appendChild(box);
+  if(!syncConf().url || !auth || !hasKey()){
+    box.appendChild(el("div", "empty", L("Connecte-toi à ton compte pour découvrir et partager des scénarios.", "Sign in to your account to discover and share scenarios.")));
+    btn(box, L("Se connecter", "Sign in"), "small", () => openSettings("sync")).style.margin = "0 auto";
+    return;
+  }
+  const top = el("div", "dtop"); box.appendChild(top);
+  const q = el("input"); q.type = "search"; q.placeholder = L("Rechercher un scénario…", "Search scenarios…"); q.value = discState.q; top.appendChild(q);
+  const acts = el("div", "row dacts"); top.appendChild(acts);
+  const chips = el("div", "galchips"); box.appendChild(chips);
+  [["all", L("Tous", "All")], ...COVER_GENRES].forEach(([k, n]) => { const c = el("button", "mode" + (discState.genre === k ? " on" : ""), n); c.onclick = () => { discState.genre = k; showLibrary(); }; chips.appendChild(c); });
+  const sorts = el("div", "dsort"); box.appendChild(sorts);
+  [["likes", L("Populaires", "Popular")], ["created_at", L("Récents", "Newest")], ["mine", L("Mes publications", "My posts")]].forEach(([k, n]) => { const c = el("button", discState.sort === k ? "on" : "", n); c.onclick = () => { discState.sort = k; showLibrary(); }; sorts.appendChild(c); });
+  const grid = el("div", "dgrid"); box.appendChild(grid);
+  grid.appendChild(el("div", "empty", `<span class="wait"><i></i><i></i><i></i></span>`));
+  let tq; q.oninput = () => { clearTimeout(tq); tq = setTimeout(() => { discState.q = q.value.trim(); load(); }, 350); };
+  const load = async () => {
+    try{
+      const role = await getRole();
+      acts.innerHTML = "";
+      if(canPublish()) btn(acts, L("+ Publier", "+ Publish"), "small", pickAdventureToPublish);
+      if(role === "admin") btn(acts, L("Créateurs", "Creators"), "ghost small", openCreators);
+      let qs = "select=id,author,author_name,title,hook,genre,lang,cover,likes,plays,created_at&limit=60";
+      if(discState.genre !== "all") qs += "&genre=eq." + encodeURIComponent(discState.genre);
+      if(discState.q) qs += "&or=" + encodeURIComponent(`(title.ilike.*${discState.q.replace(/[*,()]/g, " ")}*,hook.ilike.*${discState.q.replace(/[*,()]/g, " ")}*)`);
+      if(discState.sort === "mine") qs += "&author=eq." + auth.user.id + "&order=created_at.desc";
+      else qs += discState.sort === "likes" ? "&order=likes.desc,plays.desc,created_at.desc" : "&order=created_at.desc";
+      const [rows, likes] = await Promise.all([sbFetch("/rest/v1/lanterne_scenarios?" + qs), myLikes ? Promise.resolve(null) : sbFetch("/rest/v1/lanterne_likes?select=scenario_id")]);
+      if(likes) myLikes = new Set(likes.map(x => x.scenario_id));
+      discCache = rows || [];
+      grid.innerHTML = "";
+      if(!discCache.length) grid.appendChild(el("div", "empty", discState.sort === "mine" ? L("Tu n'as encore rien publié.", "You haven't published anything yet.") : L("Aucun scénario pour l'instant.", "No scenarios yet.") + (canPublish() ? "<br>" + L("Sois le premier à en publier un !", "Be the first to publish one!") : "")));
+      discCache.forEach(sc => grid.appendChild(scenarioTile(sc)));
+    }catch(e){ grid.innerHTML = ""; grid.appendChild(el("div", "empty", esc(L("Chargement impossible : ", "Couldn't load: ") + tr(e.message)))); }
+  };
+  load();
+}
+function scenarioTile(sc){
+  const d = el("div", "stile");
+  const cv = el("div", "cover " + (sc.cover ? "" : "nocov")); if(sc.cover) cv.style.backgroundImage = `url("${sc.cover}")`; else cv.appendChild(el("div", "ph", LOGO_SVG));
+  d.appendChild(cv);
+  d.appendChild(el("div", "in", `<div class="t noi18n">${esc(sc.title)}</div><div class="h noi18n">${esc(sc.hook || "")}</div><div class="m"><span class="noi18n">${esc(sc.author_name || "?")}</span> · ${esc(genreLabel(sc.genre))}${sc.lang && sc.lang !== (isEN() ? "en" : "fr") ? " · " + sc.lang.toUpperCase() : ""}<span class="grow"></span>${myLikes?.has(sc.id) ? "♥" : "♡"} ${sc.likes || 0} · ▶ ${sc.plays || 0}</div>`));
+  d.onclick = () => openScenario(sc.id);
+  return d;
+}
+async function openScenario(id){
+  let sc;
+  try{ sc = (await sbFetch(`/rest/v1/lanterne_scenarios?select=*&id=eq.${id}`))[0]; }catch(e){ return toast(e.message); }
+  if(!sc) return toast(L("Scénario introuvable", "Scenario not found"));
+  const data = sc.data || {};
+  openSheet(sc.title, null, (_, b) => {
+    b.classList.add("noi18n");
+    const cv = el("div", "cover dcover " + (sc.cover ? "" : "nocov")); if(sc.cover) cv.style.backgroundImage = `url("${sc.cover}")`; else cv.appendChild(el("div", "ph", LOGO_SVG));
+    b.appendChild(cv);
+    b.appendChild(el("div", "dmeta", `${L("par", "by")} <b>${esc(sc.author_name || "?")}</b> · ${esc(genreLabel(sc.genre))} · ♥ ${sc.likes || 0} · ▶ ${sc.plays || 0}`));
+    if(sc.hook) b.appendChild(el("p", "dhook", esc(sc.hook)));
+    const info = [];
+    if(data.character?.enabled) info.push(L("Tu crées ton personnage", "You create your character"));
+    if(data.cards?.length) info.push(`${data.cards.length} Story Card${data.cards.length > 1 ? "s" : ""}`);
+    const tools = [data.scripts?.sc && L("Cartes intelligentes", "Smart cards"), data.scripts?.minds && L("Esprit des personnages", "Character minds"), data.scripts?.rpg && L("Mode RPG", "RPG mode"), data.scripts?.ar && L("Anti-répétition", "Anti-repetition")].filter(Boolean);
+    if(tools.length) info.push(tools.join(", "));
+    if(info.length) b.appendChild(el("div", "chips", info.map(x => `<span class="chip">${esc(x)}</span>`).join("")));
+    const r = el("div", "row"); r.style.margin = "6px 0 14px"; b.appendChild(r);
+    btn(r, "▶ " + L("Jouer", "Play"), "", () => { closeSheet(); playScenario(Object.assign({}, data, { title: sc.title, cover: sc.cover || data.cover }), sc.id); }).style.flex = "1";
+    const liked = myLikes?.has(sc.id);
+    const lb = btn(r, liked ? "♥" : "♡", "ghost", async () => {
+      lb.disabled = true;
+      try{
+        if(myLikes?.has(sc.id)){ await sbFetch(`/rest/v1/lanterne_likes?scenario_id=eq.${sc.id}&user_id=eq.${auth.user.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); myLikes.delete(sc.id); sc.likes = Math.max(0, (sc.likes || 0) - 1); }
+        else { await sbFetch("/rest/v1/lanterne_likes", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify([{ scenario_id: sc.id }]) }); (myLikes ||= new Set()).add(sc.id); sc.likes = (sc.likes || 0) + 1; }
+        openScenario(sc.id);
+      }catch(e){ toast(e.message); lb.disabled = false; }
+    });
+    if(data.opening){ const det = el("details", "fold", `<summary>${L("Aperçu du début", "Preview of the opening")}</summary><div class="in"><p class="dprev"></p></div>`); det.querySelector(".dprev").textContent = data.opening.slice(0, 900) + (data.opening.length > 900 ? "…" : ""); b.appendChild(det); }
+    const mine = sc.author === auth?.user?.id;
+    if(mine || myRole === "admin"){
+      const a = el("div", "row"); a.style.cssText = "margin-top:16px;flex-wrap:wrap"; b.appendChild(a);
+      if(mine) hint(a, L("Pour la modifier : ouvre l'aventure d'origine, onglet Aventure → Mettre à jour la publication.", "To edit it: open the original adventure, Adventure tab → Update the post."));
+      btn(a, mine ? L("Retirer ma publication", "Remove my post") : L("Retirer (admin)", "Remove (admin)"), "danger small", async () => {
+        if(!confirm(L("Retirer ce scénario de Découvrir ?", "Remove this scenario from Discover?"))) return;
+        try{ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${sc.id}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); toast(L("Scénario retiré", "Scenario removed")); closeSheet(); showLibrary(); }catch(e){ toast(e.message); }
+      });
+    }
+  });
+}
+
+/* ---- Création de personnage ---- */
+const CHAR_FIELDS = [["name", "Prénom", "Name"], ["gender", "Genre", "Gender"], ["age", "Âge", "Age"], ["look", "Apparence", "Appearance"], ["personality", "Personnalité", "Personality"], ["past", "Passé", "Background"]];
+const CHAR_TAGS = { name: ["nom", "prénom", "prenom", "name"], gender: ["genre", "sexe", "gender", "sex"], age: ["âge", "age"], look: ["apparence", "physique", "appearance", "look"], personality: ["personnalité", "personnalite", "caractère", "personality"], past: ["passé", "passe", "histoire", "background", "past"] };
+const normQ = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+function substChar(text, ch, ans){
+  if(!text || !ans) return text || "";
+  return String(text).replace(/\$\{([^}]{1,120})\}|\{([^{}\n]{1,40})\}/g, (m, aid, tag) => {
+    const key = normQ(aid || tag);
+    if(aid != null){ const i = (ch.questions || []).findIndex(q => normQ(q) === key); if(i >= 0 && ans.q?.[i] != null) return ans.q[i]; }
+    if(/^\d+$/.test(key)){ const v = ans.q?.[Number(key) - 1]; return v != null ? v : m; }
+    for(const [f, tags] of Object.entries(CHAR_TAGS)) if(tags.map(normQ).includes(key) && ans[f]) return ans[f];
+    if(aid != null){ const f = Object.entries(CHAR_TAGS).find(([, tags]) => tags.some(t => key.includes(normQ(t)))); if(f && ans[f[0]]) return ans[f[0]]; }
+    return m;
+  });
+}
+const hasTags = t => /\$\{[^}]+\}|\{(nom|prénom|prenom|name|genre|gender|sexe|âge|age|apparence|appearance|personnalité|personnalite|personality|passé|passe|background|\d+)\}/i.test(t || "");
+function charBlock(ch, ans){
+  const lines = CHAR_FIELDS.filter(([f]) => ans[f]).map(([f, fr, en]) => `${L(fr, en)} : ${ans[f]}`);
+  (ch.questions || []).forEach((q, i) => { if(ans.q?.[i]) lines.push(`${q.replace(/\s*\?$/, "")} : ${ans.q[i]}`); });
+  return lines.length ? `${L("Ton personnage", "Your character")} —\n${lines.join("\n")}` : "";
+}
+function characterSheet(sc){
+  const ch = sc.character || {};
+  const ans = Object.assign({ q: [] }, LS.get("lan.lastChar", {}), { q: [] });
+  return new Promise(resolve => {
+    let done = false;
+    const render = (_, b) => {
+      b.innerHTML = "";
+      hint(b, L("Crée ton personnage pour cette histoire. Laisse vide ce que tu veux laisser au hasard.", "Create your character for this story. Leave empty whatever you want left to chance."));
+      CHAR_FIELDS.filter(([f]) => (ch.fields || []).includes(f)).forEach(([f, fr, en]) => {
+        if(f === "gender"){
+          const l = el("label", "f", `<span>${L(fr, en)}</span>`); b.appendChild(l);
+          const row = el("div", "chips"); l.appendChild(row);
+          [L("Homme", "Man"), L("Femme", "Woman"), L("Autre", "Other")].forEach(g => { const c = el("button", "mode" + (ans.gender === g ? " on" : ""), g); c.onclick = ev => { ev.preventDefault(); ans.gender = g; render(_, b); }; row.appendChild(c); });
+          return;
+        }
+        field(b, L(fr, en), ans[f] || "", v => ans[f] = v.trim(), { multiline: f === "look" || f === "personality" || f === "past", rows: 2, placeholder: { name: L("Ex. : Kaelen", "E.g. Kaelen"), age: "25", look: L("Ex. : cheveux noirs, cicatrice sur la joue", "E.g. black hair, scar on the cheek"), personality: L("Ex. : impulsif mais loyal", "E.g. impulsive but loyal"), past: L("Ex. : ancien soldat devenu voleur", "E.g. former soldier turned thief") }[f] });
+      });
+      (ch.questions || []).forEach((q, i) => field(b, q, ans.q[i] || "", v => ans.q[i] = v.trim()));
+      const ib = btn(b, L("✨ Inventer ce qui manque", "✨ Make up the rest"), "ghost small", async () => {
+        ib.disabled = true; ib.textContent = L("Invention…", "Inventing…");
+        try{
+          const want = [...CHAR_FIELDS.filter(([f]) => (ch.fields || []).includes(f) && !ans[f]).map(([f, , en]) => `"${f}": ${en.toLowerCase()}`), ...(ch.questions || []).map((q, i) => ans.q[i] ? null : `"q${i}": ${JSON.stringify(q)}`).filter(Boolean)];
+          if(!want.length){ ib.disabled = false; ib.textContent = L("✨ Inventer ce qui manque", "✨ Make up the rest"); return; }
+          const prompt = `Invent a fitting player character for this interactive story.\nStory: ${sc.title}\n${(sc.essentials || "").slice(0, 1200)}\n${(sc.opening || "").slice(0, 800)}\nAlready chosen: ${JSON.stringify(Object.fromEntries(Object.entries(ans).filter(([k, v]) => k !== "q" && v)))}\nFill these fields, short answers (a few words, appearance/personality/background one sentence), in ${isEN() ? "English" : "French"}.\nReturn ONLY JSON with keys: ${want.join(", ")}`;
+          const r = parseJSON(await complete(prompt, 400));
+          CHAR_FIELDS.forEach(([f]) => { if(!ans[f] && r[f]) ans[f] = String(r[f]); });
+          (ch.questions || []).forEach((q, i) => { if(!ans.q[i] && r["q" + i]) ans.q[i] = String(r["q" + i]); });
+          render(_, b);
+        }catch(e){ toast(L("Échec : ", "Failed: ") + e.message); ib.disabled = false; ib.textContent = L("✨ Inventer ce qui manque", "✨ Make up the rest"); }
+      });
+      ib.style.marginBottom = "14px";
+      btn(b, L("Commencer l'aventure", "Start the adventure"), "wide", () => { done = true; LS.set("lan.lastChar", Object.fromEntries(CHAR_FIELDS.map(([f]) => [f, ans[f] || ""]))); closeSheet(); resolve(ans); });
+    };
+    openSheet(L("Ton personnage", "Your character"), null, render);
+    const host = $("#sheetHost"); const obs = new MutationObserver(() => { if(!host.innerHTML && !done){ obs.disconnect(); resolve(null); } else if(done) obs.disconnect(); }); obs.observe(host, { childList: true });
+  });
+}
+function playAsScenario(a){
+  const sc = scenarioOf(a);
+  sc.character = a.publish?.character?.enabled ? a.publish.character : (hasTags(sc.opening + sc.essentials) ? { enabled: true, fields: ["name"], questions: [] } : { enabled: true, fields: ["name", "gender", "look", "personality"], questions: [] });
+  closeSheet(); playScenario(sc);
+}
+async function playScenario(sc, publishedId){
+  const ch = sc.character || {};
+  let ans = null;
+  if(ch.enabled && ((ch.fields || []).length || (ch.questions || []).length)){ ans = await characterSheet(sc); if(!ans) return; }
+  const sub = t => substChar(t, ch, ans);
+  const a = blankAdventure();
+  a.title = sc.title || L("Nouvelle aventure", "New adventure");
+  const block = ans ? charBlock(ch, ans) : "";
+  Object.assign(a, { essentials: [block, sub(sc.essentials || "")].filter(Boolean).join("\n\n"), authorsNote: sub(sc.authorsNote || ""), instructions: sub(sc.instructions || DEFAULT_INSTRUCTIONS),
+    cards: (sc.cards || []).map(c => normalizeCard({ title: sub(c.title), type: c.type, keys: sub(c.keys), entry: sub(c.entry) })),
+    scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}) });
+  if(ans?.name) a.scripts.player = ans.name;
+  if(sc.style) a.style = Object.assign({}, DEFAULT_STYLE, sc.style);
+  if(sc.cover && LS.set("lan.cover." + a.id, sc.cover)){ a.hasCover = true; a.coverPos = sc.coverPos ?? 50; }
+  let opening = sub(sc.opening || "");
+  adv = a; saveAdv(); openAdventure(a.id);
+  const live = adv;
+  if(publishedId) rpc("lanterne_played", { sid: publishedId }).catch(() => {});
+  if(opening && block && !hasTags(sc.opening) && settings.apiKey){
+    const ph = placeholder(); ph.setStatus(L("Lanterne adapte le début à ton personnage…", "Lanterne is fitting the opening to your character…"));
+    try{
+      const out = await complete(`Adapt this opening of an interactive story (second person, the player is "you") to the player's character below. Keep the same events, length, tone, style and language. Only fix gendered words and agreements, use the name where natural, and weave in a detail only if it fits. Return ONLY the adapted opening.\n\nPlayer character:\n${block}\n\nOpening:\n"""\n${opening}\n"""`, 1200);
+      if(out && out.length > opening.length * 0.5) opening = out.replace(/^"""|"""$/g, "").trim();
+    }catch(e){}
+  }
+  if(opening) live.actions.push({ id: uid(), type: "ai", text: opening });
+  if(adv === live){ saveAdv(); renderStory(true); } else LS.set("lan.adv." + live.id, live);
+}
+
+/* ---- Publier ---- */
+function pickAdventureToPublish(){
+  openSheet(L("Publier une aventure", "Publish an adventure"), null, (_, b) => {
+    hint(b, L("Choisis l'aventure à partager. Seul le début est publié (ouverture, essentiels, note d'auteur, instructions, cartes, outils, image), jamais ta partie jouée.", "Choose the adventure to share. Only the start is published (opening, essentials, author's note, instructions, cards, tools, image), never your playthrough."));
+    btn(b, L("📥 Importer un scénario AI Dungeon", "📥 Import an AI Dungeon scenario"), "ghost small", () => { closeSheet(); importAIDFile(); }).style.marginBottom = "14px";
+    if(!index.length) hint(b, L("Aucune aventure. Crée-en une d'abord.", "No adventures. Create one first."));
+    index.forEach(x => { const it = el("div", "item"); it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(x.title)}</div>`)); it.onclick = () => { const a = LS.get("lan.adv." + x.id, null); if(a){ adv = migrate(a); publishSheet(() => { adv = null; showLibrary(); }); } }; b.appendChild(it); });
+  });
+}
+async function shrinkCover(url){
+  if(!url || /^data:image\/svg/.test(url)) return url || null;
+  try{
+    const img = new Image(); img.src = url; await img.decode();
+    const w = Math.min(560, img.width), h = Math.round(img.height * w / img.width);
+    const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h);
+    return c.toDataURL("image/jpeg", 0.7);
+  }catch(e){ return null; }
+}
+function publishSheet(after){
+  const a = adv; if(!a) return;
+  const p = Object.assign({ title: a.title, hook: "", genre: "misc", author: settings.authorName || (auth?.user?.email || "").split("@")[0], character: { enabled: false, fields: ["name", "gender", "look", "personality"], questions: [] } }, a.publish || {});
+  p.character = Object.assign({ enabled: false, fields: [], questions: [] }, p.character);
+  const save = () => { a.publish = p; LS.set("lan.adv." + a.id, a); };
+  openSheet(a.publishedId ? L("Mettre à jour la publication", "Update the post") : L("Publier dans Découvrir", "Publish to Discover"), null, (_, b) => {
+    field(b, L("Titre", "Title"), p.title, v => { p.title = v; save(); });
+    field(b, L("Accroche", "Hook"), p.hook, v => { p.hook = v.slice(0, 220); save(); }, { multiline: true, rows: 2, placeholder: L("Une ou deux phrases qui donnent envie de jouer.", "One or two sentences that make people want to play.") });
+    const gl = el("label", "f", `<span>${L("Genre", "Genre")}</span>`); const gs = document.createElement("select"); gs.className = "raw";
+    COVER_GENRES.forEach(([k, n]) => { const o = document.createElement("option"); o.value = k; o.textContent = n; if(p.genre === k) o.selected = true; gs.appendChild(o); });
+    gs.onchange = () => { p.genre = gs.value; save(); }; gl.appendChild(gs); b.appendChild(gl);
+    field(b, L("Signé", "Signed"), p.author, v => { p.author = v.trim(); settings.authorName = p.author; saveSettings(); save(); });
+    sec(b, L("Personnage du joueur", "Player character"));
+    let sub;
+    toggle(b, L("Le joueur crée son personnage", "The player creates their character"), L("Au lancement, un petit formulaire lui demande ce que tu coches. Pas besoin de balises dans ton texte : écris à la 2e personne (« tu »), Lanterne ajoute le personnage aux essentiels et adapte le début tout seul.", "At launch, a short form asks for what you tick. No tags needed in your text: write in second person (“you”), Lanterne adds the character to the essentials and adapts the opening on its own."), () => p.character.enabled, v => { p.character.enabled = v; sub.classList.toggle("hidden", !v); save(); });
+    sub = el("div", "subopts" + (p.character.enabled ? "" : " hidden")); b.appendChild(sub);
+    const fl = el("div", "chips"); sub.appendChild(fl);
+    CHAR_FIELDS.forEach(([f, fr, en]) => { const on = p.character.fields.includes(f); const c = el("button", "mode" + (on ? " on" : ""), L(fr, en)); c.onclick = () => { p.character.fields = on ? p.character.fields.filter(x => x !== f) : [...p.character.fields, f]; save(); c.classList.toggle("on"); }; fl.appendChild(c); });
+    field(sub, L("Questions en plus", "Extra questions"), p.character.questions.join("\n"), v => { p.character.questions = v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 6); save(); }, { multiline: true, rows: 2, placeholder: L("Une par ligne. Ex. : Quelle est ta classe ?", "One per line. E.g. What is your class?"), hint: L("Avancé : pour placer une réponse à un endroit précis du texte, écris {nom}, {genre}, {âge}, {apparence}, {personnalité}, {passé}, ou {1}, {2}… pour tes questions. Les balises ${…} d'AI Dungeon marchent aussi.", "Advanced: to place an answer at a precise spot in the text, write {name}, {gender}, {age}, {appearance}, {personality}, {background}, or {1}, {2}… for your questions. AI Dungeon ${…} tags work too.") });
+    const sc = scenarioOf(a);
+    hint(b, L(`Sera publié : ouverture, essentiels, note d'auteur, instructions, ${sc.cards.length} carte${sc.cards.length > 1 ? "s" : ""}, outils activés et image. Ta partie jouée reste privée.`, `Will be published: opening, essentials, author's note, instructions, ${sc.cards.length} card${sc.cards.length > 1 ? "s" : ""}, enabled tools and image. Your playthrough stays private.`)).style.marginTop = "14px";
+    const r = el("div", "row"); r.style.cssText = "margin-top:10px;flex-wrap:wrap"; b.appendChild(r);
+    const go = btn(r, a.publishedId ? L("Mettre à jour", "Update") : L("Publier", "Publish"), "", async () => {
+      if(!p.title.trim()) return toast(L("Ajoute un titre", "Add a title"));
+      if(!sc.opening) return toast(L("L'aventure n'a pas d'ouverture", "The adventure has no opening"));
+      go.disabled = true; go.textContent = "…";
+      try{
+        const data = Object.assign({}, sc, { cover: undefined, character: p.character });
+        const row = { title: p.title.trim(), hook: p.hook.trim(), genre: p.genre, lang: isEN() ? "en" : "fr", author_name: p.author || "?", cover: await shrinkCover(sc.cover), data };
+        if(a.publishedId){ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${a.publishedId}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(Object.assign(row, { updated_at: new Date().toISOString() })) }); toast(L("Publication mise à jour ✓", "Post updated ✓")); }
+        else { const res = await sbFetch("/rest/v1/lanterne_scenarios?select=id", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify([row]) }); a.publishedId = res?.[0]?.id; toast(L("Publié dans Découvrir ✓", "Published to Discover ✓")); }
+        LS.set("lan.adv." + a.id, a); closeSheet(); if(after) after();
+      }catch(e){
+        go.disabled = false; go.textContent = a.publishedId ? L("Mettre à jour", "Update") : L("Publier", "Publish");
+        toast(/row-level|policy|permission|403|42501/i.test(e.message + e.status) ? L("Tu n'es pas autorisé à publier : demande à l'admin de Lanterne", "You're not allowed to publish: ask the Lanterne admin") : e.message);
+      }
+    });
+    go.style.flex = "1";
+    if(a.publishedId) btn(r, L("Retirer", "Remove"), "danger", async () => {
+      if(!confirm(L("Retirer ce scénario de Découvrir ?", "Remove this scenario from Discover?"))) return;
+      try{ await sbFetch(`/rest/v1/lanterne_scenarios?id=eq.${a.publishedId}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }); delete a.publishedId; LS.set("lan.adv." + a.id, a); toast(L("Scénario retiré", "Scenario removed")); closeSheet(); if(after) after(); }catch(e){ toast(e.message); }
+    });
+  });
+}
+function openCreators(){
+  const render = async (_, b) => {
+    b.innerHTML = "";
+    hint(b, L("Seuls ces comptes peuvent publier dans Découvrir. Les admins peuvent aussi retirer n'importe quel scénario et gérer cette liste. Ton pote doit d'abord avoir créé son compte dans Lanterne.", "Only these accounts can publish to Discover. Admins can also remove any scenario and manage this list. Your friend must have created their Lanterne account first."));
+    let email = "", role = "publisher";
+    const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;align-items:flex-end"; b.appendChild(r);
+    const f = field(r, L("E-mail du compte", "Account email"), "", v => email = v.trim(), { type: "email", placeholder: L("pote@exemple.com", "friend@example.com") }); f.parentElement.style.cssText = "flex:1;min-width:200px;margin:0";
+    const s = document.createElement("select"); s.className = "raw"; s.style.width = "auto";
+    [["publisher", L("Créateur", "Creator")], ["admin", "Admin"]].forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; s.appendChild(o); });
+    s.onchange = () => role = s.value; r.appendChild(s);
+    btn(r, L("Ajouter", "Add"), "small", async () => { if(!email) return; try{ await rpc("lanterne_set_role", { p_email: email, p_role: role }); toast(L("Ajouté ✓", "Added ✓")); render(_, b); }catch(e){ toast(e.message); } });
+    const list = el("div"); list.style.marginTop = "16px"; b.appendChild(list);
+    try{
+      const rows = await rpc("lanterne_list_roles", {});
+      (rows || []).forEach(x => {
+        const it = el("div", "stat", `<span class="noi18n">${esc(x.email)}</span><b>${x.role === "admin" ? "Admin" : L("Créateur", "Creator")}</b>`);
+        if(x.email !== auth.user.email){ const rm = el("button", "ib", "✕"); rm.setAttribute("aria-label", L("Retirer", "Remove")); rm.onclick = async () => { if(!confirm(L(`Retirer les droits de ${x.email} ?`, `Remove ${x.email}'s rights?`))) return; try{ await rpc("lanterne_set_role", { p_email: x.email, p_role: "" }); render(_, b); }catch(e){ toast(e.message); } }; it.appendChild(rm); }
+        list.appendChild(it);
+      });
+    }catch(e){ list.appendChild(el("div", "hint", esc(e.message))); }
+  };
+  openSheet(L("Créateurs autorisés", "Allowed creators"), null, render);
+}
+
+/* ---- Import AI Dungeon ---- */
+const AID_TYPES = { character: "personnage", location: "lieu", item: "objet", faction: "faction", race: "concept", class: "concept", lore: "concept", other: "autre" };
+function aidCards(arr){
+  return arr.filter(c => c && typeof c === "object" && "keys" in c && ("value" in c || "entry" in c)).map(c => normalizeCard({
+    title: String(c.title || String(c.keys || "").split(",")[0] || "").trim(), keys: String(c.keys || ""), entry: String(c.value ?? c.entry ?? ""),
+    type: AID_TYPES[String(c.type || "").toLowerCase()] || (TYPES.includes(c.type) ? c.type : "autre"), description: String(c.description || "")
+  }));
+}
+function parseAID(j){
+  const arrays = [], strings = {};
+  const walk = (o, depth) => {
+    if(!o || depth > 9) return;
+    if(Array.isArray(o)){ arrays.push(o); o.forEach(x => walk(x, depth + 1)); return; }
+    if(typeof o === "object") for(const [k, v] of Object.entries(o)){ if(typeof v === "string" && v.trim()) (strings[k] ||= []).push(v); else walk(v, depth + 1); }
+  };
+  walk(j, 0);
+  const pick = (...keys) => { for(const k of keys) if(strings[k]?.length) return strings[k].sort((a, b) => b.length - a.length)[0]; return ""; };
+  const actArr = arrays.filter(a => a.length && a.every(x => x && typeof x === "object" && typeof x.text === "string" && ("type" in x || "actionType" in x))).sort((a, b) => b.length - a.length)[0] || [];
+  const cards = aidCards(arrays.filter(a => a.some(x => x && typeof x === "object" && "keys" in x && ("value" in x || "entry" in x))).sort((a, b) => b.length - a.length)[0] || []);
+  let acts = actArr.filter(x => !x.undoneAt && !x.deletedAt && !x.retriedAt && x.text.trim());
+  if(acts.some(x => x.actionNumber != null || x.id != null)) acts = [...acts].sort((a, b) => (Number(a.actionNumber ?? a.id) || 0) - (Number(b.actionNumber ?? b.id) || 0));
+  const actions = acts.map(x => {
+    const t = String(x.type || x.actionType || "").toLowerCase(), text = x.text.replace(/^\n+|\s+$/g, "");
+    if(t === "do" || t === "say") return { id: uid(), type: "player", kind: t, text: text.trim() };
+    if(t === "story") return { id: uid(), type: "story", kind: "story", text: text.trim() };
+    return { id: uid(), type: "ai", text: text.trim() };
+  });
+  const prompt = pick("prompt", "openingPrompt");
+  const questions = [...new Set((prompt + pick("memory", "plotEssentials") + pick("authorsNote")).match(/\$\{([^}]{1,120})\}/g) || [])].map(x => x.slice(2, -1));
+  return {
+    title: pick("title") || L("Aventure importée", "Imported adventure"), essentials: pick("memory", "plotEssentials", "plot_essentials"), authorsNote: pick("authorsNote", "authorNote", "authors_note"),
+    instructions: pick("instructions", "aiInstructions", "ai_instructions"), summary: pick("storySummary", "summary"), description: pick("description"),
+    actions, cards, prompt, questions
+  };
+}
+function importAIDFile(){
+  const i = document.createElement("input"); i.type = "file"; i.accept = "application/json,.json";
+  i.onchange = async () => {
+    try{
+      const j = JSON.parse(await i.files[0].text());
+      if(Array.isArray(j) && j.length && aidCards(j).length && !j.some(x => typeof x?.text === "string")){
+        if(!adv) return toast(L("Ouvre une aventure pour y importer ces cartes", "Open an adventure to import these cards into"));
+        const c = aidCards(j); adv.cards.push(...c); saveAdv(); toast(L(`${c.length} cartes importées`, `${c.length} cards imported`)); openAdventureSheet("cards"); return;
+      }
+      const d = parseAID(j);
+      if(!d.actions.length && !d.prompt && !d.cards.length) throw new Error(L("format non reconnu (envoie le fichier à Claude pour qu'il l'ajoute)", "unrecognized format"));
+      const instr = d.instructions && d.instructions.length > 40 ? d.instructions : DEFAULT_INSTRUCTIONS;
+      if(d.actions.length){
+        const a = blankAdventure();
+        Object.assign(a, { title: d.title, essentials: d.essentials, authorsNote: d.authorsNote, instructions: instr, summary: d.summary, cards: d.cards, actions: d.actions });
+        adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
+        toast(L(`Aventure importée : ${d.actions.length} passages, ${d.cards.length} cartes`, `Adventure imported: ${d.actions.length} passages, ${d.cards.length} cards`));
+      } else {
+        const a = blankAdventure();
+        Object.assign(a, { title: d.title, essentials: d.essentials, authorsNote: d.authorsNote, instructions: instr, cards: d.cards,
+          actions: d.prompt ? [{ id: uid(), type: "ai", text: d.prompt }] : [],
+          publish: { title: d.title, hook: (d.description || "").slice(0, 220), genre: "misc", character: { enabled: d.questions.length > 0, fields: [], questions: d.questions } } });
+        adv = a; saveAdv(); closeSheet(); openAdventure(a.id);
+        toast(L("Scénario importé. Onglet Aventure : ▶ Jouer comme scénario, ou Publier", "Scenario imported. Adventure tab: ▶ Play as scenario, or Publish"));
+      }
+    }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
+  };
+  i.click();
+}
+
 /* ================= Cloud sync (Supabase) ================= */
 const SYNC_DEFAULT = { url: "https://rqidaozmanuobnxtrben.supabase.co", key: "sb_publishable_lNsHLffLaByfKkCa-sCgXQ_MwoyAt23" };
 function syncConf(){ const c = LS.get("lan.syncconf", {}); return { url: (c.url || SYNC_DEFAULT.url || "").trim().replace(/\/+$/, ""), key: (c.key || SYNC_DEFAULT.key || "").trim() }; }
@@ -2568,7 +2946,7 @@ async function signUp(email, password){
   await firstSync();
 }
 function signOut(silent){
-  const a = auth; auth = null; recovery = null; localStorage.removeItem("lan.auth"); localStorage.removeItem("lan.sync.last");
+  const a = auth; auth = null; recovery = null; myRole = undefined; myLikes = null; localStorage.removeItem("lan.auth"); localStorage.removeItem("lan.sync.last");
   localStorage.removeItem("lan.ekey"); dekObj = null;
   if(a && !silent) fetch(syncConf().url + "/auth/v1/logout", { method: "POST", headers: { apikey: syncConf().key, Authorization: "Bearer " + a.access_token } }).catch(() => {});
   refreshSyncLine();
@@ -2952,6 +3330,11 @@ function renderMiscTab(body){
   body.appendChild(el("div", "stat", `<span>Dépensé sur cette aventure</span><b>${money(adv.spent || 0)}</b>`));
   body.appendChild(el("div", "stat", `<span>Tours joués · mots</span><b>${(adv.turns || 0).toLocaleString(LOC())} · ${(adv.words || 0).toLocaleString(LOC())}</b>`));
   hint(body, "« Partager le scénario » envoie le début de l'aventure (ouverture, essentiels, cartes, réglages) sans ta partie jouée. Ton pote l'importe depuis « Nouvelle aventure ».");
+  sec(body, L("Découvrir", "Discover"));
+  const pr = el("div", "row"); pr.style.flexWrap = "wrap"; body.appendChild(pr);
+  btn(pr, adv.publishedId ? L("Mettre à jour la publication", "Update the post") : L("Publier dans Découvrir", "Publish to Discover"), "", () => { if(!auth || !hasKey()) return toast(L("Connecte-toi d'abord (Réglages → Compte)", "Sign in first (Settings → Account)")); publishSheet(() => openAdventureSheet("misc")); });
+  btn(pr, L("▶ Jouer comme scénario", "▶ Play as scenario"), "ghost", () => playAsScenario(adv));
+  hint(body, L("« Jouer comme scénario » lance une nouvelle partie depuis le début de cette aventure, avec création de personnage.", "“Play as scenario” starts a new game from this adventure's beginning, with character creation."));
   sec(body, "Gestion");
   const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
   btn(r, "Dupliquer", "ghost", () => {
@@ -2967,7 +3350,8 @@ let showTech = false;
 function renderCardsTab(body){
   const reopen = () => { saveAdv(); openAdventureSheet("cards"); };
   hint(body, `Une carte est envoyée à l'IA quand un de ses mots-clés apparaît dans les ${settings.cardScanDepth} derniers passages.`);
-  btn(body, "+ Nouvelle carte", "wide", () => editCard(null, adv.cards, advCtx(), reopen)).style.marginBottom = "14px";
+  btn(body, "+ Nouvelle carte", "wide", () => editCard(null, adv.cards, advCtx(), reopen)).style.marginBottom = "8px";
+  btn(body, L("📥 Importer des cartes AI Dungeon", "📥 Import AI Dungeon cards"), "ghost small", importAIDFile).style.marginBottom = "14px";
   if(adv.scripts.sc){
     const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;margin:-4px 0 14px"; body.appendChild(r);
     const ab = btn(r, carding ? "Analyse en cours…" : "✨ Analyser l'histoire", "ghost small", async () => { ab.disabled = true; ab.textContent = "Analyse en cours…"; await maybeSmartCards(true); if($("#sheetHost").innerHTML) openAdventureSheet("cards"); });
@@ -3338,6 +3722,7 @@ function openSettings(start){
         download(`lanterne-sauvegarde-${new Date().toISOString().slice(0,10)}.json`, { lanterne: 1, adventures: all });
       });
       btn(r, "Importer", "ghost", importFile);
+      btn(r, L("Importer depuis AI Dungeon", "Import from AI Dungeon"), "ghost", importAIDFile);
       btn(body, "Revoir le tutoriel", "ghost small", () => { closeSheet(); onboarding(true); }).style.marginTop = "12px";
       sec(body, "Crédits");
       hint(body, `Scripts Auto-Cards et Inner Self par <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a>, sous licence MIT. Les Cartes intelligentes et l'Esprit des personnages s'en inspirent.`);

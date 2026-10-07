@@ -77,12 +77,16 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .item .cover .ph{font-size:24px}
 .item .grow{flex:1;min-width:0}
 .item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .m{color:var(--tx3);font-size:12px;margin-top:3px}
+.item .m{color:var(--tx3);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feat,.item{cursor:pointer;position:relative}
 .acts{display:flex;align-items:center;gap:6px;flex:none}
 .play{width:40px;height:40px;border-radius:50%;background:var(--acc);color:var(--onacc);display:grid;place-items:center;flex:none;border:0;transition:transform .15s,filter .15s}
 .play:hover{transform:scale(1.07);filter:brightness(1.08)}
 .play svg{width:16px;height:16px;margin-left:0}
+.mini{display:flex;align-items:center;gap:2px}
+.more{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--tx3);background:transparent;border:0;opacity:.55;transition:opacity .15s,color .15s,background .15s}
+.more svg{width:18px;height:18px}
+.more:hover{opacity:1;color:var(--tx);background:var(--bg3)}
 .trash{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--tx3);background:transparent;border:0;opacity:.55;transition:opacity .15s,color .15s,background .15s}
 .trash svg{width:17px;height:17px}
 .trash:hover{opacity:1;color:var(--err);background:color-mix(in srgb,var(--err) 12%,transparent)}
@@ -112,10 +116,11 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .grid .item .m{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .grid .item .play{position:absolute;right:8px;bottom:10px;width:32px;height:32px}
   .grid .item .play svg{width:12px;height:12px}
-  .grid .item .trash{position:absolute;right:6px;top:6px;width:28px;height:28px;color:#fff;background:rgba(0,0,0,.4);opacity:.85}
-  .grid .item .trash svg{width:14px;height:14px}
+  .grid .item .mini{position:absolute;right:6px;top:6px;gap:0;background:rgba(0,0,0,.42);border-radius:999px;padding:1px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  .grid .item .mini button{width:28px;height:28px;color:#fff;opacity:.9}
+  .grid .item .mini svg{width:14px;height:14px}
 }
-@media (hover:hover){.trash{opacity:0}.feat:hover .trash,.item:hover .trash,.trash:focus-visible{opacity:.6}.trash:hover{opacity:1}}
+@media (hover:hover){.mini{opacity:0;transition:opacity .15s}.feat:hover .mini,.item:hover .mini,.mini:focus-within{opacity:1}}
 .app.wide{max-width:1180px}
 @media (min-width:900px){
   .app.wide .pad{padding:28px 40px 40px}
@@ -137,12 +142,17 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
   .app.wide .feat .grow{max-width:620px}
   .app.wide .feat .t{font-family:var(--serif);font-weight:500;font-size:34px;line-height:1.15;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.4)}
   .app.wide .feat .s{-webkit-line-clamp:3;font-size:15px;line-height:1.5;color:rgba(255,255,255,.78);margin-top:10px}
-  .app.wide .feat .play{width:58px;height:58px}
-  .app.wide .feat .play svg{width:20px;height:20px}
-  .app.wide .feat .trash{color:rgba(255,255,255,.75)}
+  .app.wide .feat .play{width:46px;height:46px}
+  .app.wide .feat .play svg{width:16px;height:16px}
+  .app.wide .grid .item .play{width:36px;height:36px}
+  .app.wide .grid .item .play svg{width:13px;height:13px}
+  .app.wide .feat .mini{background:rgba(0,0,0,.35);border-radius:999px;padding:2px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  .app.wide .feat .mini button{color:#fff;opacity:.85}
   .app.wide .secT{margin-top:30px}
   .app.wide .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
   .app.wide .grid .item{margin-bottom:0;padding:12px;transition:border-color .15s,background .15s}
+  .app.wide .grid .item .mini{position:absolute;right:58px;top:50%;transform:translateY(-50%);background:var(--bg2);box-shadow:-16px 0 14px var(--bg2);border-radius:999px}
+  .app.wide .grid .item:hover .mini{background:color-mix(in srgb,var(--acc) 4%,var(--bg2));box-shadow:-16px 0 14px color-mix(in srgb,var(--acc) 4%,var(--bg2))}
   .app.wide .grid .item:hover{border-color:color-mix(in srgb,var(--acc) 40%,var(--line));background:color-mix(in srgb,var(--acc) 4%,var(--bg2))}
 }
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
@@ -634,6 +644,29 @@ function ago(t){
 /* ================= Library ================= */
 function setHeaderTitle(text, withLogo){ $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>`; }
 const TAGLINES = ["Prêt pour l'aventure ?", "Qui seras-tu aujourd'hui ?", "Un monde t'attend. À toi de jouer.", "Où est-ce qu'on part ?", "Le donjon est ouvert."];
+function coverMenu(btnEl, x){
+  document.querySelectorAll(".menu").forEach(m => m.remove());
+  const m = el("div", "menu", `<button data-a="cover">🖼  Changer l'image</button>${x.hasCover ? `<button data-a="nocover">Retirer l'image</button>` : ""}`);
+  document.body.appendChild(m);
+  const r = btnEl.getBoundingClientRect(), mh = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(r.right - 190, innerWidth - 198)) + "px";
+  m.style.top = (r.bottom + 6 + mh > innerHeight ? r.top - mh - 6 : r.bottom + 6) + "px";
+  const close = () => { m.remove(); document.removeEventListener("pointerdown", outside, true); };
+  const outside = ev => { if(!m.contains(ev.target)) close(); };
+  setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
+  m.onclick = async ev => {
+    const act = ev.target.dataset.a; if(!act) return; close();
+    const a = LS.get("lan.adv." + x.id, null); if(!a) return;
+    if(act === "cover"){
+      const img = await chooseCover(); if(!img) return;
+      if(!LS.set("lan.cover." + x.id, img)) return toast("Image trop lourde pour le stockage");
+      a.hasCover = true; a.coverPos = 50;
+    } else { LS.del("lan.cover." + x.id); a.hasCover = false; }
+    LS.set("lan.adv." + x.id, a);
+    index = index.map(i => i.id === x.id ? indexEntry(a) : i); LS.set("lan.index", index);
+    showLibrary();
+  };
+}
 function deleteAdventure(id, title){
   if(!confirm(`Supprimer définitivement « ${title || "cette aventure"} » ?`)) return;
   LS.del("lan.adv." + id); LS.del("lan.cover." + id);
@@ -666,10 +699,12 @@ function showLibrary(){
   }
   const [first, ...rest] = list;
   const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.2v13.6a1 1 0 001.5.86l10.6-6.8a1 1 0 000-1.72L10 4.34a1 1 0 00-1.5.86z"/></svg>`;
+  const MORE = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>`;
   const TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>`;
   const acts = (x, host) => {
-    const a = el("div", "acts", `<button class="trash" aria-label="Supprimer" title="Supprimer">${TRASH}</button><button class="play" aria-label="Jouer" title="Jouer">${PLAY}</button>`);
+    const a = el("div", "acts", `<div class="mini"><button class="more" aria-label="Options" title="Options">${MORE}</button><button class="trash" aria-label="Supprimer" title="Supprimer">${TRASH}</button></div><button class="play" aria-label="Jouer" title="Jouer">${PLAY}</button>`);
     a.querySelector(".trash").onclick = e => { e.stopPropagation(); deleteAdventure(x.id, x.title); };
+    a.querySelector(".more").onclick = e => { e.stopPropagation(); coverMenu(e.currentTarget, x); };
     a.querySelector(".play").onclick = e => { e.stopPropagation(); openAdventure(x.id); };
     host.appendChild(a);
   };

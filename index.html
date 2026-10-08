@@ -479,7 +479,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto"
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", providerIgnore: ["alibaba"]
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -958,7 +958,29 @@ function apiConf(){
   return isOR() ? { url: "https://openrouter.ai/api/v1/chat/completions", or: true }
     : { url: (settings.baseUrl || "").trim().replace(/\/+$/, "").replace(/\/chat\/completions$/, "") + "/chat/completions", or: false };
 }
+/* Certains hébergeurs (ex. Alibaba) filtrent le contenu : quand l'un d'eux bloque une réponse,
+   Lanterne l'évite désormais et relance la demande chez un autre fournisseur du même modèle. */
+const MOD_RE = /inappropriate|content.?(filter|policy|moderation)|moderat|safety|data.?inspection|violat|sensitive/i;
+function moderationProvider(msg){
+  const m = String(msg || "").match(/upstream error from ([^:]+):/i);
+  return m && MOD_RE.test(msg) ? m[1].trim() : (MOD_RE.test(msg) && /upstream|provider/i.test(msg) ? "?" : null);
+}
+const provSlug = n => String(n).trim().toLowerCase().replace(/\s+/g, "-");
 async function callModel(messages, opts = {}){
+  try{ return await callModel0(messages, opts); }
+  catch(e){
+    if(e.name === "AbortError" || opts._modRetry || !isOR()) throw e;
+    const prov = moderationProvider(e.message);
+    if(prov){
+      if(prov !== "?"){ const l = settings.providerIgnore || []; if(!l.includes(provSlug(prov))){ settings.providerIgnore = [...l, provSlug(prov)]; saveSettings(); } }
+      if(opts.onDelta){ e.mod = prov; throw e; }
+      return callModel0(messages, Object.assign({}, opts, { _modRetry: true }));
+    }
+    if(/no (allowed )?(endpoints|providers)/i.test(e.message) && (settings.providerIgnore || []).length) return callModel0(messages, Object.assign({}, opts, { _modRetry: true, _noIgnore: true }));
+    throw e;
+  }
+}
+async function callModel0(messages, opts = {}){
   if(!settings.apiKey) throw new Error("Ajoute ta clé API dans les réglages");
   const { url, or } = apiConf();
   const body = { model: (opts.model || settings.model).trim(), messages, stream: !!opts.onDelta || opts.stream === true,
@@ -975,6 +997,8 @@ async function callModel(messages, opts = {}){
       if(settings.repetition_penalty !== 1) body.repetition_penalty = settings.repetition_penalty;
       if(settings.requireParams) body.provider = { require_parameters: true };
     }
+    const ign = opts._noIgnore ? [] : (settings.providerIgnore ?? ["alibaba"]);
+    if(ign.length) body.provider = Object.assign(body.provider || {}, { ignore: ign });
     if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
   }
   const mid = body.model.toLowerCase();
@@ -1638,7 +1662,7 @@ async function generate(input, opts = {}){
       const view = $("#storyView");
       await prepareRecall(signal, playerText || guide);
       const msgs0 = buildMessages(guide);
-      let r, attempt = 0;
+      let r, attempt = 0, modRetry = false;
       lastCost = 0; lastCache = null;
       while(true){
         let started = false, cut = false, partial = "";
@@ -1653,7 +1677,11 @@ async function generate(input, opts = {}){
             const sp = el("span", "fi"); sp.textContent = delta; ph.el.appendChild(sp);
             if(stick) view.scrollTop = view.scrollHeight;
           } });
-        }catch(e){ if(e.name === "AbortError") r = { text: partial, cost: 0 }; else throw e; }
+        }catch(e){
+          if(e.name === "AbortError") r = { text: partial, cost: 0 };
+          else if(e.mod && !modRetry){ modRetry = true; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`; ph.setStatus(L("Fournisseur trop filtré, changement…", "Provider too filtered, switching…")); continue; }
+          else throw e;
+        }
         lastCost += r.cost || 0;
         if(!attempt && adv.scripts.ar && adv.scripts.arRetry !== false && !signal.aborted && isRepeat(extractRpg(r.text).text)){
           attempt = 1; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`; ph.setStatus("Répétition détectée, nouvelle version…");
@@ -4272,6 +4300,12 @@ function openSettings(start){
         body.appendChild(bsel);
         if(bv && bv !== "auto" && bv !== "same") hint(body, esc(bv)).style.marginTop = "6px";
         bsel.style.marginBottom = "22px";
+        sec(body, L("Fournisseurs évités", "Avoided providers"));
+        hint(body, L("Certains hébergeurs filtrent le contenu adulte ou sombre. Quand l'un d'eux bloque une réponse, Lanterne l'ajoute ici tout seul et passe par un autre. Touche un nom pour le retirer.", "Some hosts filter adult or dark content. When one blocks a reply, Lanterne adds it here on its own and goes through another. Tap a name to remove it."));
+        const pv = el("div", "chips"); pv.style.marginBottom = "22px"; body.appendChild(pv);
+        const ignl = settings.providerIgnore || [];
+        if(!ignl.length) pv.appendChild(el("span", "hint", L("Aucun", "None")));
+        ignl.forEach(x => { const c = el("button", "chip", esc(x) + " ✕"); c.onclick = () => { settings.providerIgnore = ignl.filter(y => y !== x); saveSettings(); openSettings("model"); }; pv.appendChild(c); });
       } else {
         field(body, "Modèle", settings.model, v => { settings.model = v; saveSettings(); }, { placeholder: "deepseek-chat", hint: "L'identifiant du modèle chez ce fournisseur." });
       }

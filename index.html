@@ -290,6 +290,7 @@ label.f{display:block;margin:0 0 16px}
 label.f > span{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);margin-bottom:6px;font-weight:600}
 .hint{color:var(--tx3);font-size:13px;line-height:1.45;margin:-2px 0 8px}
 .row + .hint,.btn + .hint,.sheet .row + .hint{margin-top:10px}
+.sheet .body > .btn + .btn{margin-left:8px}
 .sheet .body > .row{margin-bottom:4px}
 .hint em{color:var(--tx2);font-style:italic}
 .hint a{color:var(--acc2)}
@@ -4511,7 +4512,7 @@ function renderStatsTab(body){
     const fmtM = k => new Date(k + "-01T12:00:00").toLocaleDateString(LOC(), { month: "short", year: "2-digit" });
     body.appendChild(el("div", "bars", months.map(([k, v]) => `<div class="br"><span>${fmtM(k)}</span><div class="bt"><i style="width:${Math.max(2, v / max * 100)}%"></i></div><span class="bv">${money(v)}</span></div>`).join("")));
   }
-  const models = Object.entries(stats.byModel || {}).sort((a, b) => b[1].turns - a[1].turns).slice(0, 6);
+  const models = Object.entries(stats.byModel || {}).filter(([, m]) => m.turns > 0).sort((a, b) => b[1].turns - a[1].turns).slice(0, 6);
   if(models.length){
     sec(body, "Modèles utilisés");
     const max = Math.max(...models.map(m => m[1].turns), 1);

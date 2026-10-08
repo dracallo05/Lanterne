@@ -648,7 +648,8 @@ function saveAdv(){
   index = index.filter(x => x.id !== adv.id); index.unshift(indexEntry(adv));
   LS.set("lan.index", index);
 }
-function indexEntry(a){ return { id: a.id, title: a.title, updated: a.updated, spent: a.spent || 0, summary: visible(a.summary).slice(0, 220), hasCover: !!a.hasCover, coverPos: a.coverPos ?? 50 }; }
+function indexEntry(a){ return Object.assign({ id: a.id, title: a.title, updated: a.updated, spent: a.spent || 0, summary: visible(a.summary).slice(0, 220), hasCover: !!a.hasCover, coverPos: a.coverPos ?? 50 }, a.trashed ? { trashed: a.trashed } : {}); }
+const liveIndex = () => index.filter(x => !x.trashed);
 function blankAdventure(){
   return { id: uid(), title: "", created: Date.now(), updated: Date.now(), spent: 0,
     instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "", cards: [], actions: [],
@@ -872,7 +873,8 @@ const CHANGELOG = [
       "Dépenses masquées par défaut (Réglages → Données → Afficher les dépenses)",
       "Stats et données réunies dans un seul onglet",
       "Apparence générale pour le menu et les histoires (Réglages → Apparence), 8 nouveaux thèmes",
-      "Ton statut (Admin, Créateur) affiché dans Réglages → Compte"],
+      "Ton statut (Admin, Créateur) affiché dans Réglages → Compte",
+      "Corbeille : les aventures et scénarios supprimés se restaurent pendant 30 jours (Réglages → Données → Corbeille)"],
     en: [
       "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene, even hundreds of turns later",
       "My scenarios: your private scenarios, kept apart from your games. Editing them never touches games already started",
@@ -886,7 +888,8 @@ const CHANGELOG = [
       "Spending hidden by default (Settings → Data → Show spending)",
       "Stats and data merged into a single tab",
       "General appearance for the menu and stories (Settings → Appearance), 8 new themes",
-      "Your status (Admin, Creator) shown in Settings → Account"] },
+      "Your status (Admin, Creator) shown in Settings → Account",
+      "Trash: deleted adventures and scenarios can be restored for 30 days (Settings → Data → Trash)"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés, avec recherche, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import d'aventures, de scénarios et de Story Cards"],
     en: ["Discover tab: shared scenarios, with search, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import of adventures, scenarios and Story Cards"] },
   { v: "7.2", fr: ["Esprit des personnages : humeur, relation avec toi (confiance, affection, peur, tension), objectifs, plan, ce qu'ils savent, secrets, façon de parler", "Les personnages vivent hors champ et ne savent que ce qu'ils ont vu ou entendu", "Onglet Scripts réorganisé : outils Lanterne recommandés en haut, scripts classiques à part en dessous"],
@@ -946,12 +949,49 @@ function coverMenu(btnEl, x){
     showLibrary();
   };
 }
+/* Corbeille : une aventure ou un scénario supprimé y reste 30 jours (Réglages → Données → Corbeille) */
+const TRASH_DAYS = 30;
 function deleteAdventure(id, title){
-  if(!confirm(`Supprimer définitivement « ${title || "cette aventure"} » ?`)) return;
-  LS.del("lan.adv." + id); LS.del("lan.cover." + id);
-  index = index.filter(x => x.id !== id); LS.set("lan.index", index);
-  if(adv && adv.id === id){ closeSheet(); }
-  showLibrary(); toast("Aventure supprimée");
+  if(!confirm(L(`Mettre « ${title || "cette aventure"} » à la corbeille ?\n\nTu pourras la restaurer pendant ${TRASH_DAYS} jours (Réglages → Données → Corbeille).`, `Move “${title || "this adventure"}” to the trash?\n\nYou can restore it for ${TRASH_DAYS} days (Settings → Data → Trash).`))) return;
+  const a = adv && adv.id === id ? adv : LS.get("lan.adv." + id, null);
+  if(a){ a.trashed = Date.now(); LS.set("lan.adv." + id, a); index = index.filter(x => x.id !== id); index.push(indexEntry(a)); LS.set("lan.index", index); }
+  if(adv && adv.id === id){ adv = null; closeSheet(); }
+  showLibrary(); toast(L("Aventure mise à la corbeille", "Adventure moved to the trash"));
+}
+function purgeAdventure(id){ LS.del("lan.adv." + id); LS.del("lan.cover." + id); index = index.filter(x => x.id !== id); LS.set("lan.index", index); }
+function restoreAdventure(id){ const a = LS.get("lan.adv." + id, null); if(!a) return; delete a.trashed; LS.set("lan.adv." + id, a); index = index.filter(x => x.id !== id); index.push(indexEntry(a)); LS.set("lan.index", index); }
+function trashedScns(){ const out = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.trashed) out.push(v); } } return out; }
+function purgeOldTrash(){
+  const lim = Date.now() - TRASH_DAYS * 864e5;
+  index.filter(x => x.trashed && x.trashed < lim).forEach(x => purgeAdventure(x.id));
+  trashedScns().filter(t => t.trashed < lim).forEach(t => { LS.del(scnKey(t.id)); LS.del("lan.cover." + t.id); });
+}
+function openTrash(back){
+  openSheet(L("Corbeille", "Trash"), null, (_, b) => {
+    const advs = index.filter(x => x.trashed).sort((x, y) => y.trashed - x.trashed), scns = trashedScns().sort((x, y) => y.trashed - x.trashed);
+    hint(b, L(`Les éléments supprimés restent ici ${TRASH_DAYS} jours, puis disparaissent pour de bon.`, `Deleted items stay here for ${TRASH_DAYS} days, then are gone for good.`));
+    const left = t => Math.max(0, TRASH_DAYS - Math.floor((Date.now() - t) / 864e5));
+    const row = (title, sub, cover, onRestore, onPurge) => {
+      const it = el("div", "item"); it.appendChild(cover);
+      it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(title)}</div><div class="m">${sub}</div>`));
+      const r = el("div", "row"); r.style.cssText = "gap:6px;flex:none";
+      btn(r, L("Restaurer", "Restore"), "ghost small", onRestore);
+      btn(r, L("Supprimer", "Delete"), "danger small", onPurge);
+      it.appendChild(r); b.appendChild(it);
+    };
+    if(!advs.length && !scns.length){ hint(b, L("La corbeille est vide.", "The trash is empty.")).style.marginTop = "12px"; }
+    if(advs.length){ sec(b, L("Aventures", "Adventures")); advs.forEach(x => row(x.title, L(`encore ${left(x.trashed)} j`, `${left(x.trashed)} days left`), coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos),
+      () => { restoreAdventure(x.id); toast(L("Aventure restaurée", "Adventure restored")); openTrash(back); },
+      () => { if(!confirm(L(`Supprimer définitivement « ${x.title} » ?`, `Permanently delete “${x.title}”?`))) return; purgeAdventure(x.id); openTrash(back); })); }
+    if(scns.length){ sec(b, L("Scénarios", "Scenarios")); scns.forEach(t => row(t.title, L(`encore ${left(t.trashed)} j`, `${left(t.trashed)} days left`), coverEl("", t.hasCover ? t.id : null, t.title, t.coverPos),
+      () => { delete t.trashed; saveScn(t); toast(L("Scénario restauré", "Scenario restored")); openTrash(back); },
+      () => { if(!confirm(L(`Supprimer définitivement « ${t.title} » ?`, `Permanently delete “${t.title}”?`))) return; LS.del(scnKey(t.id)); LS.del("lan.cover." + t.id); openTrash(back); })); }
+    if(advs.length + scns.length > 1) btn(b, L("Vider la corbeille", "Empty the trash"), "danger small", () => {
+      if(!confirm(L("Tout supprimer définitivement ?", "Permanently delete everything?"))) return;
+      advs.forEach(x => purgeAdventure(x.id)); scns.forEach(t => { LS.del(scnKey(t.id)); LS.del("lan.cover." + t.id); }); openTrash(back);
+    }).style.marginTop = "16px";
+    if(back) btn(b, L("← Retour", "← Back"), "ghost small", back).style.marginTop = "12px";
+  });
 }
 const LIB_ICONS = {
   PLAY: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 5.2v13.6a1 1 0 001.5.86l10.6-6.8a1 1 0 000-1.72L10 4.34a1 1 0 00-1.5.86z"/></svg>`,
@@ -970,7 +1010,8 @@ function showLibrary(){
   const hero = el("div", "hero", `<div class="greet">${hr < 5 || hr >= 18 ? "Bonsoir." : hr < 12 ? "Bonjour." : "Bon après-midi."}</div><div class="sub">${TAGLINES[Math.floor(Math.random() * TAGLINES.length)]}</div>`);
   lib.appendChild(hero);
   btn(hero, "+ Nouvelle aventure", "wide", () => adventureWizard()).style.marginTop = "16px";
-  const list = index.sort((a, b) => b.updated - a.updated);
+  index.sort((a, b) => b.updated - a.updated);
+  const list = liveIndex();
   hero.appendChild(el("div", "stats", `<div><b>${list.length}</b><span>aventure${list.length > 1 ? "s" : ""}</span></div>` + (costsOn() ? `<div><b>${money(stats.total)}</b><span>dépensé au total</span></div>` : `<div><b>${(stats.turns || 0).toLocaleString(LOC())}</b><span>${L("tours joués", "turns played")}</span></div>`)));
   if(syncConf().url){ const sl = el("button", "syncline", syncLabel()); sl.id = "syncLine"; sl.onclick = () => openSettings("sync"); hero.appendChild(sl); }
   if(!settings.apiKey){
@@ -1294,7 +1335,7 @@ function charConfigEditor(b, c, onChange){
 const scnKey = id => "lan.scn." + id;
 function scnList(){
   const out = [];
-  for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.id) out.push(v); } }
+  for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.id && !v.trashed) out.push(v); } }
   return out.sort((a, b) => (b.updated || 0) - (a.updated || 0));
 }
 function saveScn(t){ t.updated = Date.now(); return LS.set(scnKey(t.id), t); }
@@ -1329,10 +1370,10 @@ function writeScn(t, d){
   return t;
 }
 function deleteScn(t){
-  if(!confirm(L(`Supprimer le scénario « ${t.title} » ? Les parties déjà lancées ne sont pas touchées.`, `Delete the scenario “${t.title}”? Games already started are not affected.`))) return false;
-  LS.del(scnKey(t.id)); LS.del("lan.cover." + t.id);
+  if(!confirm(L(`Mettre le scénario « ${t.title} » à la corbeille ? Les parties déjà lancées ne sont pas touchées. Tu pourras le restaurer pendant ${TRASH_DAYS} jours.`, `Move the scenario “${t.title}” to the trash? Games already started are not affected. You can restore it for ${TRASH_DAYS} days.`))) return false;
+  t.trashed = Date.now(); LS.set(scnKey(t.id), t);
   if(t.publishedId) toast(L("Supprimé de Mes scénarios. Il reste dans Découvrir : retire-le depuis Découvrir si tu veux.", "Deleted from My scenarios. It stays in Discover: remove it from Discover if you want."));
-  else toast(L("Scénario supprimé", "Scenario deleted"));
+  else toast(L("Scénario mis à la corbeille", "Scenario moved to the trash"));
   return true;
 }
 function scnTarget(t){ return { obj: t, save: o => saveScn(o), sc: () => scnToSc(t) }; }
@@ -3159,7 +3200,7 @@ async function renderDiscover(lib){
   let tq; q.oninput = () => { clearTimeout(tq); tq = setTimeout(() => { discState.q = q.value.trim(); load(); }, 350); };
   const load = async () => {
     try{
-      const role = await getRole();
+      const role = await getRole(true);
       acts.innerHTML = "";
       if(canPublish()) btn(acts, L("+ Publier", "+ Publish"), "small", pickAdventureToPublish);
       if(role === "admin") btn(acts, L("Créateurs", "Creators"), "ghost small", openCreators);
@@ -3334,8 +3375,8 @@ function pickAdventureToPublish(){
     if(!sl.length) hint(b, L("Aucun scénario. Crée-en un dans l'onglet Mes scénarios.", "No scenarios. Create one in the My scenarios tab."));
     sl.forEach(t => { const it = el("div", "item"); it.appendChild(coverEl("", t.hasCover ? t.id : null, t.title, t.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(t.title)}</div>${t.publishedId ? `<div class="m">${L("déjà publié", "already published")}</div>` : ""}`)); it.onclick = () => publishSheet(() => showLibrary(), scnTarget(t)); b.appendChild(it); });
     sec(b, L("Mes aventures (état actuel)", "My adventures (current state)"));
-    if(!index.length) hint(b, L("Aucune aventure.", "No adventures."));
-    index.forEach(x => { const it = el("div", "item"); it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(x.title)}</div>`)); it.onclick = () => { const a = LS.get("lan.adv." + x.id, null); if(a){ adv = migrate(a); publishSheet(() => { adv = null; showLibrary(); }); } }; b.appendChild(it); });
+    if(!liveIndex().length) hint(b, L("Aucune aventure.", "No adventures."));
+    liveIndex().forEach(x => { const it = el("div", "item"); it.appendChild(coverEl("", x.hasCover ? x.id : null, x.title, x.coverPos)); it.appendChild(el("div", "grow", `<div class="t noi18n">${esc(x.title)}</div>`)); it.onclick = () => { const a = LS.get("lan.adv." + x.id, null); if(a){ adv = migrate(a); publishSheet(() => { adv = null; showLibrary(); }); } }; b.appendChild(it); });
   });
 }
 async function shrinkCover(url){
@@ -4446,7 +4487,7 @@ function renderStatsTab(body){
   const days = Object.keys(stats.days || {}).length;
   body.appendChild(el("div", "kpis", `
     <div><b>${(stats.turns || 0).toLocaleString(LOC())}</b><span>tours joués</span></div>
-    <div><b>${index.length}</b><span>aventures</span></div>
+    <div><b>${liveIndex().length}</b><span>aventures</span></div>
     <div><b>${(stats.words || 0).toLocaleString(LOC())}</b><span>mots écrits par l'IA</span></div>
     <div><b>${(stats.playerWords || 0).toLocaleString(LOC())}</b><span>mots écrits par toi</span></div>
     ${costsOn() ? `<div><b>${money(stats.total)}</b><span>dépensé au total</span></div>` : `<div><b>${scnList().length}</b><span>${L("scénarios", "scenarios")}</span></div>`}
@@ -4558,10 +4599,12 @@ function openSettings(start){
       hint(body, "Tout est enregistré sur ce téléphone. Exporte régulièrement une sauvegarde : si tu effaces les données de l'app, tout part avec.");
       const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
       btn(r, L("↑ Tout exporter", "↑ Export everything"), "ghost", () => {
-        const all = index.map(x => { const a = LS.get("lan.adv." + x.id, null); if(a && a.hasCover) a.cover = getCover(a.id); return a; }).filter(Boolean);
+        const all = liveIndex().map(x => { const a = LS.get("lan.adv." + x.id, null); if(a && a.hasCover) a.cover = getCover(a.id); return a; }).filter(Boolean);
         download(`lanterne-sauvegarde-${new Date().toISOString().slice(0,10)}.json`, { lanterne: 1, adventures: all });
       });
       btn(r, L("↓ Importer", "↓ Import"), "ghost", importAIDMenu);
+      const nTrash = index.filter(x => x.trashed).length + trashedScns().length;
+      btn(body, L(`Corbeille${nTrash ? ` (${nTrash})` : ""}`, `Trash${nTrash ? ` (${nTrash})` : ""}`), "ghost small", () => openTrash(() => openSettings("data"))).style.marginTop = "12px";
       btn(body, "Revoir le tutoriel", "ghost small", () => { closeSheet(); onboarding(true); }).style.marginTop = "12px";
       sec(body, L("Licences", "Licenses"));
       hint(body, L(`Les scripts classiques reprennent du code open source de <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a> (licence MIT).`, `The classic scripts reuse open-source code by <a href="https://github.com/LewdLeah/Inner-Self" target="_blank" rel="noopener">LewdLeah</a> (MIT license).`));
@@ -4643,6 +4686,7 @@ window.addEventListener("beforeunload", () => saveAdv());
 
 if(isEN()) trNode(document.body);
 updateTools();
+try{ purgeOldTrash(); }catch(e){}
 showLibrary();
 onboarding();
 handleAuthRedirect().finally(() => syncNow(false));

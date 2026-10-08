@@ -1226,7 +1226,7 @@ function scnFromSc(sc){
   const t = { id: uid(), created: Date.now(), updated: Date.now(), title: sc.title || L("Sans titre", "Untitled"), opening: sc.opening || "", essentials: sc.essentials || "", authorsNote: sc.authorsNote || "",
     instructions: sc.instructions || DEFAULT_INSTRUCTIONS, cards: (sc.cards || []).map(c => normalizeCard({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })),
     scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}, { player: "" }), style: sc.style || null, coverPos: sc.coverPos ?? 50, hasCover: false,
-    publish: { character: Object.assign({ enabled: false, fields: [], questions: [] }, clone(sc.character) || {}) } };
+    publish: Object.assign({ character: Object.assign({ enabled: false, fields: [], questions: [] }, clone(sc.character) || {}) }, sc.hook ? { hook: String(sc.hook).slice(0, 220) } : {}, sc.genre ? { genre: sc.genre } : {}) };
   if(sc.cover && LS.set("lan.cover." + t.id, sc.cover)) t.hasCover = true;
   return t;
 }
@@ -1293,8 +1293,13 @@ function originOf(a){
     scripts: Object.assign({}, a.scripts, { player: "" }), style: a.style, coverPos: a.coverPos,
     character: a.publish?.character?.enabled ? clone(a.publish.character) : { enabled: false, fields: [], questions: [] }, late: true };
 }
-function restartAdventure(a){
+function originFull(a){
   const o = clone(a.origin || originOf(a));
+  if(o.cardsFrom){ const t = LS.get(scnKey(o.cardsFrom), null); o.cards = t ? scnToSc(t).cards : []; delete o.cardsFrom; }
+  return o;
+}
+function restartAdventure(a){
+  const o = originFull(a);
   if(!confirm(L(`Recommencer « ${o.title || a.title} » depuis le début ?\n\nUne nouvelle partie est créée avec le matériel de départ (ouverture, essentiels, cartes, instructions). Ta partie actuelle est gardée.`, `Restart “${o.title || a.title}” from the beginning?\n\nA new game is created with the starting material (opening, essentials, cards, instructions). Your current game is kept.`))) return;
   if(a.hasCover) o.cover = getCover(a.id);
   closeSheet(); playScenario(o, null, { scenarioId: a.scenarioId });
@@ -1304,7 +1309,7 @@ function scenarioFromAdventure(a){
     hint(b, L("Le scénario est rangé dans Mes scénarios, en privé. Ta partie n'est pas modifiée.", "The scenario goes to My scenarios, privately. Your game isn't changed."));
     const opt = (t, d, f) => { const o = el("button", "mdl", `<div class="grow"><div class="n">${t}</div><div class="d">${d}</div></div>`); o.onclick = f; b.appendChild(o); };
     const make = sc => { if(a.hasCover) sc.cover = getCover(a.id); const t = scnFromSc(sc); saveScn(t); toast(L("Scénario créé dans Mes scénarios", "Scenario created in My scenarios")); closeSheet(); adventureWizard(scnPre(t), { scn: t }); };
-    opt(L("Depuis le départ", "From the start"), L("Le matériel d'origine de cette partie, comme au premier tour.", "This game's original material, as on the first turn."), () => make(clone(a.origin || originOf(a))));
+    opt(L("Depuis le départ", "From the start"), L("Le matériel d'origine de cette partie, comme au premier tour.", "This game's original material, as on the first turn."), () => make(originFull(a)));
     opt(L("Depuis l'état actuel", "From the current state"), L("L'ouverture d'origine, mais les cartes, essentiels et instructions d'aujourd'hui (enrichis pendant la partie).", "The original opening, but today's cards, essentials and instructions (enriched during play)."), () => make(Object.assign(originOf(a), { character: clone((a.origin || {}).character) || { enabled: false, fields: [], questions: [] } })));
   });
 }
@@ -1444,10 +1449,34 @@ function formatPlayer(type, text){
   if(type === "do") return "> " + text;
   return text;
 }
+/* Cartes envoyées à l'IA : celles dont un mot-clé apparaît dans les derniers passages, les plus récemment citées d'abord,
+   dans la limite d'une part de la mémoire (25 % par défaut), pour que l'histoire récente ne soit jamais chassée par trop de cartes. */
 function triggeredCards(){
-  const recent = adv.actions.slice(-settings.cardScanDepth).map(a => a.text).join("\n").toLowerCase();
-  return adv.cards.filter(c => c.enabled !== false && !isSystem(c) && !isBrain(c) && visible(c.entry) &&
-    (c.keys || "").split(",").map(k => k.trim().toLowerCase()).filter(Boolean).some(k => recent.includes(k)));
+  const recent = adv.actions.slice(-settings.cardScanDepth).map(a => a.text.toLowerCase()).reverse();
+  const hits = [];
+  adv.cards.forEach(c => {
+    if(c.enabled === false || isSystem(c) || isBrain(c) || !visible(c.entry)) return;
+    const keys = (c.keys || "").split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
+    if(!keys.length) return;
+    const age = recent.findIndex(t => keys.some(k => keyHit(t, k)));
+    if(age >= 0) hits.push({ c, age });
+  });
+  hits.sort((x, y) => x.age - y.age);
+  const cap = Math.round(settings.contextTokens * (settings.wiPct || 25) / 100);
+  let used = 0; const out = [];
+  for(const { c } of hits){ const t = estTok(c.entry) + 6; if(out.length && used + t > cap) continue; used += t; out.push(c); }
+  return out;
+}
+/* Un mot-clé doit commencer un mot (« Cana » ne se déclenche pas sur « canaux ») ; les mots-clés courts (moins de 5 lettres) doivent être un mot entier. */
+const keyRe = new Map();
+function keyHit(text, k){
+  let re = keyRe.get(k);
+  if(!re){
+    const e = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    try{ re = new RegExp("(^|[^\\p{L}\\p{N}_])" + e + (k.length < 5 ? "(?![\\p{L}\\p{N}_])" : ""), "iu"); }catch(err){ re = null; }
+    keyRe.set(k, re);
+  }
+  return re ? re.test(text) : text.includes(k);
 }
 /* Ordre pensé pour le cache des fournisseurs : ce qui ne bouge pas (instructions, essentiels, résumé, histoire)
    en premier, ce qui change à chaque tour (cartes, souvenirs, esprits, RPG) dans le dernier message.
@@ -2875,7 +2904,7 @@ function importScenarioFile(toScn){
   i.onchange = async () => {
     try{
       const j = JSON.parse(await i.files[0].text());
-      const sc = j.lanterne_scenario ? j : j.adventures?.length ? (() => { const a = migrate(j.adventures[0]); const o = clone(a.origin || originOf(a)); o.cover = j.adventures[0].cover; return o; })() : null;
+      const sc = j.lanterne_scenario ? j : j.adventures?.length ? (() => { const a = migrate(j.adventures[0]); const o = originFull(a); o.cover = j.adventures[0].cover; return o; })() : null;
       if(sc && toScn){ const t = scnFromSc(sc); saveScn(t); libTab = "scn"; if(!adv) showLibrary(); toast(L("Scénario importé dans Mes scénarios", "Scenario imported into My scenarios")); adventureWizard(scnPre(t), { scn: t }); }
       else if(sc) startFromScenario(sc);
       else throw new Error("ce n'est pas un scénario Lanterne");
@@ -3188,6 +3217,8 @@ async function playScenario(sc, publishedId, opt = {}){
     scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}) });
   if(ans?.name) a.scripts.player = ans.name;
   a.origin = Object.assign(clone(Object.assign({}, sc, { cover: undefined })), { late: undefined });
+  // gros scénarios : on ne recopie pas des centaines de cartes dans chaque partie, on les reprend du scénario au besoin
+  if(opt.scenarioId && JSON.stringify(a.origin.cards || []).length > 60000){ delete a.origin.cards; a.origin.cardsFrom = opt.scenarioId; }
   if(opt.scenarioId) a.scenarioId = opt.scenarioId;
   if(publishedId) a.publishedFrom = publishedId;
   if(sc.style) a.style = Object.assign({}, DEFAULT_STYLE, sc.style);

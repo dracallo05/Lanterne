@@ -321,6 +321,8 @@ details.fold summary{padding:12px 14px;cursor:pointer;color:var(--tx2);font-size
 details.fold summary::-webkit-details-marker{display:none}
 details.fold summary::before{content:"▸ ";color:var(--tx3)}
 details.fold[open] summary::before{content:"▾ "}
+.rbadge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--bg3);color:var(--acc2);border:1px solid var(--line)}
+.rbadge.admin{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 2px}
 .tag2{font-size:11.5px;color:var(--tx3);background:var(--bg3);border-radius:999px;padding:2px 8px}
 .tag2.ck{cursor:pointer;font-size:12.5px;padding:3px 10px}
@@ -474,6 +476,14 @@ const THEMES = {
   foret:     { name: "Forêt",     v: { bg:"#171c18", bg2:"#1e2520", bg3:"#273029", line:"#334036", tx:"#e1e8df", tx2:"#aab8a8", tx3:"#78867a", acc:"#8fbf7f", acc2:"#a9d39b", onacc:"#0f1a0c" } },
   encre:     { name: "Encre",     v: { bg:"#000000", bg2:"#0e0e0e", bg3:"#1a1a1a", line:"#262626", tx:"#e6e6e6", tx2:"#a8a8a8", tx3:"#707070", acc:"#d97757", acc2:"#e8957a", onacc:"#1b1410" } },
   papier:    { name: "Papier",    v: { bg:"#f4efe6", bg2:"#ebe4d7", bg3:"#e0d7c6", line:"#d2c7b3", tx:"#2b2620", tx2:"#5a5248", tx3:"#857b6d", acc:"#b4553a", acc2:"#a2472e", onacc:"#fff8f0" } },
+  ardoise:   { name: "Ardoise",   v: { bg:"#18191b", bg2:"#1f2023", bg3:"#292b2f", line:"#35373c", tx:"#e4e5e7", tx2:"#a9acb2", tx3:"#787b82", acc:"#c9ccd2", acc2:"#e2e4e8", onacc:"#141517" } },
+  ocean:     { name: "Océan",     v: { bg:"#0e181c", bg2:"#132126", bg3:"#1b2c33", line:"#25393f", tx:"#dcebee", tx2:"#9fb8bd", tx3:"#6c868b", acc:"#4fb6c2", acc2:"#77cbd4", onacc:"#06191c" } },
+  sakura:    { name: "Sakura",    v: { bg:"#1d1619", bg2:"#251c20", bg3:"#30242a", line:"#3e2f36", tx:"#f1e4e8", tx2:"#c4a9b2", tx3:"#8f7780", acc:"#ec8fab", acc2:"#f3adc2", onacc:"#2a0f18" } },
+  amethyste: { name: "Améthyste", v: { bg:"#16131e", bg2:"#1d1928", bg3:"#272135", line:"#332b44", tx:"#e8e3f3", tx2:"#b2a9c9", tx3:"#7e7596", acc:"#a78bfa", acc2:"#c0abfc", onacc:"#170d2e" } },
+  neon:      { name: "Néon",      v: { bg:"#0a0a12", bg2:"#10101c", bg3:"#181828", line:"#242438", tx:"#e9e9ff", tx2:"#a5a6d0", tx3:"#6f7099", acc:"#ff3ea5", acc2:"#3ee8ff", onacc:"#1a0010" } },
+  desert:    { name: "Désert",    v: { bg:"#231b13", bg2:"#2c2218", bg3:"#382c20", line:"#47382a", tx:"#f2e6d4", tx2:"#c8b497", tx3:"#94825f", acc:"#e3a256", acc2:"#efbd7c", onacc:"#241405" } },
+  sang:      { name: "Sang",      v: { bg:"#181012", bg2:"#211618", bg3:"#2c1d20", line:"#3a272a", tx:"#efe2e3", tx2:"#c0a5a8", tx3:"#8b7275", acc:"#d6424f", acc2:"#e56b75", onacc:"#200407" } },
+  givre:     { name: "Givre",     v: { bg:"#eef2f6", bg2:"#e4e9ef", bg3:"#d7dee7", line:"#c7d0db", tx:"#1c2430", tx2:"#4a5566", tx3:"#748093", acc:"#3a6fd8", acc2:"#2f5fc0", onacc:"#f4f8ff" } },
 };
 const FONTS = {
   classique:    { name: "Georgia", css: 'Georgia,"Iowan Old Style","Noto Serif",serif' },
@@ -486,6 +496,9 @@ const FONTS = {
   inter:        { name: "Inter", g: "Inter:wght@400;500;600", css: 'Inter,system-ui,sans-serif' },
 };
 const DEFAULT_STYLE = { theme: "braise", font: "classique", size: 17 };
+/* Apparence générale (menu + histoires), qu'une aventure peut remplacer par la sienne */
+const globalStyle = () => Object.assign({}, DEFAULT_STYLE, settings.style || {});
+const styleOf = a => a && a.style && a.style.custom ? a.style : globalStyle();
 
 const DEFAULT_SETTINGS = {
   provider: "openrouter", baseUrl: "", apiKey: "", model: "deepseek/deepseek-v4-pro-0813",
@@ -639,12 +652,13 @@ function indexEntry(a){ return { id: a.id, title: a.title, updated: a.updated, s
 function blankAdventure(){
   return { id: uid(), title: "", created: Date.now(), updated: Date.now(), spent: 0,
     instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "", cards: [], actions: [],
-    style: Object.assign({}, DEFAULT_STYLE), scripts: SCRIPT_DEF(), scriptState: {}, pending: [], scIgnore: [] };
+    style: Object.assign({}, DEFAULT_STYLE, { custom: false }), scripts: SCRIPT_DEF(), scriptState: {}, pending: [], scIgnore: [] };
 }
 function migrate(a){
   a.spent ||= 0; a.cards ||= []; a.actions ||= [];
   a.instructions ??= DEFAULT_INSTRUCTIONS; a.essentials ??= ""; a.authorsNote ??= ""; a.summary ??= "";
   a.style = Object.assign({}, DEFAULT_STYLE, a.style || {});
+  if(a.style.custom == null) a.style.custom = a.style.theme !== DEFAULT_STYLE.theme || a.style.font !== DEFAULT_STYLE.font || a.style.size !== DEFAULT_STYLE.size;
   a.scripts = Object.assign(SCRIPT_DEF(), a.scripts || {});
   a.pending ||= []; a.scIgnore ||= []; a.arOff ||= []; a.arUser ??= ""; a.minds ||= {};
   if(!a.origin && a.actions.some(x => x.type === "ai")) a.origin = originOf(a); // parties d'avant la 7.4 : on fige le départ tel qu'il est aujourd'hui
@@ -699,7 +713,7 @@ function closeSheet(){
   if(syncPendingUI){
     syncPendingUI = false;
     if(!adv) showLibrary();
-    else if(!generating){ const a = LS.get("lan.adv." + adv.id, null); if(a){ adv = migrate(a); applyStyle(adv.style); setHeaderTitle(adv.title, false); renderStory(false); } else showLibrary(); }
+    else if(!generating){ const a = LS.get("lan.adv." + adv.id, null); if(a){ adv = migrate(a); applyStyle(styleOf(adv)); setHeaderTitle(adv.title, false); renderStory(false); } else showLibrary(); }
   }
 }
 let sheetRestore = false; const sheetScroll = {};
@@ -856,7 +870,9 @@ const CHANGELOG = [
       "Cartes intelligentes : les cartes de départ peuvent être protégées",
       "Import unifié : sauvegardes, scénarios, histoires et cartes en .json ou .txt",
       "Dépenses masquées par défaut (Réglages → Données → Afficher les dépenses)",
-      "Stats et données réunies dans un seul onglet"],
+      "Stats et données réunies dans un seul onglet",
+      "Apparence générale pour le menu et les histoires (Réglages → Apparence), 8 nouveaux thèmes",
+      "Ton statut (Admin, Créateur) affiché dans Réglages → Compte"],
     en: [
       "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene, even hundreds of turns later",
       "My scenarios: your private scenarios, kept apart from your games. Editing them never touches games already started",
@@ -868,7 +884,9 @@ const CHANGELOG = [
       "Smart cards: starting cards can be protected",
       "Unified import: backups, scenarios, stories and cards as .json or .txt",
       "Spending hidden by default (Settings → Data → Show spending)",
-      "Stats and data merged into a single tab"] },
+      "Stats and data merged into a single tab",
+      "General appearance for the menu and stories (Settings → Appearance), 8 new themes",
+      "Your status (Admin, Creator) shown in Settings → Account"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés, avec recherche, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import d'aventures, de scénarios et de Story Cards"],
     en: ["Discover tab: shared scenarios, with search, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import of adventures, scenarios and Story Cards"] },
   { v: "7.2", fr: ["Esprit des personnages : humeur, relation avec toi (confiance, affection, peur, tension), objectifs, plan, ce qu'ils savent, secrets, façon de parler", "Les personnages vivent hors champ et ne savent que ce qu'ils ont vu ou entendu", "Onglet Scripts réorganisé : outils Lanterne recommandés en haut, scripts classiques à part en dessous"],
@@ -942,7 +960,7 @@ const LIB_ICONS = {
 };
 function showLibrary(){
   stopGen(); adv = null; $(".app").classList.add("wide");
-  applyStyle(DEFAULT_STYLE);
+  applyStyle(globalStyle());
   $("#libView").classList.remove("hidden");
   $("#storyView").classList.add("hidden"); $("#bar").classList.add("hidden");
   $("#backBtn").classList.add("hidden"); $("#advBtn").classList.add("hidden"); $("#searchBtn").classList.add("hidden"); hideIdeas(); stopSpeaking();
@@ -1410,7 +1428,7 @@ function openAdventure(id){
   const a = LS.get("lan.adv." + id, null);
   if(!a){ toast("Aventure introuvable"); index = index.filter(x => x.id !== id); LS.set("lan.index", index); return showLibrary(); }
   adv = migrate(a); redoStack = []; lastCost = null;
-  applyStyle(adv.style);
+  applyStyle(styleOf(adv));
   $(".app").classList.remove("wide");
   $("#libView").classList.add("hidden");
   $("#storyView").classList.remove("hidden"); $("#bar").classList.remove("hidden");
@@ -3289,7 +3307,7 @@ async function playScenario(sc, publishedId, opt = {}){
   if(opt.scenarioId && JSON.stringify(a.origin.cards || []).length > 60000){ delete a.origin.cards; a.origin.cardsFrom = opt.scenarioId; }
   if(opt.scenarioId) a.scenarioId = opt.scenarioId;
   if(publishedId) a.publishedFrom = publishedId;
-  if(sc.style) a.style = Object.assign({}, DEFAULT_STYLE, sc.style);
+  if(sc.style && sc.style.custom) a.style = Object.assign({}, DEFAULT_STYLE, sc.style);
   if(sc.cover && LS.set("lan.cover." + a.id, sc.cover)){ a.hasCover = true; a.coverPos = sc.coverPos ?? 50; }
   let opening = sub(sc.opening || "");
   adv = a; saveAdv(); openAdventure(a.id);
@@ -3855,7 +3873,7 @@ function applyPulled(keys){
   if(!adv){ if(!$(".ob")) showLibrary(); }
   else if(advChanged && !generating){
     const a = LS.get("lan.adv." + adv.id, null);
-    if(a){ adv = migrate(a); applyStyle(adv.style); setHeaderTitle(adv.title, false); renderStory(false); }
+    if(a){ adv = migrate(a); applyStyle(styleOf(adv)); setHeaderTitle(adv.title, false); renderStory(false); }
     else showLibrary();
   }
 }
@@ -3929,6 +3947,8 @@ function renderSyncTab(body){
     btn(body, "Se déconnecter", "ghost small", () => { signOut(); openSettings("sync"); }).style.marginTop = "12px";
   } else {
     body.appendChild(el("div", "stat", `<span>Connecté</span><b>${esc(auth.user.email)}</b>`));
+    const rl = el("div", "stat", `<span>${L("Statut", "Status")}</span><b class="role">…</b>`); body.appendChild(rl);
+    getRole(true).then(r => { const b = rl.querySelector(".role"); if(b) b.innerHTML = r === "admin" ? `<span class="rbadge admin">Admin</span>` : r === "publisher" ? `<span class="rbadge">${L("Créateur", "Creator")}</span>` : L("Joueur", "Player"); }).catch(() => {});
     body.appendChild(el("div", "stat", `<span>Chiffrement</span><b>de bout en bout</b>`));
     btn(body, "Synchroniser maintenant", "wide", () => syncNow(true)).style.margin = "8px 0 16px";
     toggle(body, "Synchroniser aussi la clé API", "Pratique : rien à recoller sur le PC. Elle est chiffrée comme le reste : personne d'autre ne peut la lire.", () => settings.syncApiKey, v => { settings.syncApiKey = v; saveSettings(); });
@@ -4018,25 +4038,33 @@ function renderSmartExtras(body){
     btn(body, "Ouvrir la fiche du personnage", "ghost small", openRpgSheet);
   }
 }
-function renderLookTab(body){
-  const save = () => { saveAdv(); applyStyle(adv.style); };
+function styleEditor(body, st, save, reopen){
   sec(body, "Thème");
   const g = el("div", "grid2"); body.appendChild(g);
   Object.entries(THEMES).forEach(([k, t]) => {
-    const o = el("button", "opt" + (adv.style.theme === k ? " on" : ""), `<b>${t.name}</b><div class="swatch"><i style="background:${t.v.bg}"></i><i style="background:${t.v.bg3}"></i><i style="background:${t.v.acc}"></i><i style="background:${t.v.tx}"></i></div>`);
+    const o = el("button", "opt" + (st.theme === k ? " on" : ""), `<b>${t.name}</b><div class="swatch"><i style="background:${t.v.bg}"></i><i style="background:${t.v.bg3}"></i><i style="background:${t.v.acc}"></i><i style="background:${t.v.tx}"></i></div>`);
     o.style.background = t.v.bg2; o.style.color = t.v.tx;
-    o.onclick = () => { adv.style.theme = k; save(); openAdventureSheet("look"); };
+    o.onclick = () => { st.theme = k; save(); reopen(); };
     g.appendChild(o);
   });
   sec(body, "Police de l'histoire");
   const f = el("div", "grid2"); body.appendChild(f);
   Object.entries(FONTS).forEach(([k, ft]) => {
     loadFont(ft);
-    const o = el("button", "opt" + (adv.style.font === k ? " on" : ""), `<div style="font-family:${ft.css.replace(/"/g, "'")};font-size:18px">Il était une fois</div><div class="hint" style="margin:4px 0 0">${ft.name}</div>`);
-    o.onclick = () => { adv.style.font = k; save(); openAdventureSheet("look"); };
+    const o = el("button", "opt" + (st.font === k ? " on" : ""), `<div style="font-family:${ft.css.replace(/"/g, "'")};font-size:18px">Il était une fois</div><div class="hint" style="margin:4px 0 0">${ft.name}</div>`);
+    o.onclick = () => { st.font = k; save(); reopen(); };
     f.appendChild(o);
   });
-  slider(body, "Taille du texte", "size", 14, 24, 1, null, adv.style, save);
+  slider(body, "Taille du texte", "size", 14, 24, 1, null, st, save);
+}
+function renderLookTab(body){
+  const custom = !!adv.style.custom;
+  toggle(body, L("Apparence propre à cette aventure", "Appearance specific to this adventure"), L("Désactivé, l'aventure suit l'apparence générale (Réglages → Apparence).", "Off, the adventure follows the general appearance (Settings → Appearance)."), () => custom, v => {
+    if(v) adv.style = Object.assign({}, globalStyle(), { custom: true }); else adv.style.custom = false;
+    saveAdv(); applyStyle(styleOf(adv)); openAdventureSheet("look");
+  });
+  if(custom) styleEditor(body, adv.style, () => { saveAdv(); applyStyle(styleOf(adv)); }, () => openAdventureSheet("look"));
+  else btn(body, L("Changer l'apparence générale", "Change the general appearance"), "ghost small", () => openSettings("look")).style.margin = "4px 0 6px";
   sec(body, "Image de couverture");
   const pc = coverFramer(body, () => adv.hasCover ? getCover(adv.id) : null, () => adv.coverPos, v => { adv.coverPos = v; saveAdv(); });
   if(!adv.hasCover) pc.textContent = "＋ Choisir une image";
@@ -4440,8 +4468,13 @@ function renderStatsTab(body){
   if(!stats.turns) hint(body, "Les statistiques se remplissent au fil de tes parties.");
 }
 function openSettings(start){
-  openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Mémoire"],["voice","Voix"],["sync","Compte"],["data","Données"]], (k, body) => {
+  openSheet("Réglages", [["model","Modèle"],["gen","Génération"],["ctx","Mémoire"],["voice","Voix"],["sync","Compte"],["look","Apparence"],["data","Données"]], (k, body) => {
     if(k === "sync") renderSyncTab(body);
+    if(k === "look"){
+      hint(body, L("S'applique au menu et à toutes tes histoires. Une aventure peut avoir la sienne (dans l'aventure → Apparence).", "Applies to the menu and all your stories. An adventure can have its own (in the adventure → Appearance)."));
+      const st = globalStyle();
+      styleEditor(body, st, () => { settings.style = { theme: st.theme, font: st.font, size: st.size }; saveSettings(); applyStyle(adv ? styleOf(adv) : globalStyle()); }, () => openSettings("look"));
+    }
     if(k === "voice") renderVoiceTab(body);
     if(k === "model"){
       const tl = el("label", "f", `<span>Fournisseur</span>`);

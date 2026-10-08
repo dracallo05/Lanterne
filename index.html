@@ -280,6 +280,7 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20}
 .sheet{position:fixed;left:0;right:0;bottom:0;max-width:760px;margin:0 auto;height:90dvh;background:var(--bg);border-top-left-radius:20px;border-top-right-radius:20px;z-index:21;display:flex;flex-direction:column;border:1px solid var(--line);border-bottom:0}
 .sheet .sh{display:flex;align-items:center;padding:10px 10px 0 16px;flex:none}
+.sheet .sh .shback{margin:0 4px 0 -8px}
 .sheet .sh h2{flex:1;font-size:17px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tabs{display:flex;gap:4px;padding:8px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);flex:none}
 .tab{padding:8px 12px;border-radius:10px;color:var(--tx2);white-space:nowrap;font-size:14px}
@@ -320,6 +321,14 @@ details.fold summary{padding:12px 14px;cursor:pointer;color:var(--tx2);font-size
 details.fold summary::-webkit-details-marker{display:none}
 details.fold summary::before{content:"▸ ";color:var(--tx3)}
 details.fold[open] summary::before{content:"▾ "}
+.sfoot{position:sticky;bottom:calc(-24px - env(safe-area-inset-bottom));margin:22px -16px calc(-24px - env(safe-area-inset-bottom));padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);z-index:3}
+.cardtools{display:flex;gap:8px;margin-bottom:6px}
+.cardtools input{flex:1;min-width:0}
+.cardtools select{width:auto;flex:none;max-width:46%}
+details.cgrp{margin-bottom:10px}
+details.cgrp summary{font-weight:600;color:var(--tx)}
+details.cgrp summary .cnt{color:var(--tx3);font-weight:400;margin-left:4px}
+details.cgrp .in{padding:0 10px 4px}
 details.fold .in{padding:0 14px 4px}
 .genbox{background:color-mix(in srgb,var(--acc) 7%,var(--bg2));border:1px solid color-mix(in srgb,var(--acc) 30%,var(--line));border-radius:14px;padding:14px;margin-bottom:16px}
 .genbox .gt{font-weight:600;margin-bottom:4px}
@@ -688,22 +697,30 @@ function closeSheet(){
     else if(!generating){ const a = LS.get("lan.adv." + adv.id, null); if(a){ adv = migrate(a); applyStyle(adv.style); setHeaderTitle(adv.title, false); renderStory(false); } else showLibrary(); }
   }
 }
-function openSheet(title, tabs, renderTab, startTab){
+let sheetRestore = false; const sheetScroll = {};
+function openSheet(title, tabs, renderTab, startTab, opts = {}){
   const host = $("#sheetHost");
-  host.innerHTML = `<div class="scrim"></div><div class="sheet"><div class="sh"><h2>${esc(title)}</h2>
+  const prevB = host.querySelector(".body"); if(prevB && host.dataset.title) sheetScroll[host.dataset.title + "|" + (host.dataset.tab || "")] = prevB.scrollTop;
+  const restore = sheetRestore; sheetRestore = false;
+  host.dataset.title = title;
+  host.innerHTML = `<div class="scrim"></div><div class="sheet"><div class="sh">${opts.back ? `<button class="ib shback" aria-label="${L("Retour", "Back")}" title="${L("Retour", "Back")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>` : ""}<h2>${esc(title)}</h2>
     <button class="ib" data-close aria-label="Fermer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     ${tabs ? `<div class="tabs">${tabs.map(t => `<button class="tab" data-tab="${t[0]}">${t[1]}</button>`).join("")}</div>` : ""}
     <div class="body"></div></div>`;
-  host.querySelector(".scrim").onclick = closeSheet;
-  host.querySelector("[data-close]").onclick = closeSheet;
+  const tryClose = () => { if(!opts.beforeClose || opts.beforeClose()) closeSheet(); };
+  host.querySelector(".scrim").onclick = tryClose;
+  host.querySelector("[data-close]").onclick = tryClose;
+  if(opts.back) host.querySelector(".shback").onclick = opts.back;
   const body = host.querySelector(".body");
   const show = k => {
     host.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === k));
+    host.dataset.tab = k || "";
     body.innerHTML = ""; body.scrollTop = 0; renderTab(k, body);
     host.querySelector(".tab.on")?.scrollIntoView({ inline: "nearest", block: "nearest" });
   };
   host.querySelectorAll(".tab").forEach(b => b.onclick = () => show(b.dataset.tab));
   show(startTab || (tabs ? tabs[0][0] : null));
+  if(restore){ const y = sheetScroll[title + "|" + (host.dataset.tab || "")]; if(y) requestAnimationFrame(() => { body.scrollTop = y; }); }
   return body;
 }
 function el(tag, cls, html){ const e = document.createElement(tag); if(cls) e.className = cls; if(html != null) e.innerHTML = html; return e; }
@@ -1118,20 +1135,20 @@ Return ONLY the instructions, no preamble.`;
    mode "scenario" : création ou modification d'un scénario privé (opts.scn), sans rien lancer ni publier. */
 function adventureWizard(pre, opts = {}){
   let scn = opts.scn || null;
+  cardSearch = "";
   const mode = scn || opts.mode === "scenario" ? "scenario" : "adventure";
   const d = Object.assign({ title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [], cover: null,
     scripts: SCRIPT_DEF(), character: { enabled: false, fields: ["name", "gender", "look", "personality"], questions: [] } }, pre || {});
   d.character = Object.assign({ enabled: false, fields: [], questions: [] }, d.character || {});
-  let idea = "", genOpen = false, wish = "", keep = true, dirty = false;
-  const render = (b) => {
-    b.innerHTML = "";
+  let idea = "", genOpen = false, wish = "", keep = true, dirty = false, tab = opts.tab || "gen";
+  const ch = v => { dirty = true; return v; };
+  const tabGeneral = b => {
     const pc = coverFramer(b, () => d.cover, () => d.coverPos, v => { d.coverPos = v; dirty = true; });
     if(!d.cover) pc.textContent = "＋ Image de couverture (optionnel)";
-    pc.onclick = async () => { const img = await chooseCover(); if(img){ d.cover = img; d.coverPos = 50; dirty = true; render(b); } };
-    if(d.cover){ const rm = btn(b, L("Retirer l'image", "Remove image"), "ghost small", () => { d.cover = null; dirty = true; render(b); }); rm.style.margin = "-6px 0 12px"; }
-
+    pc.onclick = async () => { const img = await chooseCover(); if(img){ d.cover = img; d.coverPos = 50; dirty = true; redraw(); } };
+    if(d.cover){ const rm = btn(b, L("Retirer l'image", "Remove image"), "ghost small", () => { d.cover = null; dirty = true; redraw(); }); rm.style.margin = "-6px 0 12px"; }
     const gr = el("div", "row"); gr.style.cssText = "flex-wrap:wrap;margin-bottom:14px"; b.appendChild(gr);
-    btn(gr, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer", "ghost small", () => { genOpen = !genOpen; render(b); });
+    btn(gr, genOpen ? "✨ Générer avec l'IA ▾" : "✨ Pas d'idée ? Générer", "ghost small", () => { genOpen = !genOpen; redraw(); });
     if(!scn) btn(gr, "📥 Importer un scénario", "ghost small", () => { closeSheet(); importScenarioFile(mode === "scenario"); });
     if(genOpen){
       const g = el("div", "genbox", `<div class="hint" style="margin:0 0 8px">Décris une envie en une phrase, ou laisse vide pour une surprise. L'IA remplit le titre, l'ouverture, les essentiels et la note d'auteur.</div>`);
@@ -1144,63 +1161,76 @@ function adventureWizard(pre, opts = {}){
         try{
           const s = await generateScenario(d, idea);
           d.title = s.title || d.title; d.opening = s.opening || d.opening; d.essentials = s.essentials || d.essentials; d.authorsNote = s.authorsNote || d.authorsNote; dirty = true;
-          genOpen = false; toast("Scénario généré, ajuste-le à ton goût"); render(b);
+          genOpen = false; toast("Scénario généré, ajuste-le à ton goût"); redraw();
         }catch(e){ toast("Échec : " + e.message); gb.disabled = false; gb.textContent = "Générer"; }
       });
       gb.style.marginTop = "10px";
     }
-
-    const ch = v => { dirty = true; return v; };
     field(b, "Titre", d.title, v => d.title = ch(v), { placeholder: mode === "scenario" ? L("Le nom de ton scénario", "Your scenario's name") : "Le nom de ton aventure" });
     field(b, "Texte d'ouverture", d.opening, v => d.opening = ch(v), { multiline: true, rows: 6, hint: "Le début de l'histoire, à la 2e personne. L'IA continuera à partir de là.", placeholder: "Tu pousses la porte de l'auberge. Dehors, la tempête redouble…" });
     field(b, "Plot Essentials", d.essentials, v => d.essentials = ch(v), { multiline: true, rows: 4, hint: "Ce que l'IA doit toujours savoir : qui tu es, le monde, les relations, l'enjeu." });
     field(b, "Note d'auteur", d.authorsNote, v => d.authorsNote = ch(v), { multiline: true, rows: 2, hint: AN_HINT, hintHtml: true });
-
-    sec(b, `Story Cards (${d.cards.length})`);
-    hint(b, "Personnages, lieux, objets… Tu peux en ajouter maintenant ou plus tard.");
-    d.cards.forEach(c => b.appendChild(cardTile(c, () => { dirty = true; editCard(c, d.cards, wizardCtx(d), reopen); })));
-    btn(b, "+ Ajouter une carte", "ghost small", () => { dirty = true; editCard(null, d.cards, wizardCtx(d), reopen); }).style.marginBottom = "6px";
-
-    sec(b, L("Personnage du joueur", "Player character"));
-    charConfigEditor(b, d.character, () => dirty = true);
-
-    sec(b, "Outils et scripts (optionnel)");
-    scriptToggles(b, d.scripts, () => dirty = true, () => render(b));
-
-    sec(b, "Avancé");
-    const det = el("details", "fold", `<summary>Instructions de l'IA</summary><div class="in"></div>`);
-    b.appendChild(det);
-    instructionsEditor(det.querySelector(".in"), () => d.instructions, v => { d.instructions = v; dirty = true; }, () => wish, v => wish = v);
-
+    if(mode === "adventure") toggle(b, L("Garder dans Mes scénarios", "Keep in My scenarios"), L("Une copie intacte de ce départ, pour recommencer de zéro ou relancer une autre partie. Elle reste privée.", "An untouched copy of this start, to restart from scratch or launch another game. It stays private."), () => keep, v => keep = v);
+  };
+  const tabCards = b => {
+    const top = el("div", "row"); top.style.cssText = "margin-bottom:12px;gap:8px;flex-wrap:wrap"; b.appendChild(top);
+    btn(top, "+ Ajouter une carte", "small", () => { dirty = true; editCard(null, d.cards, wizardCtx(d), reopen); });
+    if(!d.cards.length){ hint(b, "Personnages, lieux, objets… Tu peux en ajouter maintenant ou plus tard."); return; }
+    cardGroupsList(b, d.cards, c => cardTile(c, () => { dirty = true; editCard(c, d.cards, wizardCtx(d), reopen); }));
+  };
+  const tabChar = b => { hint(b, L("Ce que le joueur choisit au lancement de la partie.", "What the player picks when the game starts.")).style.marginBottom = "12px"; charConfigEditor(b, d.character, () => dirty = true); };
+  const tabTools = b => scriptToggles(b, d.scripts, () => dirty = true, () => redraw());
+  const tabIA = b => instructionsEditor(b, () => d.instructions, v => { d.instructions = v; dirty = true; }, () => wish, v => wish = v);
+  const footer = b => {
+    const f = el("div", "sfoot"); b.appendChild(f);
     if(mode === "adventure"){
-      const kp = toggle(b, L("Garder dans Mes scénarios", "Keep in My scenarios"), L("Une copie intacte de ce départ, pour recommencer de zéro ou relancer une autre partie. Elle reste privée.", "An untouched copy of this start, to restart from scratch or launch another game. It stays private."), () => keep, v => keep = v);
-      kp.style.marginTop = "18px";
-      btn(b, "Commencer l'aventure", "wide", () => {
+      btn(f, "Commencer l'aventure", "wide", () => {
         const sc = wizSc(d);
         let sid = null;
         if(keep){ const sn = scnFromSc(sc); saveScn(sn); sid = sn.id; }
-        closeSheet(); playScenario(sc, null, { scenarioId: sid });
-      }).style.marginTop = "10px";
-    } else {
-      const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;margin-top:18px"; b.appendChild(r);
-      const save = () => { scn = writeScn(scn, d); dirty = false; return scn; };
-      btn(r, "▶ " + L("Jouer", "Play"), "", () => { const t = save(); closeSheet(); playScenario(scnToSc(t), null, { scenarioId: t.id }); }).style.flex = "1";
-      btn(r, L("Enregistrer", "Save"), "ghost", () => { save(); toast(L("Scénario enregistré", "Scenario saved")); closeSheet(); if(!adv) showLibrary(); });
-      if(scn){
-        const r2 = el("div", "row"); r2.style.cssText = "flex-wrap:wrap;margin-top:10px;gap:8px"; b.appendChild(r2);
-        if(scn.publishedId || canPublish()) btn(r2, scn.publishedId ? L("Mettre à jour dans Découvrir", "Update in Discover") : L("Publier dans Découvrir", "Publish to Discover"), "ghost small", () => {
-          if(!auth || !hasKey()) return toast(L("Connecte-toi d'abord (Réglages → Compte)", "Sign in first (Settings → Account)"));
-          const t = save(); publishSheet(() => adventureWizard(scnPre(t), { scn: t }), scnTarget(t));
-        });
-        btn(r2, L("Dupliquer", "Duplicate"), "ghost small", () => { const t = save(); const c = scnFromSc(Object.assign(scnToSc(t), { title: t.title + L(" (copie)", " (copy)") })); c.publish = clone(t.publish); delete c.publishedId; saveScn(c); toast(L("Copie créée", "Copy created")); closeSheet(); showLibrary(); });
-        btn(r2, L("Exporter", "Export"), "ghost small", () => { const t = save(); download(`scenario-${slug(t.title)}.json`, scnToSc(t)); });
-        btn(r2, L("Supprimer", "Delete"), "danger small", () => { if(deleteScn(scn)){ closeSheet(); showLibrary(); } });
-        if(scn.publishedId) hint(b, L("Publié dans Découvrir. Tes modifications ne sont visibles des autres qu'après « Mettre à jour ».", "Published in Discover. Your edits are only visible to others after “Update”.")).style.marginTop = "10px";
-      }
+        dirty = false; closeSheet(); playScenario(sc, null, { scenarioId: sid });
+      });
+      return;
+    }
+    const save = () => { scn = writeScn(scn, d); dirty = false; return scn; };
+    const r = el("div", "row"); r.style.cssText = "gap:8px"; f.appendChild(r);
+    btn(r, "▶ " + L("Jouer", "Play"), "", () => { const t = save(); closeSheet(); playScenario(scnToSc(t), null, { scenarioId: t.id }); }).style.flex = "1";
+    btn(r, L("Enregistrer", "Save"), "ghost", () => { save(); toast(L("Scénario enregistré", "Scenario saved")); closeSheet(); if(!adv) showLibrary(); });
+    if(scn){
+      const more = btn(r, "⋯", "ghost", () => {
+        document.querySelectorAll(".menu").forEach(m => m.remove());
+        const items = [];
+        if(scn.publishedId || canPublish()) items.push(["pub", scn.publishedId ? L("Mettre à jour dans Découvrir", "Update in Discover") : L("Publier dans Découvrir", "Publish to Discover")]);
+        items.push(["dup", L("Dupliquer", "Duplicate")], ["exp", L("Exporter", "Export")], ["del", L("Supprimer", "Delete")]);
+        const m = el("div", "menu", items.map(([k, t]) => `<button data-a="${k}">${esc(t)}</button>`).join(""));
+        document.body.appendChild(m);
+        const rc = more.getBoundingClientRect();
+        m.style.left = Math.max(8, Math.min(rc.right - 220, innerWidth - 228)) + "px";
+        m.style.top = Math.max(8, rc.top - m.offsetHeight - 6) + "px";
+        const close = () => { m.remove(); document.removeEventListener("pointerdown", outside, true); };
+        const outside = ev => { if(!m.contains(ev.target)) close(); };
+        setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
+        m.onclick = ev => {
+          const a = ev.target.dataset.a; if(!a) return; close();
+          if(a === "pub"){ if(!auth || !hasKey()) return toast(L("Connecte-toi d'abord (Réglages → Compte)", "Sign in first (Settings → Account)")); const t = save(); publishSheet(() => adventureWizard(scnPre(t), { scn: t }), scnTarget(t)); }
+          if(a === "dup"){ const t = save(); const c = scnFromSc(Object.assign(scnToSc(t), { title: t.title + L(" (copie)", " (copy)") })); c.publish = clone(t.publish); delete c.publishedId; saveScn(c); toast(L("Copie créée", "Copy created")); closeSheet(); showLibrary(); }
+          if(a === "exp"){ const t = save(); download(`scenario-${slug(t.title)}.json`, scnToSc(t)); }
+          if(a === "del"){ if(deleteScn(scn)){ dirty = false; closeSheet(); showLibrary(); } }
+        };
+      });
+      more.setAttribute("aria-label", L("Plus d'options", "More options"));
+      if(scn.publishedId) hint(f, L("Publié dans Découvrir : tes modifications n'y apparaissent qu'après « Mettre à jour ».", "Published in Discover: your edits only show there after “Update”.")).style.margin = "8px 0 0";
     }
   };
+  const TABS = { gen: tabGeneral, cards: tabCards, char: tabChar, tools: tabTools, ia: tabIA };
+  let body = null;
+  const redraw = () => { if(!body) return; const y = body.scrollTop; body.innerHTML = ""; TABS[tab](body); footer(body); body.scrollTop = y; };
   const title = mode === "adventure" ? "Nouvelle aventure" : scn ? L("Scénario", "Scenario") : L("Nouveau scénario", "New scenario");
-  const reopen = () => openSheet(title, null, (_, b) => render(b));
+  const reopen = () => {
+    body = openSheet(title, [["gen", L("Général", "General")], ["cards", `Story Cards (${d.cards.length})`], ["char", L("Personnage", "Character")], ["tools", L("Outils", "Tools")], ["ia", "Instructions"]],
+      (k, b) => { tab = k; body = b; TABS[k](b); footer(b); }, tab,
+      { beforeClose: () => !dirty || mode === "adventure" && !d.title && !d.opening || confirm(L("Fermer sans enregistrer tes modifications ?", "Close without saving your changes?")) });
+  };
   reopen();
 }
 const wizSc = d => ({ lanterne_scenario: 1, title: d.title.trim() || L("Nouvelle aventure", "New adventure"), opening: d.opening.trim(), essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions,
@@ -2195,7 +2225,8 @@ async function maybeSmartCards(force){
   try{
     const lim = settings.cardLimit;
     const story = acts.map(x => visible(x.text)).join("\n\n").slice(-12000);
-    const list = userCards(a).map(c => `#${c.id} [${c.type}] ${cardName(c)} | keys: ${c.keys} | ${visible(c.entry).slice(0, 600)}`).join("\n") || "(none)";
+    // cartes « canon » d'un scénario : protégées, envoyées en version courte (nom + mots-clés) pour économiser
+    const list = userCards(a).map(c => c.canon ? `[canon — never update or merge] ${cardName(c)} | keys: ${c.keys}` : `#${c.id} [${c.type}] ${cardName(c)} | keys: ${c.keys} | ${visible(c.entry).slice(0, 600)}`).join("\n") || "(none)";
     const pend = a.pending.map(p => p.title).filter(Boolean);
     const ignored = [...(a.scIgnore || []).slice(-40), ...pend].join(", ");
     const prompt =
@@ -2230,16 +2261,17 @@ Return ONLY JSON:
       if(!n || !visible(n.title) || !visible(n.entry)) return;
       if((a.scIgnore || []).some(t => sameName(t, n.title)) || a.pending.some(p => sameName(p.title, n.title))) return;
       const ex = userCards(a).find(c => sameName(cardName(c), n.title) || (c.keys || "").split(",").some(k => sameName(k, n.title)));
+      if(ex && ex.canon) return;
       if(ex) ops.push({ op: "update", cardId: ex.id, title: cardName(ex), type: ex.type, entry: n.entry, keys: n.keys, why: "nouvelles informations" });
       else ops.push({ op: "new", title: visible(n.title), type: TYPES.includes(n.type) ? n.type : "autre", entry: n.entry, keys: n.keys || n.title });
     });
     (r.update || []).forEach(u => {
-      const c = u && byId(u.id); if(!c || !visible(u.entry) || visible(u.entry) === visible(c.entry)) return;
+      const c = u && byId(u.id); if(!c || c.canon || !visible(u.entry) || visible(u.entry) === visible(c.entry)) return;
       ops.push({ op: "update", cardId: c.id, title: cardName(c), type: c.type, entry: u.entry, keys: u.keys, why: u.why || "" });
     });
     (r.merge || []).forEach(m => {
-      const k = m && byId(m.keep); if(!k) return;
-      const rm = (m.remove || []).map(byId).filter(c => c && c.id !== k.id);
+      const k = m && byId(m.keep); if(!k || k.canon) return;
+      const rm = (m.remove || []).map(byId).filter(c => c && c.id !== k.id && !c.canon);
       if(!rm.length) return;
       ops.push({ op: "merge", cardId: k.id, removeIds: rm.map(c => c.id), removeNames: rm.map(cardName), title: visible(m.title) || cardName(k), type: k.type, entry: m.entry || k.entry, keys: m.keys || "" });
     });
@@ -2262,8 +2294,8 @@ function cardOpsSummary(ops){
 }
 function applyCardOp(a, p){
   const lim = settings.cardLimit;
-  if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: p.entry.slice(0, lim), auto: true }));
-  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = p.entry.slice(0, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); } }
+  if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: p.entry.slice(0, lim), auto: true, created: Date.now(), updated: Date.now() }));
+  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = p.entry.slice(0, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); c.updated = Date.now(); } }
   else if(p.op === "merge"){
     const k = a.cards.find(x => x.id === p.cardId); if(!k) return;
     const rm = a.cards.filter(c => p.removeIds.includes(c.id));
@@ -2651,6 +2683,11 @@ function smartToggles(b, s, onChange, live){
   scSub = sub(s.sc); b.appendChild(scSub);
   toggle(scSub, "Me demander avant", "Les changements arrivent en suggestions à valider. Désactivé, ils s'appliquent tout seuls.", () => !s.scAuto, v => { s.scAuto = !v; onChange(); });
   slider(scSub, "Analyse tous les … tours", "scEvery", 2, 6, 1, "Une petite requête en plus à chaque analyse.", s, onChange);
+  toggle(scSub, L("Protéger les cartes de départ", "Protect the starting cards"), L("Les cartes écrites à la main (ou celles du scénario) ne sont jamais réécrites ni fusionnées : seules les nouvelles cartes sont gérées automatiquement.", "Hand-written cards (or the scenario's) are never rewritten or merged: only new cards are managed automatically."), () => !!s.scCanon, v => {
+    s.scCanon = v;
+    if(adv && adv.scripts === s) adv.cards.forEach(c => { if(isSystem(c) || isBrain(c) || c.auto) return; if(v) c.canon = true; else delete c.canon; });
+    onChange();
+  });
   let arSub;
   toggle(b, "Anti-répétition", "Repère les tics d'écriture de l'IA (phrases et tournures qui reviennent) et les lui interdit.", () => s.ar, v => { s.ar = v; arSub.classList.toggle("hidden", !v); onChange(); });
   arSub = sub(s.ar); b.appendChild(arSub);
@@ -3213,7 +3250,7 @@ async function playScenario(sc, publishedId, opt = {}){
   a.title = sc.title || L("Nouvelle aventure", "New adventure");
   const block = ans ? charBlock(ch, ans) : "";
   Object.assign(a, { essentials: [block, sub(sc.essentials || "")].filter(Boolean).join("\n\n"), authorsNote: sub(sc.authorsNote || ""), instructions: sub(sc.instructions || DEFAULT_INSTRUCTIONS),
-    cards: (sc.cards || []).map(c => normalizeCard({ title: sub(c.title), type: c.type, keys: sub(c.keys), entry: sub(c.entry) })),
+    cards: (sc.cards || []).map(c => normalizeCard(Object.assign({ title: sub(c.title), type: c.type, keys: sub(c.keys), entry: sub(c.entry) }, sc.scripts?.scCanon ? { canon: true } : {}))),
     scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}) });
   if(ans?.name) a.scripts.player = ans.name;
   a.origin = Object.assign(clone(Object.assign({}, sc, { cover: undefined })), { late: undefined });
@@ -4011,7 +4048,7 @@ function renderCardsTab(body){
   const brains = adv.cards.filter(isBrain);
   const tech = adv.cards.filter(c => isSystem(c) && !isBrain(c));
   if(!user.length) hint(body, "Aucune carte pour l'instant.");
-  user.forEach(c => body.appendChild(cardTile(c, () => editCard(c, adv.cards, advCtx(), reopen), active.has(c.id))));
+  cardGroupsList(body, user, c => cardTile(c, () => editCard(c, adv.cards, advCtx(), reopen), active.has(c.id)));
   if(brains.length){
     sec(body, "🎭 Cerveaux (Inner Self)");
     hint(body, "Les pensées que chaque personnage a formées. Tu peux les lire et les modifier.");
@@ -4035,6 +4072,54 @@ function renderCardsTab(body){
     }
   }
 }
+/* Liste de cartes rangée par catégorie (repliable), avec recherche quand il y en a beaucoup */
+const CARD_GROUPS = [["personnage", "Personnages", "Characters"], ["lieu", "Lieux", "Places"], ["faction", "Factions et guildes", "Factions and guilds"], ["objet", "Objets", "Items"], ["concept", "Concepts et règles", "Concepts and rules"], ["autre", "Autres", "Other"]];
+function cardGroupOf(t){
+  t = String(t || "").toLowerCase();
+  if(/personnage|character|perso|npc|pnj|race|creature|créature/.test(t)) return /race|creature|créature/.test(t) ? "concept" : "personnage";
+  if(/lieu|location|place|region|région|ville|town|city/.test(t)) return "lieu";
+  if(/faction|guild|guilde|organi[sz]ation|group/.test(t)) return "faction";
+  if(/objet|item|weapon|arme|artefact|artifact|vehicle|véhicule/.test(t)) return "objet";
+  if(/concept|magic|magie|ability|capacité|term|lore|class|classe|event|événement|occurrence|title/.test(t)) return "concept";
+  return "autre";
+}
+let cardSearch = "", cardSort = "cat";
+function cardGroupsList(host, cards, makeTile){
+  const wrap = el("div"); host.appendChild(wrap);
+  if(cards.length > 6){
+    const t = el("div", "cardtools"); wrap.appendChild(t);
+    const q = el("input"); q.type = "search"; q.placeholder = L("Chercher une carte…", "Search cards…"); q.value = cardSearch;
+    q.oninput = () => { cardSearch = q.value; draw(); };
+    const sel = document.createElement("select"); sel.className = "raw";
+    [["cat", L("Par catégorie", "By category")], ["az", L("Nom (A → Z)", "Name (A → Z)")], ["mod", L("Modifiées récemment", "Recently edited")], ["new", L("Ajoutées récemment", "Recently added")]].forEach(([v, n]) => { const o = document.createElement("option"); o.value = v; o.textContent = n; if(cardSort === v) o.selected = true; sel.appendChild(o); });
+    sel.onchange = () => { cardSort = sel.value; draw(); };
+    t.appendChild(q); t.appendChild(sel);
+  }
+  const box = el("div"); wrap.appendChild(box);
+  const draw = () => {
+    box.innerHTML = "";
+    const s = cardSearch.trim().toLowerCase();
+    const idx = new Map(cards.map((c, i) => [c, i]));
+    let list = s ? cards.filter(c => (cardName(c) + " " + c.keys).toLowerCase().includes(s)) : cards.slice();
+    if(s && !list.length) list = cards.filter(c => c.entry.toLowerCase().includes(s));
+    if(s && !list.length){ hint(box, L("Aucune carte ne correspond.", "No card matches.")); return; }
+    const byName = (x, y) => cardName(x).localeCompare(cardName(y));
+    if(cardSort === "cat"){
+      CARD_GROUPS.forEach(([g, fr, en]) => {
+        const items = list.filter(c => cardGroupOf(c.type) === g).sort(byName);
+        if(!items.length) return;
+        sec(box, `${L(fr, en)} (${items.length})`);
+        items.forEach(c => box.appendChild(makeTile(c)));
+      });
+      return;
+    }
+    if(cardSort === "az") list.sort(byName);
+    else if(cardSort === "mod") list.sort((x, y) => ((y.updated || y.created || 0) - (x.updated || x.created || 0)) || (idx.get(y) - idx.get(x)));
+    else list.sort((x, y) => ((y.created || 0) - (x.created || 0)) || (idx.get(y) - idx.get(x)));
+    list.forEach(c => box.appendChild(makeTile(c)));
+  };
+  draw();
+}
 function advCtx(){ return [adv.title, adv.essentials, adv.actions.slice(-3).map(a => visible(a.text)).join("\n")].filter(Boolean).join("\n\n").slice(0, 3000); }
 function typeLabel(t){ return t === "auto" || t === "class" ? "Auto-Cards" : t; }
 function cardTile(c, onClick, active){
@@ -4052,8 +4137,9 @@ function editBrain(c, done){
     btn(r, "Supprimer", "danger", () => { if(confirm("Effacer ce cerveau ?")){ const i = adv.cards.indexOf(c); if(i >= 0) adv.cards.splice(i, 1); done(); } });
   });
 }
-function editCard(c, list, ctx, done, tech){
+function editCard(c, list, ctx, done0, tech){
   const isNew = !c;
+  const done = () => { sheetRestore = true; done0(); };
   const d = c ? Object.assign({}, c) : { id: uid(), title: "", type: "personnage", keys: "", entry: "", description: "", enabled: true };
   const render = (body) => {
     body.innerHTML = "";
@@ -4087,15 +4173,16 @@ function editCard(c, list, ctx, done, tech){
     btn(r, "Enregistrer", "", () => {
       if(!tech && d.entry.length > settings.cardLimit) return toast(`Contenu trop long : ${d.entry.length} / ${settings.cardLimit} caractères`);
       if(!d.keys.trim() && d.title.trim()) d.keys = d.title.trim();
+      d.updated = Date.now(); if(isNew) d.created = d.updated;
       if(isNew) list.push(d); else Object.assign(c, d);
       done();
     }).style.flex = "1";
     btn(r, isNew ? "Annuler" : "Supprimer", isNew ? "ghost" : "danger", () => {
-      if(!isNew){ const i = list.indexOf(c); if(i >= 0) list.splice(i, 1); }
+      if(!isNew){ if(!confirm(L(`Supprimer la carte « ${cardName(c)} » ?`, `Delete the card “${cardName(c)}”?`))) return; const i = list.indexOf(c); if(i >= 0) list.splice(i, 1); }
       done();
     });
   };
-  openSheet(isNew ? "Nouvelle carte" : "Modifier la carte", null, (_, b) => render(b));
+  openSheet(isNew ? "Nouvelle carte" : "Modifier la carte", null, (_, b) => render(b), null, { back: done });
 }
 
 /* ================= Models ================= */

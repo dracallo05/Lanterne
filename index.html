@@ -3101,23 +3101,27 @@ function startFromScenario(sc){
     cover: sc.cover || null, coverPos: sc.coverPos ?? 50, style: sc.style, character: sc.character
   });
 }
+/* Import dans Mes scénarios : si un scénario du même titre existe, propose de le mettre à jour au lieu de créer un doublon. */
+function importToMyScenarios(sc){
+  const same = scnList().find(x => !x.trashed && (x.title || "").trim().toLowerCase() === (sc.title || "").trim().toLowerCase());
+  if(same && confirm(L(`Tu as déjà un scénario « ${same.title} ».\n\nOK : le mettre à jour avec ce fichier (il garde son image et sa publication ; tes modifications dessus sont remplacées).\nAnnuler : l'importer comme un nouveau scénario.`, `You already have a scenario “${same.title}”.\n\nOK: update it with this file (keeps its image and publication; your edits to it are replaced).\nCancel: import it as a new scenario.`))){
+    const { cover, ...rest } = sc; const t = scnFromSc(rest);
+    Object.assign(t, { id: same.id, created: same.created, hasCover: same.hasCover, coverPos: sc.coverPos ?? same.coverPos, publish: Object.assign({}, same.publish, t.publish) });
+    if(same.publishedId) t.publishedId = same.publishedId;
+    if(cover && LS.set("lan.cover." + t.id, cover)) t.hasCover = true;
+    saveScn(t); libTab = "scn"; if(!adv) showLibrary();
+    toast(same.publishedId ? L("Scénario mis à jour. Fais « Mettre à jour dans Découvrir » pour que les autres l’aient aussi.", "Scenario updated. Use “Update in Discover” so others get it too.") : L("Scénario mis à jour", "Scenario updated"));
+    return adventureWizard(scnPre(t), { scn: t });
+  }
+  const t = scnFromSc(sc); saveScn(t); libTab = "scn"; if(!adv) showLibrary(); toast(L("Scénario importé dans Mes scénarios", "Scenario imported into My scenarios")); adventureWizard(scnPre(t), { scn: t });
+}
 function importScenarioFile(toScn){
   const i = document.createElement("input"); i.type = "file"; i.accept = "application/json,.json";
   i.onchange = async () => {
     try{
       const j = JSON.parse(await i.files[0].text());
       const sc = j.lanterne_scenario ? j : j.adventures?.length ? (() => { const a = migrate(j.adventures[0]); const o = originFull(a); o.cover = j.adventures[0].cover; return o; })() : null;
-      const same = sc && toScn && scnList().find(x => !x.trashed && (x.title || "").trim().toLowerCase() === (sc.title || "").trim().toLowerCase());
-      if(same && confirm(L(`Tu as déjà un scénario « ${same.title} ».\n\nOK : le mettre à jour avec ce fichier (il garde son image et sa publication ; tes modifications dessus sont remplacées).\nAnnuler : l'importer comme un nouveau scénario.`, `You already have a scenario “${same.title}”.\n\nOK: update it with this file (keeps its image and publication; your edits to it are replaced).\nCancel: import it as a new scenario.`))){
-        const { cover, ...rest } = sc; const t = scnFromSc(rest);
-        Object.assign(t, { id: same.id, created: same.created, hasCover: same.hasCover, coverPos: sc.coverPos ?? same.coverPos, publish: Object.assign({}, same.publish, t.publish) });
-        if(same.publishedId) t.publishedId = same.publishedId;
-        if(cover && LS.set("lan.cover." + t.id, cover)) t.hasCover = true;
-        saveScn(t); libTab = "scn"; if(!adv) showLibrary();
-        toast(same.publishedId ? L("Scénario mis à jour. Fais « Mettre à jour dans Découvrir » pour que les autres l’aient aussi.", "Scenario updated. Use “Update in Discover” so others get it too.") : L("Scénario mis à jour", "Scenario updated"));
-        return adventureWizard(scnPre(t), { scn: t });
-      }
-      if(sc && toScn){ const t = scnFromSc(sc); saveScn(t); libTab = "scn"; if(!adv) showLibrary(); toast(L("Scénario importé dans Mes scénarios", "Scenario imported into My scenarios")); adventureWizard(scnPre(t), { scn: t }); }
+      if(sc && toScn) importToMyScenarios(sc);
       else if(sc) startFromScenario(sc);
       else throw new Error("ce n'est pas un scénario Lanterne");
     }catch(e){ toast("Import impossible : " + e.message); }
@@ -3644,7 +3648,7 @@ function importAny(opts = {}){
       if(/\.txt$/i.test(f.name) || !/^\s*[\[{]/.test(raw)){ closeSheet(); importAIDText(raw, f.name.replace(/\.[^.]+$/, "")); return; }
       const j = JSON.parse(raw);
       if(j.lanterne_scenario){
-        if(opts.toScn){ const t = scnFromSc(j); saveScn(t); libTab = "scn"; if(!adv) showLibrary(); toast(L("Scénario importé dans Mes scénarios", "Scenario imported into My scenarios")); adventureWizard(scnPre(t), { scn: t }); }
+        if(opts.toScn) importToMyScenarios(j);
         else { closeSheet(); startFromScenario(j); }
         return;
       }

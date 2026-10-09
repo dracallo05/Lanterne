@@ -1366,8 +1366,8 @@ function scnList(){
 function saveScn(t){ t.updated = Date.now(); return LS.set(scnKey(t.id), t); }
 function scnFromSc(sc){
   const t = { id: uid(), created: Date.now(), updated: Date.now(), title: sc.title || L("Sans titre", "Untitled"), opening: sc.opening || "", essentials: sc.essentials || "", authorsNote: sc.authorsNote || "",
-    instructions: sc.instructions || DEFAULT_INSTRUCTIONS, cards: (sc.cards || []).map(c => normalizeCard({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })),
-    scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}, { player: "" }), style: sc.style || null, coverPos: sc.coverPos ?? 50, hasCover: false,
+    instructions: sc.instructions || DEFAULT_INSTRUCTIONS, cards: (sc.cards || []).map(c => normalizeCard(Object.assign({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry }, c.canon ? { canon: true } : {}))),
+    scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}, sc.character?.enabled ? { player: "" } : {}), style: sc.style || null, coverPos: sc.coverPos ?? 50, hasCover: false,
     publish: Object.assign({ character: Object.assign({ enabled: false, fields: [], questions: [] }, clone(sc.character) || {}) }, sc.hook ? { hook: String(sc.hook).slice(0, 220) } : {}, sc.genre ? { genre: sc.genre } : {}, sc.tags ? { tags: Array.isArray(sc.tags) ? sc.tags.join(", ") : String(sc.tags) } : {}) };
   if(sc.cover && LS.set("lan.cover." + t.id, sc.cover)) t.hasCover = true;
   return t;
@@ -1375,7 +1375,7 @@ function scnFromSc(sc){
 function scnToSc(t){
   const ch = t.publish?.character;
   return { lanterne_scenario: 1, title: t.title, opening: t.opening, essentials: t.essentials, authorsNote: t.authorsNote, instructions: t.instructions,
-    cards: (t.cards || []).map(c => ({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry })), scripts: Object.assign({}, t.scripts), style: t.style,
+    cards: (t.cards || []).map(c => Object.assign({ title: cardName(c), type: c.type, keys: c.keys, entry: c.entry }, c.canon ? { canon: true } : {})), scripts: Object.assign({}, t.scripts), style: t.style,
     cover: t.hasCover ? getCover(t.id) : undefined, coverPos: t.coverPos, character: ch?.enabled ? clone(ch) : { enabled: false, fields: [], questions: [] } };
 }
 const scnPre = t => ({ title: t.title, opening: t.opening, essentials: t.essentials, authorsNote: t.authorsNote, instructions: t.instructions,
@@ -1385,7 +1385,7 @@ function writeScn(t, d){
   const isNew = !t;
   t = t || { id: uid(), created: Date.now(), publish: {} };
   Object.assign(t, { title: d.title.trim() || L("Sans titre", "Untitled"), opening: d.opening.trim(), essentials: d.essentials, authorsNote: d.authorsNote, instructions: d.instructions,
-    cards: clone(d.cards), scripts: Object.assign({}, d.scripts, { player: "" }), style: d.style || null, coverPos: d.coverPos ?? 50 });
+    cards: clone(d.cards), scripts: Object.assign({}, d.scripts, d.character?.enabled ? { player: "" } : {}), style: d.style || null, coverPos: d.coverPos ?? 50 });
   t.publish = Object.assign(t.publish || {}, { character: clone(d.character) });
   const cur = t.hasCover ? getCover(t.id) : null;
   if(d.cover && d.cover !== cur){ t.hasCover = !!LS.set("lan.cover." + t.id, d.cover); }
@@ -3437,7 +3437,7 @@ async function playScenario(sc, publishedId, opt = {}){
   a.title = sc.title || L("Nouvelle aventure", "New adventure");
   const block = ans ? charBlock(ch, ans) : "";
   Object.assign(a, { essentials: [block, sub(sc.essentials || "")].filter(Boolean).join("\n\n"), authorsNote: sub(sc.authorsNote || ""), instructions: sub(sc.instructions || DEFAULT_INSTRUCTIONS),
-    cards: (sc.cards || []).map(c => normalizeCard(Object.assign({ title: sub(c.title), type: c.type, keys: sub(c.keys), entry: sub(c.entry) }, sc.scripts?.scCanon ? { canon: true } : {}))),
+    cards: (sc.cards || []).map(c => normalizeCard(Object.assign({ title: sub(c.title), type: c.type, keys: sub(c.keys), entry: sub(c.entry) }, (sc.scripts?.scCanon || c.canon) ? { canon: true } : {}))),
     scripts: Object.assign(SCRIPT_DEF(), sc.scripts || {}) });
   if(ans?.name) a.scripts.player = ans.name;
   a.origin = Object.assign(clone(Object.assign({}, sc, { cover: undefined })), { late: undefined });

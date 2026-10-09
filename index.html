@@ -897,6 +897,7 @@ const CHANGELOG = [
       "Ton statut (Admin, Créateur) affiché dans Réglages → Compte",
       "Personnages en scène façon salon vocal : ils apparaissent quand ils arrivent et disparaissent quand ils partent. Annuler ou effacer un passage récent remet aussi leurs relations comme avant",
       "Personnages morts : ils quittent la scène pour de bon et leur relation est figée ; s'ils ressuscitent dans l'histoire, ils reviennent tout seuls",
+      "Un personnage dont on apprend le vrai nom ne crée plus de doublon. Dans sa fiche, on peut aussi le renommer ou le fusionner avec un autre",
       "Corbeille : les aventures et scénarios supprimés se restaurent pendant 30 jours (Réglages → Données → Corbeille)"],
     en: [
       "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene, even hundreds of turns later",
@@ -914,6 +915,7 @@ const CHANGELOG = [
       "Your status (Admin, Creator) shown in Settings → Account",
       "Characters in scene, voice-channel style: they pop in when they arrive and disappear when they leave. Undoing or deleting a recent passage also restores their relationships",
       "Dead characters: they leave the scene for good and their relationship is frozen ; if they come back to life in the story, they return on their own",
+      "A character whose real name is revealed no longer creates a duplicate. From their sheet you can also rename them or merge them with another",
       "Trash: deleted adventures and scenarios can be restored for 30 days (Settings → Data → Trash)"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés, avec recherche, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import d'aventures, de scénarios et de Story Cards"],
     en: ["Discover tab: shared scenarios, with search, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import of adventures, scenarios and Story Cards"] },
@@ -2351,16 +2353,16 @@ ${story}
 """
 
 Tasks:
-1. NEW — create a card only for a named or clearly important character, place, item, faction or concept that has NO card yet and is likely to matter again. Never for the player character ("you"), never for trivial or one-off things.
+1. NEW — create a card only for a named or clearly important character, place, item, faction or concept that has NO card yet and is likely to matter again. Never for the player character ("you"), never for trivial or one-off things. If the "new" name belongs to an entity that already has a card under a description, epithet or placeholder (e.g. "the pink-eyed girl" is revealed to be "Séléna"), do NOT create a card: UPDATE the existing one and give it the real name in "title".
 2. UPDATE — when something meaningful changed for an existing card (new facts revealed, relationship change, injury, betrayal, new location, change of owner, death…), rewrite its FULL entry: keep the important old facts and integrate the new ones. Do not update for trivial details.
-3. MERGE — when two existing cards describe the same entity (nickname, alias, title), merge them into one.
+3. MERGE — when two existing cards describe the same entity (nickname, alias, title, or a description used before the real name was known), merge them into one, titled with the real name.
 Do not propose anything about: ${ignored || "(nothing)"}
 Entry format by type (as short labelled sentences):
 ${Object.entries(isEN() ? CARD_FORMATS_EN : CARD_FORMATS).map(([k, v]) => "- " + k + ": " + v).join("\n")}
 Rules: factual, third person, present tense, written in the language of the story, each entry STRICTLY under ${Math.round(lim * 0.92)} characters. keys = comma-separated trigger words (name, nicknames, distinctive words — no common words). At most 4 new, 4 updates. If nothing is worth doing, return empty lists.
 Return ONLY JSON:
 {"new":[{"type":"personnage|lieu|objet|faction|concept|autre","title":"","keys":"","entry":""}],
- "update":[{"id":"card id without #","entry":"full new entry","keys":"","why":"very short reason, in ${isEN() ? "English" : "French"}"}],
+ "update":[{"id":"card id without #","title":"only if the entity's real name is now known, else empty","entry":"full new entry","keys":"","why":"very short reason, in ${isEN() ? "English" : "French"}"}],
  "merge":[{"keep":"card id","remove":["card id"],"title":"","entry":"merged entry","keys":""}]}`;
     const r = parseJSON(await complete(prompt, 2200, true));
     const ops = [];
@@ -2375,7 +2377,8 @@ Return ONLY JSON:
     });
     (r.update || []).forEach(u => {
       const c = u && byId(u.id); if(!c || c.canon || !visible(u.entry) || visible(u.entry) === visible(c.entry)) return;
-      ops.push({ op: "update", cardId: c.id, title: cardName(c), type: c.type, entry: u.entry, keys: u.keys, why: u.why || "" });
+      const nt = visible(u.title || "").trim();
+      ops.push(Object.assign({ op: "update", cardId: c.id, title: nt || cardName(c), type: c.type, entry: u.entry, keys: u.keys, why: u.why || "" }, nt && !sameName(nt, cardName(c)) ? { rename: nt } : {}));
     });
     (r.merge || []).forEach(m => {
       const k = m && byId(m.keep); if(!k || k.canon) return;
@@ -2403,7 +2406,7 @@ function cardOpsSummary(ops){
 function applyCardOp(a, p){
   const lim = settings.cardLimit;
   if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: p.entry.slice(0, lim), auto: true, created: Date.now(), updated: Date.now() }));
-  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = p.entry.slice(0, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); c.updated = Date.now(); } }
+  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = p.entry.slice(0, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); if(p.rename){ c.keys = mergeKeys(p.rename, c.keys, cardName(c)); c.title = p.rename; } c.updated = Date.now(); } }
   else if(p.op === "merge"){
     const k = a.cards.find(x => x.id === p.cardId); if(!k) return;
     const rm = a.cards.filter(c => p.removeIds.includes(c.id));
@@ -2568,6 +2571,31 @@ function findMind(a, name){
   const k = mindKey(name); if(a.minds[k]) return a.minds[k];
   return Object.values(a.minds).find(m => sameName(m.name, name) || (m.aliases || []).some(x => sameName(x, name)) || (mindCard(a, m)?.keys || "").split(",").some(x => sameName(x, name)));
 }
+/* Même personnage sous deux noms (« la fille aux yeux roses » → « Séléna ») : on renomme ou on fusionne. */
+const keyOfMind = (a, m) => Object.keys(a.minds).find(k => a.minds[k] === m);
+function renameMind(a, m, name){
+  name = visible(String(name || "")).trim(); if(!name || sameName(name, m.name)) return m;
+  const other = findMind(a, name);
+  if(other && other !== m) return mergeMinds(a, other, m);
+  const k = keyOfMind(a, m); if(k) delete a.minds[k];
+  if(!(m.aliases || []).some(x => sameName(x, m.name))) m.aliases = [...(m.aliases || []), m.name];
+  m.aliases = m.aliases.filter(x => !sameName(x, name));
+  if(a.scene?.names) a.scene.names = a.scene.names.map(n => sameName(n, m.name) ? name : n);
+  m.name = name; a.minds[mindKey(name)] = m; return m;
+}
+function mergeMinds(a, keep, rm){
+  if(!keep || !rm || keep === rm) return keep;
+  REL.forEach(([k, , , lo, hi]) => { keep.rel[k] = Math.max(lo, Math.min(hi, (keep.rel[k] || 0) + (rm.rel?.[k] || 0))); });
+  keep.aliases = [...new Set([...(keep.aliases || []), ...(rm.aliases || []), rm.name])].filter(x => !sameName(x, keep.name));
+  keep.knows = [...(rm.knows || []), ...(keep.knows || []).filter(x => !(rm.knows || []).some(y => sameName(x, y)))].slice(-14);
+  if(!(keep.secrets || []).length) keep.secrets = rm.secrets || [];
+  if(!keep.goals?.short) keep.goals.short = rm.goals?.short || ""; if(!keep.goals?.long) keep.goals.long = rm.goals?.long || "";
+  ["plan", "voice", "mood", "thought"].forEach(f => { if(!keep[f]) keep[f] = rm[f] || ""; });
+  keep.lastSeen = Math.max(keep.lastSeen || 0, rm.lastSeen || 0); keep.created = Math.min(keep.created || Date.now(), rm.created || Date.now());
+  if(a.scene?.names) a.scene.names = [...new Set(a.scene.names.map(n => sameName(n, rm.name) ? keep.name : n))];
+  const k = keyOfMind(a, rm); if(k) delete a.minds[k];
+  return keep;
+}
 function presentMinds(a, depth){ return presentMinds0(a, depth).filter(m => !m.dead); }
 function presentMinds0(a, depth){
   // Présence « comme un salon vocal » : la liste de la scène donnée par l'IA à la dernière mise à jour des esprits,
@@ -2650,7 +2678,8 @@ ${story}
 """
 
 For each important named character who appears or acts in the recent story (not the player, not crowds or one-off extras), return their updated mind:
-- name: as written in the story
+- name: as written in the story — their real name once known
+- was: "" — or, if this character already exists above under ANOTHER name or a description (e.g. "the pink-eyed girl", "the hooded stranger") and is now known by a new name, that old name EXACTLY as listed (never create a second entry for the same person)
 - mood: one short phrase
 - rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)
 - goals: {"short": what they want right now, "long": their deeper goal} — keep the previous ones unless they changed
@@ -2663,7 +2692,7 @@ For each important named character who appears or acts in the recent story (not 
 ${absent.length ? `Then, for these ABSENT characters, advance their life off-screen, consistent with their goals and plan: ${absent.map(m => `${m.name} (goal: ${m.goals?.short || m.goals?.long || "?"}; plan: ${m.plan || "?"})`).join("; ")}. Return what they did since the player last saw them (1 sentence) and their new plan.` : ""}
 Write every text value in the language of the story (${lang} if unsure). Keep everything concise.
 Return ONLY JSON:
-{"characters":[{"name":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
+{"characters":[{"name":"","was":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
  "offscreen":[{"name":"","offscreen":"","plan":""}],
  "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left or died"],
  "dead":["names of named characters who clearly DIED in the recent story (not just hurt or unconscious) — usually empty"]${deadNames.length ? `,
@@ -2689,7 +2718,9 @@ Return ONLY JSON:
     });
     (r.characters || []).forEach(c => {
       if(!c || !visible(c.name) || /^(you|tu|toi|vous|player|joueur)$/i.test(c.name.trim()) || (player && sameName(player, c.name))) return;
+      const old = visible(c.was || "").trim() && findMind(a, c.was);
       let m = findMind(a, c.name);
+      if(old && old !== m){ m = m ? mergeMinds(a, m, old) : renameMind(a, old, c.name); }
       if(m?.dead) return;
       if(!m){ m = a.minds[mindKey(c.name)] = MIND_DEF(visible(c.name)); }
       if(c.mood) m.mood = visible(c.mood).slice(0, 80);
@@ -2734,6 +2765,8 @@ function openMind(key, back){
   let showThought = false;
   const render = (_, b) => {
     b.innerHTML = "";
+    const nf = field(b, L("Nom", "Name"), m.name, () => {}, { hint: L("Si tu mets le nom d'un autre personnage, les deux sont fusionnés.", "If you use another character's name, both are merged.") });
+    nf.onchange = () => { const v = nf.value; if(!visible(v).trim() || sameName(v, m.name)) return; const r2 = renameMind(adv, m, v); save(); refreshSmartBar(); if(r2 !== m) toast(L("Fusionné avec " + r2.name, "Merged with " + r2.name)); openMind(keyOfMind(adv, r2), back); };
     if(m.dead) hint(b, L("† Ce personnage est mort dans l'histoire. Il ne revient plus dans la scène et sa relation avec toi est figée, sauf si l'histoire le ramène à la vie.", "† This character died in the story. They no longer appear in the scene and their relationship with you is frozen, unless the story brings them back."));
     else if(m.mood) b.appendChild(el("div", "mmood", esc(m.mood)));
     b.appendChild(el("div", "rels", REL.map(([k, fr, en, lo, hi]) => relBar(k, m.rel[k] || 0, lo, hi, L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1)))).join("")));
@@ -2750,6 +2783,11 @@ function openMind(key, back){
     const r = el("div", "row"); r.style.cssText = "margin-top:18px;flex-wrap:wrap"; b.appendChild(r);
     const c = mindCard(adv, m);
     if(c) btn(r, L("Voir sa Story Card", "See their Story Card"), "ghost small", () => editCard(c, adv.cards, advCtx(), () => { saveAdv(); openMind(key, back); }));
+    const others = Object.keys(adv.minds).filter(k => adv.minds[k] !== m);
+    if(others.length) btn(r, L("Fusionner avec…", "Merge with…"), "ghost small", () => openSheet(L("Même personnage que…", "Same character as…"), null, (_, b2) => {
+      hint(b2, L(`Choisis l'autre fiche de ${m.name} (un surnom, une description d'avant qu'on connaisse son nom…). Elle sera fusionnée dans celle-ci : relations additionnées, ce qu'il sait regroupé, l'autre nom gardé comme alias.`, `Pick ${m.name}'s other entry (a nickname, a description from before their name was known…). It is merged into this one: relationships added up, knowledge combined, the other name kept as an alias.`));
+      others.forEach(k => b2.appendChild(mindTile(k, adv.minds[k], () => { const o = adv.minds[k]; if(!confirm(L(`Fusionner « ${o.name} » dans « ${m.name} » ?`, `Merge “${o.name}” into “${m.name}”?`))) return; mergeMinds(adv, m, o); save(); refreshSmartBar(); toast(L("Personnages fusionnés", "Characters merged")); openMind(keyOfMind(adv, m), back); })));
+    }, undefined, { back: () => openMind(keyOfMind(adv, m), back) }));
     btn(r, m.dead ? L("Ramener à la vie", "Bring back to life") : L("Marquer comme mort", "Mark as dead"), "ghost small", () => { if(m.dead) delete m.dead; else m.dead = { at: adv.actions.length }; save(); render(_, b); refreshSmartBar(); });
     btn(r, L("Oublier ce personnage", "Forget this character"), "danger small", () => { if(confirm(L("Effacer l'esprit de ce personnage ?", "Erase this character's mind?"))){ delete adv.minds[key]; save(); back ? back() : closeSheet(); refreshSmartBar(); } });
     if(back){ const bb = btn(b, L("← Retour", "← Back"), "ghost small", back); bb.style.marginTop = "12px"; }

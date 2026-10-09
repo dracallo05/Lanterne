@@ -203,6 +203,7 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .pill.busy{color:var(--tx3)}
 .mavs{display:inline-flex;align-items:center}
 .mav{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:9.5px;font-weight:700;color:#fff;border:2px solid var(--bg2);margin-left:-6px;transition:transform .35s,opacity .35s}
+.mtile.dead{opacity:.55}
 .mav:first-child{margin-left:0}
 .mav.pop{animation:mavpop .45s cubic-bezier(.3,1.6,.5,1)}
 .mav.out{transform:scale(0);opacity:0}
@@ -473,6 +474,7 @@ Lines starting with ">" are the player's actions; a quoted line after ">" is som
 - Show, don't tell. Vary sentence rhythm. Avoid clichés, purple prose and repeating phrases from earlier in the story.
 - Write 1 to 3 paragraphs. No meta commentary, no headings, no options lists.
 - Write in the same language as the story.`;
+const WORLD_RULE = `[World logic] Respect the player's freedom: plausible actions can succeed, even dark or violent ones; don't block them or moralize. But the world reacts naturally: witnesses respond (fight back, flee, call for help, grieve, get angry), strong characters may step in, and serious acts leave lasting consequences on relationships, reputation and the story. Dead characters stay dead.`;
 const SCRIPT_GLUE = `The user message contains the full story context. Continue the story text from exactly where it ends, without repeating it. If the context contains <SYSTEM> instructions, follow them exactly, including any required output format.`;
 const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »</em>`;
 const KEYS_HINT = "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.";
@@ -894,6 +896,7 @@ const CHANGELOG = [
       "Apparence générale pour le menu et les histoires (Réglages → Apparence), 8 nouveaux thèmes et 9 nouvelles polices",
       "Ton statut (Admin, Créateur) affiché dans Réglages → Compte",
       "Personnages en scène façon salon vocal : ils apparaissent quand ils arrivent et disparaissent quand ils partent. Annuler ou effacer un passage récent remet aussi leurs relations comme avant",
+      "Personnages morts : ils quittent la scène pour de bon et leur relation est figée ; s'ils ressuscitent dans l'histoire, ils reviennent tout seuls",
       "Corbeille : les aventures et scénarios supprimés se restaurent pendant 30 jours (Réglages → Données → Corbeille)"],
     en: [
       "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene, even hundreds of turns later",
@@ -910,6 +913,7 @@ const CHANGELOG = [
       "General appearance for the menu and stories (Settings → Appearance), 8 new themes and 9 new fonts",
       "Your status (Admin, Creator) shown in Settings → Account",
       "Characters in scene, voice-channel style: they pop in when they arrive and disappear when they leave. Undoing or deleting a recent passage also restores their relationships",
+      "Dead characters: they leave the scene for good and their relationship is frozen ; if they come back to life in the story, they return on their own",
       "Trash: deleted adventures and scenarios can be restored for 30 days (Settings → Data → Trash)"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés, avec recherche, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import d'aventures, de scénarios et de Story Cards"],
     en: ["Discover tab: shared scenarios, with search, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import of adventures, scenarios and Story Cards"] },
@@ -1639,14 +1643,14 @@ function dynBlock(a, startIdx, reserve){
   ].filter(Boolean).join("\n\n");
 }
 function histBudget(a, dyn){
-  const sys = estTok(a.instructions) + estTok(a.essentials) + estTok(a.summary) + 30;
+  const sys = estTok(a.instructions) + estTok(WORLD_RULE) + estTok(a.essentials) + estTok(a.summary) + 30;
   return settings.contextTokens - sys - dyn - estTok(a.authorsNote) - settings.max_tokens - 80;
 }
 function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
-  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
+  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
   const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;
@@ -1713,7 +1717,7 @@ function aidHistory(){
 }
 function scriptMessages(ctxText){
   const extra = [mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
-  return [{ role: "system", content: (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + SCRIPT_GLUE + (extra ? "\n\n" + extra : "") }, { role: "user", content: ctxText }];
+  return [{ role: "system", content: (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n\n" + SCRIPT_GLUE + (extra ? "\n\n" + extra : "") }, { role: "user", content: ctxText }];
 }
 
 /* ================= Scripts engine (AI Dungeon scripting emulation) ================= */
@@ -2564,13 +2568,14 @@ function findMind(a, name){
   const k = mindKey(name); if(a.minds[k]) return a.minds[k];
   return Object.values(a.minds).find(m => sameName(m.name, name) || (m.aliases || []).some(x => sameName(x, name)) || (mindCard(a, m)?.keys || "").split(",").some(x => sameName(x, name)));
 }
-function presentMinds(a, depth){
+function presentMinds(a, depth){ return presentMinds0(a, depth).filter(m => !m.dead); }
+function presentMinds0(a, depth){
   // Présence « comme un salon vocal » : la liste de la scène donnée par l'IA à la dernière mise à jour des esprits,
   // plus les personnages cités depuis. Ceux qui sont partis disparaissent à la mise à jour suivante.
   if(!depth && a.scene && Array.isArray(a.scene.names) && a.scene.at <= a.actions.length && a.actions.length - a.scene.at <= 12){
     const inScene = Object.values(a.minds).filter(m => a.scene.names.some(n => sameName(n, m.name) || mindTerms(a, m).some(t => sameName(t, n))));
     const since = a.actions.slice(a.scene.at).filter(x => !x.hidden);
-    const fresh = since.length ? presentMinds(a, since.length).filter(m => !inScene.includes(m) && !(a.scene.left || []).some(n => sameName(n, m.name))) : [];
+    const fresh = since.length ? presentMinds0(a, since.length).filter(m => !inScene.includes(m) && !(a.scene.left || []).some(n => sameName(n, m.name))) : [];
     return [...fresh, ...inScene];
   }
   const acts = a.actions.filter(x => !x.hidden).slice(-(depth || Math.max(3, settings.cardScanDepth)));
@@ -2622,7 +2627,8 @@ async function maybeMinds(force){
     const ctxActs = a.actions.filter(x => !x.hidden).slice(-Math.max(acts.length, 4));
     const story = ctxActs.map(x => visible(x.text)).join("\n\n").slice(-12000);
     const present = new Set(presentMinds(a, ctxActs.length + 1).map(m => m.name));
-    const known = Object.values(a.minds);
+    const known = Object.values(a.minds).filter(m => !m.dead);
+    const deadNames = Object.values(a.minds).filter(m => m.dead).map(m => m.name);
     const full = known.filter(m => present.has(m.name)).map(m => ({ name: m.name, mood: m.mood, rel: m.rel, goals: m.goals, plan: m.plan, knows: m.knows, secrets: m.secrets, voice: m.voice, thought: m.thought }));
     const absent = known.filter(m => !present.has(m.name) && (m.goals?.short || m.goals?.long || m.plan) && a.actions.length - (m.lastSeen || 0) >= 6)
       .sort((x, y) => (x.lastSeen || 0) - (y.lastSeen || 0)).slice(0, 2);
@@ -2635,7 +2641,8 @@ Character cards:
 ${cardsHint || "(none)"}
 Current minds of the characters in the scene (JSON):
 ${JSON.stringify(full)}
-Other known characters: ${known.filter(m => !present.has(m.name)).map(m => m.name).join(", ") || "(none)"}
+Other known characters: ${known.filter(m => !present.has(m.name)).map(m => m.name).join(", ") || "(none)"}${deadNames.length ? `
+Dead characters (never return them in "characters" or "scene", unless the recent story clearly brings them back to life — then list them in "revived"): ${deadNames.join(", ")}` : ""}
 
 Recent story:
 """
@@ -2658,7 +2665,9 @@ Write every text value in the language of the story (${lang} if unsure). Keep ev
 Return ONLY JSON:
 {"characters":[{"name":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
  "offscreen":[{"name":"","offscreen":"","plan":""}],
- "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left"]}`;
+ "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left or died"],
+ "dead":["names of named characters who clearly DIED in the recent story (not just hurt or unconscious) — usually empty"]${deadNames.length ? `,
+ "revived":["dead characters who clearly came back to life in the recent story (resurrection, fake death revealed…) — usually empty"]` : ""}}`;
     const r = parseJSON(await complete(prompt, 2400, true));
     const before = clone({ minds: a.minds, scene: a.scene || null });
     if(Array.isArray(r.scene)){
@@ -2668,9 +2677,20 @@ Return ONLY JSON:
     }
     const deltas = [];
     const player = (a.scripts.player || "").trim();
+    (Array.isArray(r.revived) ? r.revived : []).forEach(n => {
+      const m = findMind(a, visible(String(n || ""))); if(!m || !m.dead) return;
+      delete m.dead; m.lastSeen = a.actions.length;
+      deltas.push({ t: `${m.name} · ${L("retour à la vie", "back to life")}`, s: 1 });
+    });
+    (Array.isArray(r.dead) ? r.dead : []).forEach(n => {
+      const m = findMind(a, visible(String(n || ""))); if(!m || m.dead) return;
+      m.dead = { at: a.actions.length }; m.offscreen = ""; m.plan = ""; m.lastSeen = a.actions.length;
+      deltas.push({ t: `${m.name} · ${L("décès", "died")}`, s: 0 });
+    });
     (r.characters || []).forEach(c => {
       if(!c || !visible(c.name) || /^(you|tu|toi|vous|player|joueur)$/i.test(c.name.trim()) || (player && sameName(player, c.name))) return;
       let m = findMind(a, c.name);
+      if(m?.dead) return;
       if(!m){ m = a.minds[mindKey(c.name)] = MIND_DEF(visible(c.name)); }
       if(c.mood) m.mood = visible(c.mood).slice(0, 80);
       REL.forEach(([k, fr, en, lo, hi]) => {
@@ -2690,7 +2710,7 @@ Return ONLY JSON:
       m.offscreen = ""; m.lastSeen = a.actions.length; m.updated = Date.now();
     });
     (r.offscreen || []).forEach(o => {
-      const m = o && findMind(a, o.name); if(!m || present.has(m.name)) return;
+      const m = o && findMind(a, o.name); if(!m || m.dead || present.has(m.name)) return;
       if(visible(o.offscreen)) m.offscreen = visible(o.offscreen).slice(0, 240);
       if(visible(o.plan)) m.plan = visible(o.plan).slice(0, 200);
     });
@@ -2714,7 +2734,8 @@ function openMind(key, back){
   let showThought = false;
   const render = (_, b) => {
     b.innerHTML = "";
-    if(m.mood) b.appendChild(el("div", "mmood", esc(m.mood)));
+    if(m.dead) hint(b, L("† Ce personnage est mort dans l'histoire. Il ne revient plus dans la scène et sa relation avec toi est figée, sauf si l'histoire le ramène à la vie.", "† This character died in the story. They no longer appear in the scene and their relationship with you is frozen, unless the story brings them back."));
+    else if(m.mood) b.appendChild(el("div", "mmood", esc(m.mood)));
     b.appendChild(el("div", "rels", REL.map(([k, fr, en, lo, hi]) => relBar(k, m.rel[k] || 0, lo, hi, L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1)))).join("")));
     if(m.offscreen) hint(b, `<b>${L("Hors champ", "Off-screen")} :</b> ${esc(m.offscreen)}`);
     field(b, L("Ce qu'il veut maintenant", "What they want now"), m.goals.short, v => { m.goals.short = v; save(); });
@@ -2729,6 +2750,7 @@ function openMind(key, back){
     const r = el("div", "row"); r.style.cssText = "margin-top:18px;flex-wrap:wrap"; b.appendChild(r);
     const c = mindCard(adv, m);
     if(c) btn(r, L("Voir sa Story Card", "See their Story Card"), "ghost small", () => editCard(c, adv.cards, advCtx(), () => { saveAdv(); openMind(key, back); }));
+    btn(r, m.dead ? L("Ramener à la vie", "Bring back to life") : L("Marquer comme mort", "Mark as dead"), "ghost small", () => { if(m.dead) delete m.dead; else m.dead = { at: adv.actions.length }; save(); render(_, b); refreshSmartBar(); });
     btn(r, L("Oublier ce personnage", "Forget this character"), "danger small", () => { if(confirm(L("Effacer l'esprit de ce personnage ?", "Erase this character's mind?"))){ delete adv.minds[key]; save(); back ? back() : closeSheet(); refreshSmartBar(); } });
     if(back){ const bb = btn(b, L("← Retour", "← Back"), "ghost small", back); bb.style.marginTop = "12px"; }
   };
@@ -2736,7 +2758,7 @@ function openMind(key, back){
 }
 function mindTile(key, m, onClick){
   const r = m.rel || {};
-  const d = el("div", "sc mtile", `<div class="row"><div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${esc(m.mood || "—")}</span></div>
+  const d = el("div", "sc mtile" + (m.dead ? " dead" : ""), `<div class="row"><div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${m.dead ? "† " + L("Décès", "Dead") : esc(m.mood || "—")}</span></div>
     <div class="mrel"><span>${L("Confiance", "Trust")} <b>${signed(r.trust || 0)}</b></span><span>${L("Affection", "Affection")} <b>${signed(r.affection || 0)}</b></span><span>${L("Peur", "Fear")} <b>${r.fear || 0}</b></span><span>${L("Tension", "Tension")} <b>${r.tension || 0}</b></span></div>
     ${m.goals?.short ? `<div class="e">${esc(m.goals.short)}</div>` : ""}`);
   d.onclick = onClick; return d;
@@ -2761,7 +2783,7 @@ function openMindList(onlyPresent){
   const keys = Object.keys(adv.minds);
   const pres = presentMinds(adv).map(m => keys.find(k => adv.minds[k] === m)).filter(Boolean);
   openSheet(L("Personnages", "Characters"), [["scene", L(`Dans la scène (${pres.length})`, `In the scene (${pres.length})`)], ["all", L(`Tous (${keys.length})`, `All (${keys.length})`)]], (k, b) => {
-    const list = k === "scene" ? pres : [...pres, ...keys.filter(x => !pres.includes(x))].sort((x, y) => adv.minds[x].name.localeCompare(adv.minds[y].name));
+    const list = k === "scene" ? pres : [...pres, ...keys.filter(x => !pres.includes(x))].sort((x, y) => (!!adv.minds[x].dead - !!adv.minds[y].dead) || adv.minds[x].name.localeCompare(adv.minds[y].name));
     if(k === "scene") hint(b, L("Qui est là en ce moment, comme dans un salon vocal : un personnage apparaît quand il arrive dans la scène et disparaît quand il part.", "Who's here right now, like a voice channel: a character pops in when they arrive and disappears when they leave."));
     else hint(b, L("Tous les personnages rencontrés, avec leur relation avec toi.", "Every character met, with their relationship with you."));
     if(!list.length) hint(b, k === "scene" ? L("Personne d'autre que toi dans la scène.", "Nobody but you in the scene.") : L("Aucun personnage pour l'instant. Les esprits se créent quand des personnages importants apparaissent dans l'histoire.", "No characters yet. Minds are created when important characters appear in the story."));
@@ -3085,6 +3107,16 @@ function importScenarioFile(toScn){
     try{
       const j = JSON.parse(await i.files[0].text());
       const sc = j.lanterne_scenario ? j : j.adventures?.length ? (() => { const a = migrate(j.adventures[0]); const o = originFull(a); o.cover = j.adventures[0].cover; return o; })() : null;
+      const same = sc && toScn && scnList().find(x => !x.trashed && (x.title || "").trim().toLowerCase() === (sc.title || "").trim().toLowerCase());
+      if(same && confirm(L(`Tu as déjà un scénario « ${same.title} ».\n\nOK : le mettre à jour avec ce fichier (il garde son image et sa publication ; tes modifications dessus sont remplacées).\nAnnuler : l'importer comme un nouveau scénario.`, `You already have a scenario “${same.title}”.\n\nOK: update it with this file (keeps its image and publication; your edits to it are replaced).\nCancel: import it as a new scenario.`))){
+        const { cover, ...rest } = sc; const t = scnFromSc(rest);
+        Object.assign(t, { id: same.id, created: same.created, hasCover: same.hasCover, coverPos: sc.coverPos ?? same.coverPos, publish: Object.assign({}, same.publish, t.publish) });
+        if(same.publishedId) t.publishedId = same.publishedId;
+        if(cover && LS.set("lan.cover." + t.id, cover)) t.hasCover = true;
+        saveScn(t); libTab = "scn"; if(!adv) showLibrary();
+        toast(same.publishedId ? L("Scénario mis à jour. Fais « Mettre à jour dans Découvrir » pour que les autres l’aient aussi.", "Scenario updated. Use “Update in Discover” so others get it too.") : L("Scénario mis à jour", "Scenario updated"));
+        return adventureWizard(scnPre(t), { scn: t });
+      }
       if(sc && toScn){ const t = scnFromSc(sc); saveScn(t); libTab = "scn"; if(!adv) showLibrary(); toast(L("Scénario importé dans Mes scénarios", "Scenario imported into My scenarios")); adventureWizard(scnPre(t), { scn: t }); }
       else if(sc) startFromScenario(sc);
       else throw new Error("ce n'est pas un scénario Lanterne");

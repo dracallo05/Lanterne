@@ -192,6 +192,25 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 @media (min-width:900px){.app.wide .dgrid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}.app.wide .stile .cover{height:130px}.app.wide .libtabs{margin-top:26px}}
 .sbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
 .sbar::-webkit-scrollbar{display:none}
+.mptabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:8px}
+.mptabs::-webkit-scrollbar{display:none}
+.mptab{flex:none;border:1px solid var(--line);background:var(--bg2);color:var(--tx2);border-radius:999px;padding:5px 11px;font:500 12px var(--sans);cursor:pointer}
+.mptab.on{border-color:var(--acc);color:var(--tx)}
+.mptab .w{color:var(--acc2);margin-left:4px}
+.pill.turn.me{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
+.pill.turn.me b{color:var(--onacc)}
+.pill .bdg{background:var(--acc);color:var(--onacc);border-radius:9px;padding:0 6px;font-size:11px;font-weight:700}
+.mpdot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#6fbf73;flex:none}
+.mpdot.off{background:var(--tx3);opacity:.6}
+.mprow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.mprow .grow{flex:1;min-width:0}
+.mprow .n{font-weight:600;color:var(--tx)}
+.mprow .d{font-size:12.5px;color:var(--tx3)}
+.chatlist{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;max-height:50vh;overflow-y:auto}
+.chatlist .msg{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 11px;font-size:14px;color:var(--tx2)}
+.chatlist .msg b{color:var(--acc2);font-weight:600;margin-right:6px}
+.chatlist .msg.me{align-self:flex-end;border-color:var(--acc)}
+.act.live::after{content:"▍";color:var(--acc);animation:pulse 1s infinite}
 .pill{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);font-size:12.5px;color:var(--tx2);white-space:nowrap;flex:none}
 .pill b{color:var(--tx);font-weight:600}
 .pill svg{width:14px;height:14px}
@@ -424,12 +443,15 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
   <main id="storyView" class="hidden"><div id="bannerHost"></div><div class="story" id="story"></div></main>
   <div class="bar hidden" id="bar">
     <div class="ideas hidden" id="ideas"></div>
+    <div class="mptabs hidden" id="mptabs"></div>
     <div class="sbar hidden" id="sbar"></div>
     <div class="modes" id="modes">
       <button class="mode on" data-m="do">Faire</button>
       <button class="mode" data-m="say">Dire</button>
       <button class="mode" data-m="story">Histoire</button>
       <button class="mode" data-m="guide">Guide</button>
+      <button class="mode mpb hidden" data-act="auto">IA joue</button>
+      <button class="mode mpb hidden" data-act="pass">Passer</button>
     </div>
     <div class="inrow">
       <textarea id="inp" rows="1" placeholder="Que fais-tu ?"></textarea>
@@ -535,6 +557,7 @@ const isEN = () => settings.lang === "en";
 const LOC = () => isEN() ? "en-US" : "fr-FR";
 const L = (fr, en) => isEN() ? en : fr;
 const I18N = {}, I18N_RE = [];
+Object.assign(I18N, {"IA joue": "AI plays", "Passer": "Skip", "À plusieurs": "Together"});
 Object.assign(I18N, {"(licence MIT), adaptés pour Lanterne.": "(MIT license), adapted for Lanterne.", "(sans titre)": "(untitled)", "+ Ajouter une carte": "+ Add a card", "+ Nouvelle aventure": "+ New adventure", "+ Nouvelle carte": "+ New card", ", sous licence MIT.": ", under the MIT license.", ". Entre ton mot de passe une fois sur cet appareil pour l'activer.": ". Enter your password once on this device to turn it on.", "6 caractères minimum": "6 characters minimum", ": la copie du serveur sera effacée et remplacée. Les aventures qui n'existent que sur un autre appareil y restent : connecte-toi depuis celui-ci en premier si c'est lui qui a tout.": ": the server copy will be erased and replaced. Adventures that only exist on another device stay there: sign in from that one first if it has everything.", "Accepter": "Accept", "Action-aventure": "Action-adventure", "Activée": "Enabled", "Actuelle": "Current", "Adresse de l'API": "API address", "Adresse du projet Supabase": "Supabase project URL", "Ajoute les tournures qui t'agacent : l'IA ne les utilisera plus.": "Add the phrasings that annoy you: the AI won't use them anymore.", "Ajoute ta clé API": "Add your API key", "Ajoute ta clé API dans les réglages": "Add your API key in the settings", "Ajouter": "Add", "Analyse tous les … tours": "Analyze every … turns", "Analyser l'histoire maintenant": "Analyze the story now", "Annuler": "Undo", "Anti-répétition": "Anti-repetition", "Apparence": "Look", "Arbre mort": "Dead tree", "Aucun résultat.": "No results.", "Aucune aventure pour l'instant.": "No adventures yet.", "Audacieux · Peu de refus": "Bold · Few refusals", "Aurore": "Aurora", "Auto-Cards (LewdLeah) désactivé : les Cartes intelligentes le remplacent": "Auto-Cards (LewdLeah) turned off: Smart cards replace it", "Autre API compatible OpenAI": "Other OpenAI-compatible API", "Avancé": "Advanced", "Avec un script actif, chaque tour coûte un peu plus (environ +20 à 50 %) et le texte apparaît d'un coup à la fin. Scripts créés par": "With a script on, each turn costs a bit more (about +20 to 50%) and the text appears all at once at the end. Scripts made by", "Aventure": "Adventure", "Aventure introuvable": "Adventure not found", "Aventure supprimée": "Adventure deleted", "Bienvenue dans Lanterne": "Welcome to Lanterne", "Bois brumeux": "Misty woods", "Bon après-midi.": "Good afternoon.", "Bonjour.": "Good morning.", "Bonsoir.": "Good evening.", "Braise": "Ember", "C'est noté": "Got it", "C'est parti": "Let's go", "Canyon au soleil": "Sunlit canyon", "Cartes intelligentes": "Smart cards", "Cartes intelligentes désactivées : un seul système de cartes à la fois": "Smart cards turned off: one card system at a time", "Cartes mises à jour": "Cards updated", "Catégorie personnalisée": "Custom category", "Ce que l'IA doit toujours savoir : qui tu es, le monde, les relations, l'enjeu.": "What the AI must always know: who you are, the world, relationships, what's at stake.", "Changer de modèle": "Change model", "Changer l'image": "Change image", "Changer le mot de passe": "Change password", "Chargement des modèles et des prix…": "Loading models and prices…", "Chiffrement": "Encryption", "Chiffrement activé ✓": "Encryption on ✓", "Choisir un modèle": "Choose a model", "Château au clair de lune": "Moonlit castle", "Cité néon": "Neon city", "Classique · Stable": "Classic · Stable", "Clé API": "API key", "Clé OK": "Key OK", "Clé publique (anon / publishable)": "Public key (anon / publishable)", "Code copié": "Code copied", "Code de secours": "Recovery code", "Combien de passages récents l'app relit pour chercher les mots-clés des cartes. À 4, une carte reste active tant que son mot-clé est apparu dans les 4 derniers passages.": "How many recent passages the app scans for card keywords. At 4, a card stays active as long as its keyword appeared in the last 4 passages.", "Combien de tokens d'histoire l'IA voit à chaque tour. Plus = meilleure mémoire, mais chaque tour coûte plus.": "How many tokens of story the AI sees each turn. More = better memory, but each turn costs more.", "Commencer l'aventure": "Start the adventure", "Comment jouer": "How to play", "Comment l'IA raconte : style, ton, règles. Les instructions par défaut fonctionnent bien.": "How the AI narrates: style, tone, rules. The default instructions work well.", "Compte": "Account", "Confirme-le": "Confirm it", "Connecte-toi": "Sign in", "Connecté": "Signed in", "Connecté ✓": "Signed in ✓", "Contenu": "Content", "Continuer": "Continue", "Copie créée": "Copy created", "Copie impossible : note-le à la main": "Can't copy: write it down by hand", "Copier": "Copy", "Crédits": "Credits", "Crée un compte pour retrouver tes aventures, réglages et stats sur tous tes appareils (PC, téléphone…). Tout est": "Create an account to get your adventures, settings and stats on all your devices (PC, phone…). Everything is", "Crée un compte sur openrouter.ai, ajoute quelques euros de crédit, puis crée une clé et colle-la dans les réglages (icône en haut à droite). Un tour coûte une fraction de centime.": "Create an account on openrouter.ai, add a few dollars of credit, then create a key and paste it in the settings (icon at the top right). A turn usually costs a cent or two at most.", "Crée un compte sur openrouter.ai, ajoute quelques euros de crédit, puis crée une clé et colle-la dans les réglages (icône en haut à droite).": "Create an account on openrouter.ai, add a few dollars of credit, then create a key and paste it in the settings (icon at the top right).", "Crée-en une pour commencer.": "Create one to get started.", "Créer un compte": "Create an account", "Compte créé ✓": "Account created ✓", "Dans le top roleplay d'OpenRouter. Bon dépannage pas cher.": "In OpenRouter's top roleplay models. A good cheap backup.", "Dernière vérification : supprimer le compte pour de bon ?": "Last check: delete the account for good?", "Des aventures et du jeu de rôle avec l'IA. Tu joues, elle raconte, et tout reste sur ton téléphone.": "Adventures and roleplay with AI. You play, it narrates, and everything stays on your device.", "Des outils pour enrichir tes parties. Tu peux en activer autant que tu veux.": "Tools to enrich your games. Turn on as many as you like.", "Deux lunes": "Twin moons", "Devise": "Currency", "Dire": "Say", "Divers": "Misc", "Dollar ($)": "Dollar ($)", "Donne aux personnages une mémoire, des objectifs et des pensées qui évoluent au fil de l'histoire.": "Gives characters memories, goals and thoughts that evolve over the story.", "Données": "Data", "Données récupérées ✓": "Data recovered ✓", "Drame": "Drama", "Dunes": "Dunes", "Dupliquer": "Duplicate", "Décris le style que tu veux, l'IA réécrit les instructions.": "Describe the style you want, the AI rewrites the instructions.", "Décris une envie en une phrase, ou laisse vide pour une surprise. L'IA remplit le titre, l'ouverture, les essentiels et la note d'auteur.": "Describe what you feel like in one sentence, or leave it empty for a surprise. The AI fills in the title, opening, essentials and author's note.", "Dépenses": "Spending", "Dépenses par mois": "Spending per month", "Dépensé sur cette aventure": "Spent on this adventure", "Dés": "Dice", "Désactive sans supprimer.": "Turns it off without deleting it.", "Désactiver le raisonnement": "Turn off reasoning", "Déverrouiller": "Unlock", "E-mail": "Email", "Effacer aussi les aventures de cet appareil": "Also erase the adventures on this device", "Effacer ce cerveau ?": "Erase this brain?", "Effacer la copie du serveur et la remplacer par les aventures de cet appareil ?": "Erase the server copy and replace it with the adventures on this device?", "Elara\nCapitaine Rhéa": "Elara\nCaptain Rhea", "En caractères. 1000 comme AI Dungeon : au-delà, l'IA retient moins bien les détails.": "In characters. 1000 like AI Dungeon: beyond that, the AI remembers details less well.", "Encre": "Ink", "Enregistrer": "Save", "Entre ton code de secours": "Enter your recovery code", "Entre ton mot de passe": "Enter your password", "Envoyer": "Send", "Euro (€)": "Euro (€)", "Ex. : Elara": "E.g. Elara", "Ex. : Elara, la forgeronne": "E.g. Elara, the blacksmith", "Ex. : Kaelen": "E.g. Kaelen", "Ex. : ambiance horreur, narrateur froid et précis, peu de descriptions, beaucoup de tension": "E.g. horror mood, cold and precise narrator, few descriptions, lots of tension", "Ex. : artefact, créature, sort…": "E.g. artifact, creature, spell…", "Ex. : blessé à l'épaule": "E.g. wounded shoulder", "Ex. : une enquête dans un Paris des années 20 où la magie est interdite": "E.g. an investigation in 1920s Paris where magic is forbidden", "Ex. : épée courte": "E.g. short sword", "Exiger le support des réglages": "Require settings support", "Exporter": "Export", "Faire": "Do", "Fantasy": "Fantasy", "Fermer": "Close", "Fiche du personnage": "Character sheet", "Fichier téléchargé : envoie-le à tes potes": "File downloaded: send it to your friends", "Forêt": "Forest", "Forêt enchantée": "Enchanted forest", "Fournisseur": "Provider", "Français natif": "Native French", "Fusion": "Merge", "Gestion": "Manage", "Gratuit": "Free", "Gratuite et hors ligne, mais robotique.": "Free and offline, but robotic.", "Guide": "Guide", "Génération": "Generation", "Générer": "Generate", "Génération…": "Generating…", "Générer un nouveau code de secours": "Generate a new recovery code", "Haut de gamme": "Top of the line", "Hauteur de la voix": "Voice pitch", "Histoire": "Story", "Horreur": "Horror", "Identifiant personnalisé": "Custom ID", "Idées": "Ideas", "Ignorer": "Dismiss", "Il permet de récupérer tes aventures si tu oublies ton mot de passe. Note-le maintenant (capture d'écran, gestionnaire de mots de passe, papier…) :": "It lets you recover your adventures if you forget your password. Write it down now (screenshot, password manager, paper…):", "Il te faut une clé API": "You need an API key", "Il était une fois": "Once upon a time", "Image de couverture": "Cover image", "Image illisible": "Unreadable image", "Image trop lourde pour le stockage": "Image too large to store", "Importer": "Import", "Importer depuis l'appareil": "Import from device", "Instructions": "Instructions", "Instructions de l'IA": "AI instructions", "Instructions générées": "Instructions generated", "Intrigue": "Plot", "Inventaire": "Inventory", "Je n'ai plus mon code": "I lost my code", "Jet de d20 sur les actions « Faire »": "d20 roll on “Do” actions", "Jouer": "Play", "Jungle": "Jungle", "Kokoro (économique)": "Kokoro (budget)", "L'IA met la fiche à jour toute seule pendant l'histoire (dégâts, butin, achats…). Tu peux corriger ici à tout moment.": "The AI updates the sheet on its own during the story (damage, loot, purchases…). You can fix it here anytime.", "L'analyse commence après quelques tours.": "Analysis starts after a few turns.", "L'identifiant exact sur openrouter.ai/models.": "The exact ID on openrouter.ai/models.", "La grande version de GLM. Histoires profondes, très bon avec les personnages complexes.": "The big GLM. Deep stories, very good with complex characters.", "La grande version de MiMo, plus nuancée que la Flash.": "The big MiMo, more nuanced than Flash.", "La langue est détectée automatiquement pour chaque passage.": "The language is detected automatically for each passage.", "La lecture vocale n'est pas disponible ici": "Read-aloud isn't available here", "La synchro est maintenant": "Sync is now", "Lanterne": "Lanterne", "Le bibliothécaire propose ces changements. Tu peux corriger le texte avant d'accepter.": "The librarian suggests these changes. You can edit the text before accepting.", "Le choix par défaut. Prose riche, bonne mémoire, très bon en français. La version la plus récente (0813) est un peu meilleure et un peu plus chère.": "The default choice. Rich prose, good memory, great in French and English. The newest version (0813) is a bit better and a bit pricier.", "Le code de secours sert si tu oublies ton mot de passe. Tu l'as perdu ? Génère-en un nouveau : l'ancien ne marchera plus.": "The recovery code is for when you forget your password. Lost it? Generate a new one: the old one will stop working.", "Le compte": "The account", "Le donjon est ouvert.": "The dungeon is open.", "Le début de l'histoire, à la 2e personne. L'IA continuera à partir de là.": "The beginning of the story, in second person. The AI will continue from there.", "Le favori des joueurs exigeants : écriture fine, nuancée, personnages crédibles.": "The demanding players' favorite: fine, nuanced writing, believable characters.", "Le modèle occidental le plus utilisé sur SillyTavern. Vif et cohérent, mais moins de réglages (température ignorée).": "The most used Western model on SillyTavern. Sharp and coherent, but fewer settings (temperature ignored).", "Le mot de passe de ce compte a changé, il n'ouvre plus le coffre qui protège tes données. Entre le": "This account's password changed, it no longer opens the vault protecting your data. Enter the", "Le nom de ton aventure": "Your adventure's name", "Le plus haut niveau d'écriture et de cohérence sur les très longues histoires. Cher.": "The highest level of writing and coherence over very long stories. Expensive.", "Le plus utilisé en jeu de rôle sur OpenRouter. Moins fin que le Pro, mais imbattable pour les longues sessions.": "The most used for roleplay on OpenRouter. Less refined than Pro, but unbeatable for long sessions.", "Le résultat s'affiche à côté de ton action et l'IA raconte en conséquence. 1 = échec critique, 20 = succès critique.": "The result shows next to your action and the AI narrates accordingly. 1 = critical failure, 20 = critical success.", "Le script d'origine : crée tout seul des Story Cards pour les personnages, lieux et objets importants.": "The original script: creates Story Cards on its own for important characters, places and items.", "Le « DeepSeek V4.1 » d'AI Dungeon. Efficace et économique.": "AI Dungeon's “DeepSeek V4.1”. Efficient and cheap.", "Le « DeepSeek » de base d'AI Dungeon. Stylé et fiable, pour retrouver les sensations.": "AI Dungeon's base “DeepSeek”. Stylish and reliable, to get that familiar feel.", "Lecture automatique": "Auto read-aloud", "Les changements arrivent en suggestions à valider. Désactivé, ils s'appliquent tout seuls.": "Changes arrive as suggestions to approve. Turned off, they apply on their own.", "Les deux mots de passe sont différents": "The two passwords don't match", "Les passages déjà écoutés sont gardés en mémoire pendant la session : les réécouter ne coûte rien.": "Passages you already listened to are kept during the session: replaying them costs nothing.", "Les statistiques se remplissent au fil de tes parties.": "Stats fill up as you play.", "Les voix de qualité passent par OpenRouter, avec ta clé : rien à installer. Le prix est indiqué pour un passage d'environ 1000 caractères, une réplique typique de l'IA.": "Quality voices go through OpenRouter, with your key: nothing to install. The price shown is for a passage of about 1000 characters, a typical AI reply.", "Lien invalide ou expiré : redemande un e-mail": "Invalid or expired link: request a new email", "Limite aux K mots les plus probables. 0 = désactivé.": "Limits to the K most likely words. 0 = off.", "Lit chaque nouveau passage dès qu'il est écrit.": "Reads each new passage as soon as it's written.", "Attention, chaque lecture est facturée.": "Careful, each reading is billed.", "Lit chaque nouveau passage dès qu'il est écrit. Attention, chaque lecture est facturée.": "Reads each new passage as soon as it's written. Careful, each reading is billed.", "Littéraire · Dialogues": "Literary · Dialogue", "Longueur de réponse": "Response length", "Lumières du soir": "Evening lights", "Manoir": "Manor", "Me demander avant": "Ask me first", "Mer déchaînée": "Raging sea", "Mes expressions interdites": "My banned phrases", "Mise à jour": "Update", "Mode RPG": "RPG mode", "Modifier": "Edit", "Modifier la carte": "Edit card", "Modèle": "Model", "Modèle :": "Model:", "Modèle actuel": "Current model", "Modèles utilisés": "Models used", "Modèle français : le plus à l'aise avec les expressions et le registre de la langue.": "French model: the most at ease with French expressions and register.", "Moins cher d'abord": "Cheapest first", "Mondes": "Worlds", "Montagnes infinies": "Endless mountains", "Mot de passe": "Password", "Mot de passe changé ✓": "Password changed ✓", "Mot de passe et code de secours": "Password and recovery code", "Mot de passe oublié ?": "Forgot password?", "Moteur de voix": "Voice engine", "Mots-clés": "Keywords", "Mémoire": "Memory", "Mémoire de l'IA": "AI memory", "Mémoire longue. Mis à jour automatiquement quand des passages sortent de la mémoire de l'IA. Tu peux le corriger à la main.": "Long-term memory. Updated automatically when passages leave the AI's memory. You can edit it by hand.", "Mémoire longue : les événements importants qui sont sortis de la mémoire de l'IA. (Résumé automatique désactivé dans les réglages.)": "Long-term memory: important events that left the AI's memory. (Auto-summary is off in the settings.)", "Narration · Français · Réglable": "Narration · Multilingual · Tunable", "Naturelle et vivante, détecte la langue toute seule. 5 voix.": "Natural and lively, detects the language on its own. 5 voices.", "Ne garde que les mots dont la probabilité cumulée atteint ce seuil.": "Only keeps words whose cumulative probability reaches this threshold.", "Nom": "Name", "Nombre maximum de tokens par réponse.": "Maximum number of tokens per response.", "Note d'auteur": "Author's note", "Notes": "Notes", "Nouveau mot de passe": "New password", "Nouveautés": "What's new", "Nouvelle aventure": "New adventure", "Nouvelle carte": "New card", "Nuit": "Night", "OpenRouter (recommandé)": "OpenRouter (recommended)", "Options": "Options", "Or": "Gold", "Orbite": "Orbit", "Oriente la suite (invisible dans l'histoire)…": "Steer what happens next (invisible in the story)…", "Outils Lanterne": "Lanterne tools", "Outils et scripts (optionnel)": "Tools and scripts (optional)", "Ouvrir la fiche du personnage": "Open the character sheet", "Où est-ce qu'on part ?": "Where are we headed?", "PV": "HP", "PV max": "Max HP", "Papier": "Paper", "Par défaut": "Default", "Parchemin": "Parchment", "Partager le scénario": "Share scenario", "Pas de clé": "No key", "Pas de voix disponible sur cet appareil.": "No voice available on this device.", "Aucune voix trouvée": "No voice found", "Passer": "Skip", "Pensées": "Thoughts", "Personnages qui pensent": "Thinking characters", "Personnages · Cohérence": "Characters · Coherence", "Personnages, lieux, objets… Tu peux en ajouter maintenant ou plus tard.": "Characters, places, items… You can add them now or later.", "Phare au crépuscule": "Lighthouse at dusk", "Planète géante": "Giant planet", "Plot Essentials": "Plot Essentials", "Pluie sur la ville": "Rain on the city", "Plus belle prose · Personnages vivants": "Finest prose · Living characters", "Plus haut = plus imprévisible.": "Higher = more unpredictable.", "Plus rapide et moins cher pour la narration. Désactive si un modèle refuse.": "Faster and cheaper for narration. Turn off if a model refuses.", "Plus récents": "Newest", "Points de vie, or, inventaire et états, tenus à jour par l'IA. Jet de d20 sur tes actions « Faire ».": "Hit points, gold, inventory and status, kept up to date by the AI. d20 roll on your “Do” actions.", "Police de l'histoire": "Story font", "Polyvalent · Rigoureux": "Versatile · Rigorous", "Pratique : rien à recoller sur le PC. Elle est chiffrée comme le reste : personne d'autre ne peut la lire.": "Handy: nothing to paste again on PC. It's encrypted like everything else: nobody else can read it.", "Presque gratuite et correcte, mais une seule voix française.": "Almost free and decent, but only one French voice.", "Profondeur des Story Cards": "Story Cards depth", "Précédente": "Previous", "Prêt pour l'aventure ?": "Ready for adventure?", "Pénalise les mots déjà apparus, une seule fois.": "Penalizes words that already appeared, once.", "Pénalise selon le nombre d'apparitions.": "Penalizes based on how often they appeared.", "Qualité studio, la plus naturelle pour la narration. Voix françaises natives.": "Studio quality, the most natural for narration. Native French and English voices.", "Quand des passages sortent de la mémoire de l'IA, ils sont résumés tout seuls dans le résumé de l'histoire.": "When passages leave the AI's memory, they're summarized on their own into the story summary.", "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.": "When one of these words appears in the story, the card is sent to the AI so it remembers. Separate them with commas.", "Que dis-tu ?": "What do you say?", "Que fais-tu ?": "What do you do?", "Qui ou ce que c'est : apparence, personnalité, motivations, secrets…": "Who or what it is: appearance, personality, motives, secrets…", "Qui seras-tu aujourd'hui ?": "Who will you be today?", "Rapide · Français · Contexte immense": "Fast · Multilingual · Huge context", "Rapide · Presque gratuit": "Fast · Almost free", "Rapide · Économique": "Fast · Cheap", "Rechercher": "Search", "Rechercher (deepseek, glm, claude…)": "Search (deepseek, glm, claude…)", "Rechercher dans l'histoire": "Search the story", "Recommandés": "Recommended", "Relancer si l'IA se recopie": "Retry if the AI copies itself", "Remettre le compteur à zéro": "Reset the counter", "Remettre le total dépensé à zéro ?": "Reset the total spent to zero?", "Remplis l'e-mail et le mot de passe": "Fill in the email and password", "Repartir de cet appareil": "Start over from this device", "Repetition penalty": "Repetition penalty", "Reprendre": "Continue playing", "Repère les personnages, lieux, objets et factions importants, crée leurs cartes, les met à jour quand ils évoluent et fusionne les doublons.": "Spots important characters, places, items and factions, creates their cards, updates them as they evolve and merges duplicates.", "Repère les tics d'écriture de l'IA (phrases et tournures qui reviennent) et les lui interdit.": "Spots the AI's writing tics (recurring sentences and phrasings) and bans them.", "Retirer": "Remove", "Retirer l'image": "Remove image", "Retour": "Back", "← Retour": "← Back", "Revoir le tutoriel": "Replay the tutorial", "Rien de nouveau à analyser": "Nothing new to analyze", "Rien à changer pour l'instant": "Nothing to change for now", "Rien à lire": "Nothing to read", "Rien à réessayer": "Nothing to retry", "Récupérer mes données": "Recover my data", "Réduit les répétitions. 1 = désactivé.": "Reduces repetition. 1 = off.", "Réessayer": "Retry", "Réglages": "Settings", "Répétition détectée, nouvelle version…": "Repetition detected, new version…", "Résumé automatique": "Auto-summary", "Résumé de l'histoire": "Story summary", "Rétablir": "Redo", "Sac": "Bag", "Sans code, la copie du serveur ne peut plus être lue. Tu peux repartir des aventures présentes": "Without a code, the server copy can't be read anymore. You can start over from the adventures", "Sauvegarde": "Backup", "Science-fiction": "Sci-fi", "Scripts": "Scripts", "Scripts AI Dungeon": "AI Dungeon scripts", "Scripts Auto-Cards et Inner Self par": "Auto-Cards and Inner Self scripts by", "Scripts introuvables : envoie le fichier innerself.js sur GitHub avec l'app.": "Scripts not found: upload the innerself.js file to GitHub with the app.", "Scénario généré, ajuste-le à ton goût": "Scenario generated, adjust it to your taste", "Se connecter": "Sign in", "Se déconnecter": "Sign out", "Se déconnecter ? Tes aventures restent sur cet appareil. Si un autre compte se connecte ici ensuite, elles seront retirées de l'appareil (elles restent dans ton compte).": "Sign out? Your adventures stay on this device. If another account signs in here next, they'll be removed from the device (they stay in your account).", "Serveur (avancé)": "Server (advanced)", "Serveur enregistré": "Server saved", "Seuls les fournisseurs qui respectent top K, min P, etc. sont utilisés.": "Only providers that support top K, min P, etc. are used.", "Si ce compte existe, un e-mail de réinitialisation vient d'être envoyé": "If this account exists, a reset email was just sent", "Si une réponse reprend presque mot pour mot un passage récent, une nouvelle version est générée automatiquement.": "If a reply copies a recent passage almost word for word, a new version is generated automatically.", "Sinon, elles restent ici et tu peux continuer à jouer sans compte.": "Otherwise, they stay here and you can keep playing without an account.", "Stats": "Stats", "Stockée uniquement sur cet appareil, envoyée seulement au fournisseur choisi.": "Stored only on this device, sent only to the chosen provider.", "Story Cards": "Story Cards", "Style littéraire et dialogues naturels. Créatif, parfois un peu verbeux.": "Literary style and natural dialogue. Creative, sometimes a bit wordy.", "Suggestions de cartes": "Card suggestions", "Suivant": "Next", "Suivante": "Next", "Supprimer": "Delete", "Supprimer ce passage et tout ce qui suit ?": "Delete this passage and everything after it?", "Supprimer définitivement": "Delete permanently", "Supprimer définitivement cette aventure ?": "Permanently delete this adventure?", "Supprimer mon compte": "Delete my account", "Supprimer à partir d'ici": "Delete from here", "Synchronisation déjà en cours": "Sync already in progress", "Synchroniser aussi la clé API": "Also sync the API key", "Synchroniser maintenant": "Sync now", "Synchronisé ✓": "Synced ✓", "Taille de la mémoire": "Memory size", "Taille du texte": "Text size", "Taille max d'une Story Card": "Max Story Card size", "Tape au moins 2 lettres. Touche un résultat pour y aller.": "Type at least 2 letters. Tap a result to jump there.", "Temperature": "Temperature", "Tester la connexion": "Test connection", "Texte d'ouverture": "Opening text", "Texte de l'IA": "AI text", "Thème": "Theme", "Tics repérés": "Detected tics", "Titre": "Title", "Ton code de secours": "Your recovery code", "Ton direct et peu de refus. Bon pour les histoires sombres ou décalées.": "Direct tone and few refusals. Good for dark or offbeat stories.", "Ton mot de passe, pour confirmer": "Your password, to confirm", "Ton action": "Your action", "Ton prénom dans l'histoire (optionnel)": "Your name in the story (optional)", "Top K": "Top K", "Top P": "Top P", "Touche ici pour la coller. Elle reste sur ce téléphone.": "Tap here to paste it. It stays on this device.", "Touche pour voir les prix et changer": "Tap to see prices and change", "Toujours envoyé à l'IA. Personnage, monde, relations, objectifs.": "Always sent to the AI. Character, world, relationships, goals.", "Tour du mage": "Wizard's tower", "Tours joués · mots": "Turns played · words", "Tous": "All", "Tous les modèles": "All models", "Tout accepter": "Accept all", "Tout est enregistré sur ce téléphone. Exporte régulièrement une sauvegarde : si tu effaces les données de l'app, tout part avec.": "Everything is saved on this device. Export a backup regularly: if you clear the app's data, everything goes with it.", "Tout exporter": "Export all", "Tout ignorer": "Dismiss all", "Toutes les aventures": "All adventures", "Très apprécié des joueurs, cohérent et peu cher. Il réfléchit toujours avant de répondre, donc un peu plus lent.": "Very popular with players, coherent and cheap. It always thinks before answering, so a bit slower.", "Très expressive, idéale pour faire vivre les personnages. Toutes ses voix parlent français et anglais.": "Very expressive, ideal to bring characters to life. All its voices speak French and English.", "Très solide et logique, suit bien les consignes et les règles du monde.": "Very solid and logical, follows instructions and world rules well.", "Tu pousses la porte de l'auberge. Dehors, la tempête redouble…": "You push open the inn's door. Outside, the storm grows stronger…", "Type": "Type", "Un monde t'attend. À toi de jouer.": "A world awaits. Your move.", "Un nom, un lieu, un mot…": "A name, a place, a word…", "Un prénom par ligne. Leur « cerveau » se crée quand ils apparaissent dans l'histoire. Le premier de la liste est prioritaire.": "One name per line. Their “brain” is created when they appear in the story. The first one in the list has priority.", "Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples :": "A short instruction, slipped in right before your last action. It's the most influential setting for tone and pacing. Examples:", "Une par ligne. Ex. : un frisson parcourt ton échine": "One per line. E.g. a shiver runs down your spine", "Une petite requête en plus à chaque analyse.": "One small extra request per analysis.", "Utiliser cet identifiant": "Use this ID", "Utilisée à": "Used at", "Vagues abstraites": "Abstract waves", "Valeurs par défaut": "Defaults", "Versions précédentes": "Previous versions", "Vide": "Empty", "Vitesse": "Speed", "Voir ce que l'IA reçoit (avancé)": "See what the AI receives (advanced)", "Ce que l'IA reçoit": "What the AI receives", "Avec les scripts actifs, ils modifient encore ce texte juste avant l'envoi.": "With scripts on, they still modify this text right before sending.", "Le message système, puis l'histoire récente.": "The system message, then the recent story.", "Cartes que l'IA voit en ce moment :": "Cards the AI sees right now:", "Voir l'ancienne version": "See the old version", "Voix": "Voice", "Voix :": "Voice:", "Voix anglaise": "English voice", "Voix du téléphone": "Device voice", "Voix française": "French voice", "⚠ Ces voix demandent le fournisseur OpenRouter. En attendant, la voix du téléphone sera utilisée.": "⚠ These voices require the OpenRouter provider. Meanwhile, the device voice will be used.", "XXXX-XXXX-XXXX-XXXX-XXXX": "XXXX-XXXX-XXXX-XXXX-XXXX", "aucune aventure trouvée": "no adventure found", "aucune donnée chiffrée sur ce compte": "no encrypted data on this account", "aucune idée": "no ideas", "autre": "other", "avant d'être envoyé : personne d'autre ne peut lire tes parties, même le propriétaire du serveur.": "before being sent: nobody else can read your games, not even the server owner.", "aventure": "adventure", "aventures": "adventures", "ce n'est pas un scénario Lanterne": "this isn't a Lanterne scenario", "chiffré avec ton mot de passe": "encrypted with your password", "chiffrée de bout en bout": "end-to-end encrypted", "code de secours": "recovery code", "code de secours incorrect": "wrong recovery code", "compte créé : confirme ton e-mail (lien reçu par mail), puis connecte-toi": "account created: confirm your email (link sent by email), then sign in", "concept": "concept", "de bout en bout": "end-to-end", "dépensé au total": "spent in total", "et toutes ses données synchronisées seront définitivement effacés du serveur. C'est irréversible.": "and all its synced data will be permanently erased from the server. This can't be undone.", "eyJ… ou sb_publishable_…": "eyJ… or sb_publishable_…", "faction": "faction", "garde toutes les versions.": "keeps every version.", "il ne sera plus affiché": "it won't be shown again", "jour de jeu": "day played", "jours de jeu": "days played", "lecture audio impossible": "audio playback failed", "lieu": "place", "mots écrits par l'IA": "words written by the AI", "mots écrits par toi": "words written by you", "non connecté": "not signed in", "objet": "item", "ou": "or", "personnage": "character", "populaire": "popular", "recommandé": "recommended", "pour agir,": "to act,", "pour orienter l'IA sans que ça apparaisse. Touche un passage pour le modifier, et": "to steer the AI without it showing. Tap a passage to edit it, and", "pour parler,": "to talk,", "pour reprendre la synchro": "to resume sync", "pour synchroniser PC et téléphone": "to sync PC and phone", "pour écrire toi-même la suite,": "to write what happens next yourself,", "qui t'a été donné à la création du compte.": "you were given when you created the account.", "réponse illisible, réessaie": "unreadable response, try again", "serveur non configuré": "server not configured", "session expirée, reconnecte-toi": "session expired, sign in again", "sur cet appareil": "on this device", "synchro verrouillée": "sync locked", "te sera demandé une fois.": "will be asked once.", "toi@exemple.com": "you@example.com", "tours joués": "turns played", "« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »": "“Light, humorous mood. Characters talk casually.”", "« Partager le scénario » envoie le début de l'aventure (ouverture, essentiels, cartes, réglages) sans ta partie jouée. Ton pote l'importe depuis « Nouvelle aventure ».": "“Share scenario” sends the start of the adventure (opening, essentials, cards, settings) without your playthrough. Your friend imports it from “New adventure”.", "« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »": "“Dark, melancholic tone. Slow pacing, lots of dialogue.”", "À la première connexion sur un appareil, les aventures déjà présentes sont fusionnées avec celles du compte (la version la plus récente gagne). Après un changement de mot de passe, ton": "On first sign-in on a device, the adventures already there are merged with the account's (the newest version wins). After a password change, your", "Écarte les mots trop improbables par rapport au meilleur. 0 = désactivé.": "Removes words too unlikely compared to the best one. 0 = off.", "Économique · Réfléchit avant d'écrire": "Cheap · Thinks before writing", "Écouter": "Listen", "Écris d'abord ton e-mail dans le champ du dessus": "First type your email in the field above", "Écris la suite de l'histoire...": "Write what happens next...", "Équilibré": "Balanced", "États": "Status", "Îles flottantes": "Floating islands", "à l'instant": "just now", "⏹ Arrêter la lecture": "⏹ Stop reading", "☁️ Synchronisation en attente": "☁️ Sync pending", "☁️ Synchronisation…": "☁️ Syncing…", "☁️ Synchronisé": "☁️ Synced", "☁️": "☁️", "⚖️ Milieu de gamme": "⚖️ Mid-range", "✨ Analyser l'histoire": "✨ Analyze the story", "✨ Auto-Cards crée une carte…": "✨ Auto-Cards is creating a card…", "✨ Auto-Cards travaille…": "✨ Auto-Cards is working…", "✨ Compléter avec l'IA": "✨ Complete with AI", "✨ Générer avec l'IA ▾": "✨ Generate with AI ▾", "✨ Générer des instructions": "✨ Generate instructions", "✨ Pas d'idée ? Générer": "✨ No idea? Generate", "＋ Choisir une image": "＋ Choose an image", "＋ Image de couverture": "＋ Cover image", "＋ Image de couverture (optionnel)": "＋ Cover image (optional)", "💎 Premium": "💎 Premium", "💡 Idées d'actions…": "💡 Action ideas…", "💡 Touche une idée pour la reprendre": "💡 Tap an idea to use it", "💰 Meilleur rapport qualité/prix": "💰 Best value", "📥 Importer un scénario": "📥 Import a scenario", "🧭 guidé": "🧭 guided", "Analyse en cours…": "Analyzing…", "Suppression…": "Deleting…", "Masquer les cartes techniques": "Hide technical cards", "Cartes de configuration des scripts (en anglais). À modifier seulement si tu sais ce que tu fais.": "Script configuration cards. Only edit them if you know what you're doing.", "🎭 Cerveaux (Inner Self)": "🎭 Brains (Inner Self)", "Les pensées que chaque personnage a formées. Tu peux les lire et les modifier.": "The thoughts each character has formed. You can read and edit them.", "Pas encore de pensées.": "No thoughts yet.", "Une pensée par ligne, sous la forme": "One thought per line, in the form", "sujet: numéro → pensée": "subject: number → thought", ". Inner Self les met à jour tout seul.": ". Inner Self updates them on its own.", "Aucune carte pour l'instant.": "No cards yet.", "active": "active", "off": "off", "Contenu trop long :": "Content too long:", "L'histoire est vide. Écris une action, ou passe en mode": "The story is empty. Write an action, or switch to", "pour poser la scène.": "mode to set the scene.", "aventure :": "adventure:", "ce tour :": "this turn:", "Tics repérés ": "Detected tics", "Ces expressions reviennent trop souvent : l'IA a pour consigne de les éviter. Touche × si une expression est normale dans ton histoire.": "These phrases come up too often: the AI is told to avoid them. Tap × if a phrase is normal in your story.", "Aucun tic repéré pour l'instant. Bravo l'IA.": "No tics detected yet. Well done, AI.", "Autoriser": "Allow", "Ajoute les tournures qui t'agacent : l'IA ne les utilisera plus. ": "Add the phrasings that annoy you: the AI won't use them anymore.", "Glisse pour choisir la partie de l'image qui reste visible.": "Slide to choose which part of the image stays visible.", "Cadrage": "Framing", "haut ↕ bas": "top ↕ bottom", "Analyse impossible :": "Analysis failed:", "Idées indisponibles :": "Ideas unavailable:", "Import impossible :": "Import failed:", "Réinitialisation impossible :": "Reset failed:", "Sauvegarde impossible :": "Save failed:", "Synchro impossible :": "Sync failed:", "Échec :": "Failed:", "Langue · Language": "Langue · Language", "Frequency penalty": "Frequency penalty", "Presence penalty": "Presence penalty", "Min P": "Min P", "Mot de passe de": "Password for", "Story Cards (0)": "Story Cards (0)", "50 premiers résultats affichés, du plus récent au plus ancien.": "First 50 results shown, newest to oldest.", "Apparence · Personnalité · Relation avec le joueur · Situation actuelle · Secrets connus": "Appearance · Personality · Relationship with the player · Current situation · Known secrets", "Description · Ambiance · Qui s'y trouve · Dangers ou intérêts": "Description · Atmosphere · Who is there · Dangers or points of interest", "Description · Pouvoirs ou usage · Propriétaire actuel · Origine": "Description · Powers or use · Current owner · Origin", "Objectifs · Membres importants · Territoire · Relation avec le joueur": "Goals · Key members · Territory · Relationship with the player", "Définition · Règles · Importance dans l'histoire": "Definition · Rules · Importance in the story", "Choisis un nouveau mot de passe pour": "Choose a new password for", "Compte supprimé": "Account deleted", "Données supprimées (le compte de connexion sera retiré par l'admin)": "Data deleted (the login account will be removed by the admin)", "L'adresse de base d'une API compatible OpenAI (DeepSeek, OpenAI, un serveur local…). Le suivi des dépenses ne marche qu'avec OpenRouter.": "The base address of an OpenAI-compatible API (DeepSeek, OpenAI, a local server…). Spending tracking only works with OpenRouter.", "L'identifiant du modèle chez ce fournisseur.": "The model's ID at this provider.", "La pluie tombe sur les remparts. Au loin, une lanterne vacille, et quelqu'un murmure ton nom.": "La pluie tombe sur les remparts. Au loin, une lanterne vacille, et quelqu'un murmure ton nom.", "Pensées de": "Thoughts of", "Échec critique": "Critical failure", "Échec": "Failure", "Succès partiel": "Partial success", "Succès": "Success", "Succès critique": "Critical success", "Utilisé par les scripts.": "Used by the scripts.", "Version précédente, un peu moins chère.": "Previous version, a bit cheaper.", "e-mail pas encore confirmé (regarde ta boîte mail)": "email not confirmed yet (check your inbox)", "e-mail ou mot de passe incorrect": "wrong email or password", "le nouveau mot de passe doit être différent de l'ancien": "the new password must be different from the old one", "mot de passe trop court (6 caractères minimum)": "password too short (6 characters minimum)", "ton mot de passe a changé : entre ton code de secours": "your password changed: enter your recovery code", "trop de tentatives, réessaie dans quelques minutes": "too many attempts, try again in a few minutes", "un compte existe déjà avec cet e-mail : connecte-toi": "an account already exists with this email: sign in", "· ton action": "· your action", "⚠ Le serveur de synchronisation n'est pas encore configuré. Remplis les deux champs ci-dessous (dans « Serveur »).": "⚠ The sync server isn't set up yet. Fill in both fields below (in “Server”).", "hors ligne": "offline", "Données supprimées": "Data deleted", "Session expirée": "Session expired", "Aucun résultat": "No results", "Tester": "Test", "▶ Tester": "▶ Test", "Écouter un extrait": "Play a sample", "Arrêter": "Stop", "Stop": "Stop", "Lecture…": "Playing…", "Chargement…": "Loading…", "Clé invalide": "Invalid key", "Crédit restant :": "Remaining credit:", "Réponse vide": "Empty response", "Erreur du fournisseur": "Provider error", "Fichier téléchargé": "File downloaded", "Rien à analyser": "Nothing to analyze", "Mise à jour des cartes…": "Updating cards…", "Cartes…": "Cards…", "Repart de zéro": "Start from scratch", "Version": "Version"});
 Object.assign(I18N, {"Esprit des personnages": "Character minds", "Chaque personnage important a ses humeurs, sa relation avec toi, ses objectifs, ce qu'il sait et sa façon de parler. Ils vivent même quand tu n'es pas là.": "Every important character has moods, a relationship with you, goals, what they know and a way of speaking. They keep living even when you're not around.", "Pour que l'IA ne te crée pas d'esprit à toi.": "So the AI doesn't create a mind for you.", "Afficher les changements de relation": "Show relationship changes", "Petites étiquettes sous les réponses, ex. « Ashlyn · confiance +1 ».": "Small tags under replies, e.g. “Ashlyn · trust +1”.", "Mise à jour tous les … tours": "Update every … turns", "Une petite requête en plus à chaque mise à jour.": "One small extra request per update.", "Esprits des personnages": "Character minds", "Les esprits se créent quand des personnages importants apparaissent dans l'histoire.": "Minds are created when important characters appear in the story.", "Voir les personnages": "See characters", "Mettre à jour maintenant": "Update now", "Cartes intelligentes et Esprit des personnages inspirés des scripts Auto-Cards et Inner Self de": "Smart cards and Character minds are inspired by the Auto-Cards and Inner Self scripts by", "(licence MIT).": "(MIT license).", "Esprits mis à jour": "Minds updated"});
 Object.assign(I18N, {"Recommandés · Outils Lanterne": "Recommended · Lanterne tools", "Les scripts d'origine de LewdLeah, pour retrouver le comportement d'AI Dungeon. Les outils Lanterne au-dessus font la même chose en mieux : un seul des deux à la fois.": "LewdLeah's original scripts, to get AI Dungeon's behavior back. The Lanterne tools above do the same thing, better: only one of the two at a time.", "Crée tout seul des Story Cards pour les personnages, lieux et objets importants.": "Creates Story Cards on its own for important characters, places and items.", "Esprit des personnages désactivé : un seul système d'esprits à la fois": "Character minds turned off: one mind system at a time", "Auto-Cards désactivé : les Cartes intelligentes le remplacent": "Auto-Cards turned off: Smart cards replace it", "Inner Self désactivé : l'Esprit des personnages le remplace": "Inner Self turned off: Character minds replace it", "Avec un de ces scripts actif, chaque tour coûte un peu plus (environ +20 à 50 %) et le texte apparaît d'un coup à la fin. Scripts créés par": "With one of these scripts on, each turn costs a bit more (about +20 to 50%) and the text appears all at once at the end. Scripts made by", ", sous licence MIT. Les Cartes intelligentes et l'Esprit des personnages s'en inspirent.": ", under the MIT license. Smart cards and Character minds are inspired by them.", "🎭 Cerveaux (Inner Self)": "🎭 Brains (Inner Self)"});
@@ -665,7 +688,9 @@ function addCost(c, model){
 function saveAdv(){
   if(!adv) return;
   adv.updated = Date.now();
-  LS.set("lan.adv." + adv.id, adv);
+  const M = adv.multi;
+  if(M && M._all){ mpSyncView(adv); LS.set("lan.adv." + adv.id, Object.assign({}, adv, { actions: M._all, multi: Object.assign({}, M, { _all: undefined, active: undefined }) })); }
+  else LS.set("lan.adv." + adv.id, adv);
   index = index.filter(x => x.id !== adv.id); index.unshift(indexEntry(adv));
   LS.set("lan.index", index);
 }
@@ -734,7 +759,7 @@ function closeSheet(){
   $("#sheetHost").innerHTML = "";
   if(syncPendingUI){
     syncPendingUI = false;
-    if(!adv) showLibrary();
+    if(!adv){ if(!room) showLibrary(); }
     else if(!generating){ const a = LS.get("lan.adv." + adv.id, null); if(a){ adv = migrate(a); applyStyle(styleOf(adv)); setHeaderTitle(adv.title, false); renderStory(false); } else showLibrary(); }
   }
 }
@@ -879,8 +904,24 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8";
+const APP_VERSION = "8.1";
 const CHANGELOG = [
+  { v: "8.1", fr: [
+      "Prototype : jouer à plusieurs ! Dans une aventure, onglet « À plusieurs » : tu crées la partie et tu envoies le lien d'invitation à tes amis",
+      "Chacun crée son personnage et joue depuis son téléphone. Tout se passe dans la partie de l'hôte, avec sa clé, et il garde tous les droits (Guide, Histoire, Réessayer, Annuler…)",
+      "Tour de rôle à l'intérieur d'une scène. Si on s'adresse au perso d'un joueur, c'est lui qui joue ensuite. À ton tour : Faire, Dire, IA joue ou Passer",
+      "Scènes séparées : chacun peut être ailleurs. Chaque scène avance à son rythme, les persos peuvent se séparer, se retrouver, et s'envoyer des messages par les moyens du monde (lettre, messager, magie…)",
+      "Le narrateur ne fait jamais parler ni agir le perso d'un joueur. S'il le fait quand même, la réponse est refaite toute seule",
+      "Relations par joueur : un PNJ peut adorer un joueur et se méfier d'un autre. Les joueurs absents sont mis de côté, et un minuteur de tour est disponible",
+      "Discussion hors-jeu entre joueurs, jamais envoyée à l'IA. Tout est chiffré de bout en bout : la clé n'est que dans le lien d'invitation"],
+    en: [
+      "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
+      "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
+      "Turns within a scene. Address a player's character and they play next. On your turn: Do, Say, AI plays or Skip",
+      "Separate scenes: everyone can be elsewhere. Each scene moves at its own pace; characters can split, meet again, and send messages through the world's means (letter, messenger, magic…)",
+      "The narrator never makes a player's character speak or act. If it does anyway, the answer is redone automatically",
+      "Per-player relationships: an NPC can love one player and distrust another. Absent players are kept in the background, and a turn timer is available",
+      "Out-of-game chat between players, never sent to the AI. Everything is end-to-end encrypted: the key only lives in the invite link"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -1026,6 +1067,8 @@ const LIB_ICONS = {
   TRASH: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>`
 };
 function showLibrary(){
+  if(adv?.multi && mp.busy) return toast(L("Le narrateur écrit encore, attends une seconde…", "The narrator is still writing, wait a second…"));
+  mpStop(); room = null; mpUI();
   stopGen(); adv = null; $(".app").classList.add("wide");
   applyStyle(globalStyle());
   $("#libView").classList.remove("hidden");
@@ -1048,6 +1091,7 @@ function showLibrary(){
   libTabs(lib);
   if(libTab === "discover"){ renderDiscover(lib); return; }
   if(libTab === "scn"){ renderMyScenarios(lib, LIB_ICONS); return; }
+  roomsInLibrary(lib);
   if(!list.length){
     lib.appendChild(el("div", "empty", "Aucune aventure pour l'instant.<br>Crée-en une pour commencer."));
     return;
@@ -1503,13 +1547,14 @@ function openAdventure(id){
   $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.remove("hidden"); $("#searchBtn").classList.remove("hidden");
   setHeaderTitle(adv.title, false);
   renderBanner();
+  if(adv.multi){ delete adv.multi._all; adv.multi.active = null; if(adv.multi.loaded !== adv.multi.view) mpSetView(adv.multi.view); mpStartHost(); }
   renderStory(true);
 }
 function renderBanner(){ $("#bannerHost").innerHTML = ""; }
 const scriptsOn = () => !!(adv && (adv.scripts.ac || adv.scripts.is));
 function renderStory(scroll){
   const s = $("#story"); s.innerHTML = "";
-  const shown = adv.actions.filter(a => !a.hidden);
+  const shown = mpShown().filter(a => !a.hidden);
   shown.forEach(a => {
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player"));
     d.dataset.id = a.id;
@@ -1525,7 +1570,7 @@ function renderStory(scroll){
       nav.onclick = ev => {
         const b = ev.target.closest("button"); if(!b || generating) return;
         const n = Math.max(0, Math.min(a.alts.length - 1, i + Number(b.dataset.d)));
-        a.altIdx = n; a.text = a.alts[n]; rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); renderStory(false);
+        a.altIdx = n; a.text = a.alts[n]; rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); renderStory(false); mpAfterEdit();
       };
       s.appendChild(nav);
     }
@@ -1534,12 +1579,14 @@ function renderStory(scroll){
   const m = el("div", "meta");
   if(!costsOn()) m.textContent = ""; else m.textContent = (lastCost != null ? "ce tour : " + money(lastCost) + (lastCache ? ` (${L("cache", "cache")} ${lastCache} %)` : "") + " · " : "") + "aventure : " + money(adv.spent || 0);
   s.appendChild(m);
-  updateTools(); refreshSmartBar();
+  if(adv.multi && mp.liveText[adv.multi.view] && mp.busySid === adv.multi.view && adv.multi.active !== adv.multi.view){ const lv = el("div", "act ai live"); lv.textContent = mp.liveText[adv.multi.view]; s.insertBefore(lv, m); }
+  updateTools(); refreshSmartBar(); mpUI();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
 }
 function updateTools(){
-  const busy = !!generating;
-  const vis = adv ? adv.actions.filter(a => !a.hidden) : [];
+  if(room) return;
+  const busy = !!generating && !adv?.multi;
+  const vis = adv ? mpShown().filter(a => !a.hidden) : [];
   $("#undoBtn").disabled = busy || !vis.length;
   $("#ideaBtn").disabled = busy;
   $("#redoBtn").disabled = busy || !redoStack.length;
@@ -1556,6 +1603,7 @@ function actionMenu(a, ev){
   document.querySelectorAll(".menu").forEach(m => m.remove());
   document.querySelectorAll(".act.sel").forEach(m => m.classList.remove("sel"));
   const e = ev.currentTarget; e.classList.add("sel");
+  if(adv.multi && adv.multi._all) return;
   const m = el("div", "menu", `<button data-a="edit">Modifier</button><button data-a="tts">Écouter</button><button data-a="del">Supprimer</button><button data-a="cut">Supprimer à partir d'ici</button>`);
   document.body.appendChild(m);
   const r = e.getBoundingClientRect();
@@ -1568,8 +1616,8 @@ function actionMenu(a, ev){
     const act = x.target.dataset.a; if(!act) return; close();
     if(act === "edit") editAction(a);
     if(act === "tts") speak(a.text);
-    if(act === "del"){ const i = adv.actions.findIndex(y => y.id === a.id); adv.actions = adv.actions.filter(y => y.id !== a.id); redoStack = []; rollbackMindsNear(adv, i); saveAdv(); renderStory(); }
-    if(act === "cut"){ const i = adv.actions.findIndex(y => y.id === a.id); if(confirm("Supprimer ce passage et tout ce qui suit ?")){ adv.actions = adv.actions.slice(0, i); redoStack = []; rollbackMinds(adv, i); saveAdv(); renderStory(); } }
+    if(act === "del"){ const i = adv.actions.findIndex(y => y.id === a.id); adv.actions = adv.actions.filter(y => y.id !== a.id); redoStack = []; rollbackMindsNear(adv, i); saveAdv(); renderStory(); mpAfterEdit(); }
+    if(act === "cut"){ const i = adv.actions.findIndex(y => y.id === a.id); if(confirm("Supprimer ce passage et tout ce qui suit ?")){ adv.actions = adv.multi ? adv.actions.filter((y, j) => j < i || y.sc !== a.sc) : adv.actions.slice(0, i); redoStack = []; rollbackMinds(adv, i); saveAdv(); renderStory(); mpAfterEdit(); } }
   };
 }
 function editAction(a){
@@ -1577,7 +1625,7 @@ function editAction(a){
   let txt = visible(a.text);
   openSheet("Modifier", null, (_, body) => {
     const t = field(body, a.type === "ai" ? "Texte de l'IA" : "Ton action", txt, v => txt = v, { multiline: true, rows: 12 });
-    btn(body, "Enregistrer", "wide", () => { const changed = a.text !== lead + txt; a.text = lead + txt; if(changed) rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); closeSheet(); renderStory(); });
+    btn(body, "Enregistrer", "wide", () => { const changed = a.text !== lead + txt; a.text = lead + txt; if(changed) rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); closeSheet(); renderStory(); mpAfterEdit(); });
     setTimeout(() => t.focus(), 50);
   });
 }
@@ -1585,6 +1633,12 @@ function editAction(a){
 /* ================= Context building ================= */
 function formatPlayer(type, text){
   text = text.trim();
+  const who = adv?.multi?.active && mp.actor;
+  if(who){
+    if(type === "auto") return `> ${who} : (laisse l'IA jouer ce tour)`;
+    if(type === "say") return `> ${who} : « ${text.replace(/^["“«]\s*|\s*["”»]$/g, "")} »`;
+    if(type === "do") return `> ${who} : ${text}`;
+  }
   if(type === "say") return `> « ${text.replace(/^["“«]\s*|\s*["”»]$/g, "")} »`;
   if(type === "do") return "> " + text;
   return text;
@@ -1641,7 +1695,7 @@ function dynBlock(a, startIdx, reserve){
   const cards = triggeredCards();
   return [
     cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n") : "",
-    memBlock(a, startIdx, reserve, false), mindBlock(a), rpgBlock(a), arNote(a)
+    memBlock(a, startIdx, reserve, false), mindBlock(a), rpgBlock(a), arNote(a), mpBlock(a)
   ].filter(Boolean).join("\n\n");
 }
 function histBudget(a, dyn){
@@ -1652,7 +1706,7 @@ function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
-  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + (parts.length ? "\n\n" + parts.join("\n\n") : "");
+  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
   const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;
@@ -1808,6 +1862,7 @@ async function runHook(hook, text, extraInfo = {}){
 function stopGen(){ if(generating){ generating.abort(); generating = null; } }
 function placeholder(){
   const d = el("div", "act ai", `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`);
+  if(adv?.multi && adv.multi.active !== adv.multi.view) return { el: d, setStatus: () => {} };
   const s = $("#story"); s.insertBefore(d, s.querySelector(".meta"));
   s.querySelector(".empty")?.remove();
   const v = $("#storyView"); v.scrollTop = v.scrollHeight;
@@ -1838,6 +1893,7 @@ async function generate(input, opts = {}){
         try{
           r = await callModel(attempt ? withRepeatNote(msgs0) : msgs0, { signal, onDelta: delta => {
             partial += delta;
+            if(mpLiveTap) mpLiveTap(partial);
             if(cut) return;
             const mi = partial.search(/⟦|\[\[/);
             if(mi >= 0){ cut = true; const keep = delta.length - (partial.length - mi); delta = keep > 0 ? delta.slice(0, keep) : ""; if(!delta) return; }
@@ -1909,10 +1965,12 @@ async function generate(input, opts = {}){
     const last = [...$("#story").querySelectorAll(".act.ai")].pop();
     if(last) last.classList.add("fi");
   }
-  if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
+  if(errMsg && adv?.multi) toast("⚠ " + errMsg);
+  else if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
   const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
   if(final && settings.ttsAuto) speak(final);
-  if(!errMsg){ maybeSummarize(); maybeSmartCards(); maybeMinds(); maybeMemorize(); }
+  const bg = errMsg ? Promise.resolve() : Promise.allSettled([maybeSummarize(), maybeSmartCards(), maybeMinds(), maybeMemorize()]);
+  return { final, finalAction, errMsg, bg };
 }
 const wantsRoll = input => !!(adv.scripts.rpg && adv.scripts.rpgDice !== false && input && input.kind === "do");
 let summarizing = false;
@@ -2292,6 +2350,8 @@ function cleanOutput(t){
   return t;
 }
 function submit(){
+  if(room) return roomSubmit(mode);
+  if(adv?.multi) return mpHostSubmit();
   if(generating){ stopGen(); return; }
   const inp = $("#inp"); const raw = inp.value;
   const input = raw.trim() ? { kind: mode, raw } : null;
@@ -2621,7 +2681,7 @@ function mindLine(a, m){
   const r = m.rel || {};
   const parts = [
     m.mood && "mood: " + m.mood,
-    `toward the player: trust ${signed(r.trust || 0)}, affection ${signed(r.affection || 0)}, fear ${r.fear || 0}, tension ${r.tension || 0}`,
+    a.multi?.active ? mpRelLine(a, m) : `toward the player: trust ${signed(r.trust || 0)}, affection ${signed(r.affection || 0)}, fear ${r.fear || 0}, tension ${r.tension || 0}`,
     m.goals?.short && "wants now: " + m.goals.short,
     m.goals?.long && "long-term goal: " + m.goals.long,
     m.plan && "plan: " + m.plan,
@@ -2657,13 +2717,15 @@ async function maybeMinds(force){
     const present = new Set(presentMinds(a, ctxActs.length + 1).map(m => m.name));
     const known = Object.values(a.minds).filter(m => !m.dead);
     const deadNames = Object.values(a.minds).filter(m => m.dead).map(m => m.name);
-    const full = known.filter(m => present.has(m.name)).map(m => ({ name: m.name, mood: m.mood, rel: m.rel, goals: m.goals, plan: m.plan, knows: m.knows, secrets: m.secrets, voice: m.voice, thought: m.thought }));
+    const full = known.filter(m => present.has(m.name)).map(m => ({ name: m.name, mood: m.mood, rel: a.multi?.active ? Object.fromEntries(Object.entries(m.relBy || {}).map(([pid, R]) => [charOfPid(pid), R])) : m.rel, goals: m.goals, plan: m.plan, knows: m.knows, secrets: m.secrets, voice: m.voice, thought: m.thought }));
     const absent = known.filter(m => !present.has(m.name) && (m.goals?.short || m.goals?.long || m.plan) && a.actions.length - (m.lastSeen || 0) >= 6)
       .sort((x, y) => (x.lastSeen || 0) - (y.lastSeen || 0)).slice(0, 2);
     const cardsHint = userCards(a).filter(c => c.type === "personnage").map(c => `${cardName(c)}: ${visible(c.entry).slice(0, 200)}`).join("\n");
     const lang = isEN() ? "English" : "French";
+    const MP = mpMindsCtx(a);
     const prompt =
-`You manage the inner lives of the characters of an interactive story. The player is "you"${a.scripts.player ? ` (named ${a.scripts.player})` : ""} and must never get a mind.
+`${MP ? `You manage the inner lives of the characters of an interactive story with several player characters, each controlled by a real person: ${MP.all.join(", ")}. Player characters must NEVER get a mind.
+Player characters in this scene: ${MP.here.join(", ") || "(none)"}.${MP.elsewhere.length ? ` Player characters elsewhere (not in this scene): ${MP.elsewhere.join(", ")}.` : ""}` : `You manage the inner lives of the characters of an interactive story. The player is "you"${a.scripts.player ? ` (named ${a.scripts.player})` : ""} and must never get a mind.`}
 Plot essentials: ${visible(a.essentials).slice(0, 1200) || "(none)"}
 Character cards:
 ${cardsHint || "(none)"}
@@ -2681,7 +2743,7 @@ For each important named character who appears or acts in the recent story (not 
 - name: as written in the story — their real name once known
 - was: "" — or, if this character already exists above under ANOTHER name or a description (e.g. "the pink-eyed girl", "the hooded stranger") and is now known by a new name, that old name EXACTLY as listed (never create a second entry for the same person)
 - mood: one short phrase
-- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)
+${MP ? `- rel: for each player character present (${MP.here.join(", ")}), how this character's attitude toward them CHANGED in this passage: {"<player character name>": {"trust":0,"affection":0,"fear":0,"tension":0}} — integers from -2 to +2, omit the ones that did not change` : "- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)"}
 - goals: {"short": what they want right now, "long": their deeper goal} — keep the previous ones unless they changed
 - plan: what they intend to do next
 - learned: new facts this character now knows because they witnessed them or were told (never things they could not know)
@@ -2692,11 +2754,15 @@ For each important named character who appears or acts in the recent story (not 
 ${absent.length ? `Then, for these ABSENT characters, advance their life off-screen, consistent with their goals and plan: ${absent.map(m => `${m.name} (goal: ${m.goals?.short || m.goals?.long || "?"}; plan: ${m.plan || "?"})`).join("; ")}. Return what they did since the player last saw them (1 sentence) and their new plan.` : ""}
 Write every text value in the language of the story (${lang} if unsure). Keep everything concise.
 Return ONLY JSON:
-{"characters":[{"name":"","was":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
+{"characters":[{"name":"","was":"","mood":"","rel":${MP ? "{}" : `{"trust":0,"affection":0,"fear":0,"tension":0}`},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
  "offscreen":[{"name":"","offscreen":"","plan":""}],
  "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left or died"],
  "dead":["names of named characters who clearly DIED in the recent story (not just hurt or unconscious) — usually empty"]${deadNames.length ? `,
- "revived":["dead characters who clearly came back to life in the recent story (resurrection, fake death revealed…) — usually empty"]` : ""}}`;
+ "revived":["dead characters who clearly came back to life in the recent story (resurrection, fake death revealed…) — usually empty"]` : ""}${MP ? `,
+ "location":"short name of the place where this scene is at the END of the recent story",
+ "players_left":[{"name":"a player character who split off from the other player characters of this scene to go somewhere else on their own","where":"short place"}],
+ "players_joined":["player characters from elsewhere (${MP.elsewhereNames.join(", ") || "none"}) who are now physically here — usually empty"],
+ "messages":[{"from":"","to":"a player character who is NOT in this scene","content":"what the message says","means":"letter, messenger, magic…"}]` : ""}}`;
     const r = parseJSON(await complete(prompt, 2400, true));
     const before = clone({ minds: a.minds, scene: a.scene || null });
     if(Array.isArray(r.scene)){
@@ -2717,19 +2783,24 @@ Return ONLY JSON:
       deltas.push({ t: `${m.name} · ${L("décès", "died")}`, s: 0 });
     });
     (r.characters || []).forEach(c => {
-      if(!c || !visible(c.name) || /^(you|tu|toi|vous|player|joueur)$/i.test(c.name.trim()) || (player && sameName(player, c.name))) return;
+      if(!c || !visible(c.name) || /^(you|tu|toi|vous|player|joueur)$/i.test(c.name.trim()) || (player && sameName(player, c.name)) || (MP && MP.all.some(n => sameName(n, c.name)))) return;
       const old = visible(c.was || "").trim() && findMind(a, c.was);
       let m = findMind(a, c.name);
       if(old && old !== m){ m = m ? mergeMinds(a, m, old) : renameMind(a, old, c.name); }
       if(m?.dead) return;
       if(!m){ m = a.minds[mindKey(c.name)] = MIND_DEF(visible(c.name)); }
       if(c.mood) m.mood = visible(c.mood).slice(0, 80);
-      REL.forEach(([k, fr, en, lo, hi]) => {
-        const d = Math.max(-2, Math.min(2, parseInt(c.rel?.[k]) || 0)); if(!d) return;
-        const before = m.rel[k] || 0; m.rel[k] = Math.max(lo, Math.min(hi, before + d));
-        const real = m.rel[k] - before;
-        if(real) deltas.push({ t: `${m.name} · ${L(fr, en)} ${signed(real)}`, s: (k === "fear" || k === "tension") ? -Math.sign(real) : Math.sign(real) });
+      const applyRel = (R, src, who) => REL.forEach(([k, fr, en, lo, hi]) => {
+        const d = Math.max(-2, Math.min(2, parseInt(src?.[k]) || 0)); if(!d) return;
+        const before = R[k] || 0; R[k] = Math.max(lo, Math.min(hi, before + d));
+        const real = R[k] - before;
+        if(real) deltas.push({ t: `${m.name}${who ? " → " + who : ""} · ${L(fr, en)} ${signed(real)}`, s: (k === "fear" || k === "tension") ? -Math.sign(real) : Math.sign(real) });
       });
+      if(MP) Object.entries(c.rel && typeof c.rel === "object" ? c.rel : {}).forEach(([nm, src]) => {
+        const pid = MP.pidOf(nm); if(!pid || !src || typeof src !== "object") return;
+        m.relBy ||= {}; applyRel(m.relBy[pid] ||= { trust: 0, affection: 0, fear: 0, tension: 0 }, src, MP.charOf(pid));
+      });
+      else applyRel(m.rel, c.rel, "");
       if(c.goals){ if(visible(c.goals.short)) m.goals.short = visible(c.goals.short).slice(0, 160); if(visible(c.goals.long)) m.goals.long = visible(c.goals.long).slice(0, 160); }
       if(visible(c.plan)) m.plan = visible(c.plan).slice(0, 200);
       if(Array.isArray(c.knows) && c.knows.length) m.knows = c.knows.map(x => visible(x).slice(0, 160)).filter(Boolean).slice(0, 10);
@@ -2748,6 +2819,7 @@ Return ONLY JSON:
     const lastAi = [...a.actions].reverse().find(x => x.type === "ai" && !x.hidden);
     if(lastAi && deltas.length) lastAi.mindDelta = [...(lastAi.mindDelta || []), ...deltas].slice(-8);
     if(snapId) a.mindLog = [...(a.mindLog || []), { id: snapId, prev: before }].slice(-20);
+    if(MP) (a.multi.pendOps ||= []).push({ sid: a.multi.active, location: r.location, left: r.players_left, joined: r.players_joined, messages: r.messages });
     a.mindFrom = a.actions.length;
     if(adv === a){ saveAdv(); if(!generating) renderStory(false); } else LS.set("lan.adv." + a.id, a);
     if(force) toast(L("Esprits mis à jour", "Minds updated"));
@@ -2769,7 +2841,9 @@ function openMind(key, back){
     nf.onchange = () => { const v = nf.value; if(!visible(v).trim() || sameName(v, m.name)) return; const r2 = renameMind(adv, m, v); save(); refreshSmartBar(); if(r2 !== m) toast(L("Fusionné avec " + r2.name, "Merged with " + r2.name)); openMind(keyOfMind(adv, r2), back); };
     if(m.dead) hint(b, L("† Ce personnage est mort dans l'histoire. Il ne revient plus dans la scène et sa relation avec toi est figée, sauf si l'histoire le ramène à la vie.", "† This character died in the story. They no longer appear in the scene and their relationship with you is frozen, unless the story brings them back."));
     else if(m.mood) b.appendChild(el("div", "mmood", esc(m.mood)));
-    b.appendChild(el("div", "rels", REL.map(([k, fr, en, lo, hi]) => relBar(k, m.rel[k] || 0, lo, hi, L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1)))).join("")));
+    const bars = R => el("div", "rels", REL.map(([k, fr, en, lo, hi]) => relBar(k, R[k] || 0, lo, hi, L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1)))).join(""));
+    if(adv.multi) adv.multi.players.filter(p => !p.kicked).forEach(p => { sec(b, L("Envers ", "Toward ") + p.char); b.appendChild(bars(relOf(m, p.id))); });
+    else b.appendChild(bars(m.rel));
     if(m.offscreen) hint(b, `<b>${L("Hors champ", "Off-screen")} :</b> ${esc(m.offscreen)}`);
     field(b, L("Ce qu'il veut maintenant", "What they want now"), m.goals.short, v => { m.goals.short = v; save(); });
     field(b, L("Objectif de fond", "Deeper goal"), m.goals.long, v => { m.goals.long = v; save(); });
@@ -2795,7 +2869,7 @@ function openMind(key, back){
   openSheet(m.name, null, render);
 }
 function mindTile(key, m, onClick){
-  const r = m.rel || {};
+  const r = (adv?.multi ? relOf(m, adv.multi.hostId) : m.rel) || {};
   const d = el("div", "sc mtile" + (m.dead ? " dead" : ""), `<div class="row"><div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${m.dead ? "† " + L("Décès", "Dead") : esc(m.mood || "—")}</span></div>
     <div class="mrel"><span>${L("Confiance", "Trust")} <b>${signed(r.trust || 0)}</b></span><span>${L("Affection", "Affection")} <b>${signed(r.affection || 0)}</b></span><span>${L("Peur", "Fear")} <b>${r.fear || 0}</b></span><span>${L("Tension", "Tension")} <b>${r.tension || 0}</b></span></div>
     ${m.goals?.short ? `<div class="e">${esc(m.goals.short)}</div>` : ""}`);
@@ -2805,9 +2879,9 @@ let sceneShown = { id: null, names: [] };
 /* Quand un passage est annulé, supprimé, modifié ou réessayé, les esprits reviennent à leur état d'avant ce passage
    (relations, humeurs, ce qu'ils savent, qui est en scène), puis seront recalculés sur la nouvelle version. */
 // Modifier/supprimer un vieux passage ne touche pas aux relations : seuls les passages récents les font revenir en arrière.
-function rollbackMindsNear(a, idx){ if(idx >= 0 && a.actions.length - idx <= 6) rollbackMinds(a, idx); }
+function rollbackMindsNear(a, idx){ if(a.multi && !a.multi._all) return; if(idx >= 0 && a.actions.length - idx <= 6) rollbackMinds(a, idx); }
 function rollbackMinds(a, fromIdx){
-  if(!a || !a.mindLog || !a.mindLog.length) return;
+  if(!a || !a.mindLog || !a.mindLog.length || (a.multi && !a.multi._all)) return;
   const pos = new Map(a.actions.map((x, i) => [x.id, i]));
   let changed = false;
   while(a.mindLog.length){
@@ -2819,7 +2893,7 @@ function rollbackMinds(a, fromIdx){
 }
 function openMindList(onlyPresent){
   const keys = Object.keys(adv.minds);
-  const pres = presentMinds(adv).map(m => keys.find(k => adv.minds[k] === m)).filter(Boolean);
+  const pres = presentNow().map(m => keys.find(k => adv.minds[k] === m)).filter(Boolean);
   openSheet(L("Personnages", "Characters"), [["scene", L(`Dans la scène (${pres.length})`, `In the scene (${pres.length})`)], ["all", L(`Tous (${keys.length})`, `All (${keys.length})`)]], (k, b) => {
     const list = k === "scene" ? pres : [...pres, ...keys.filter(x => !pres.includes(x))].sort((x, y) => (!!adv.minds[x].dead - !!adv.minds[y].dead) || adv.minds[x].name.localeCompare(adv.minds[y].name));
     if(k === "scene") hint(b, L("Qui est là en ce moment, comme dans un salon vocal : un personnage apparaît quand il arrive dans la scène et disparaît quand il part.", "Who's here right now, like a voice channel: a character pops in when they arrive and disappears when they leave."));
@@ -2856,8 +2930,9 @@ function refreshSmartBar(){
     const p = el("button", "pill hud" + (pct <= 30 ? " low" : ""), `<span>PV <b>${r.hp}</b>/${r.hpMax}</span><span class="hpb"><i style="width:${pct}%"></i></span><span class="sep"></span><span>Or <b>${r.gold}</b></span><span class="sep"></span><span>Sac <b>${r.inv.length}</b></span>`);
     p.onclick = openRpgSheet; s.appendChild(p);
   }
+  if(adv.multi) mpBar(s);
   if(adv.scripts.minds && adv.minds && Object.keys(adv.minds).length){
-    const pres = presentMinds(adv);
+    const pres = presentNow();
     const now = pres.map(m => m.name), was = sceneShown.id === adv.id ? sceneShown.names : now;
     const gone = was.filter(n => !now.includes(n)).slice(0, 3);
     sceneShown = { id: adv.id, names: now };
@@ -4044,6 +4119,7 @@ function applyPulled(keys){
   });
   index.sort((x, y) => y.updated - x.updated);
   localStorage.setItem("lan.index", JSON.stringify(index));
+  if(room || adv?.multi) return; // partie à plusieurs en cours : on ne recharge pas l'écran
   const sheetOpen = !!$("#sheetHost").innerHTML;
   if(sheetOpen && (!adv || advChanged)){ syncPendingUI = true; return; }
   if(!adv){ if(!$(".ob")) showLibrary(); }
@@ -4158,7 +4234,7 @@ function renderSyncTab(body){
 
 /* ================= Adventure sheet ================= */
 function openAdventureSheet(start){
-  const tabs = [["plot","Intrigue"],["cards","Story Cards"],["scripts","Scripts"],["instr","Instructions"],["look","Apparence"],["misc","Aventure"]];
+  const tabs = [["plot","Intrigue"],["cards","Story Cards"],["scripts","Scripts"],["instr","Instructions"],["multi","À plusieurs"],["look","Apparence"],["misc","Aventure"]];
   let wish = "";
   openSheet(adv.title, tabs, (k, body) => {
     if(k === "plot"){
@@ -4175,6 +4251,7 @@ function openAdventureSheet(start){
     if(k === "instr") instructionsEditor(body, () => adv.instructions, v => { adv.instructions = v; saveAdv(); }, () => wish, v => wish = v);
     if(k === "look") renderLookTab(body);
     if(k === "misc") renderMiscTab(body);
+    if(k === "multi") renderMultiTab(body);
   }, start);
 }
 function renderSmartExtras(body){
@@ -4778,14 +4855,734 @@ function importBackup(j){
     }catch(e){ toast("Import impossible : " + e.message); }
 }
 
+/* ================= À plusieurs (8.1, prototype) =================
+   La partie vit chez l'hôte : son appli fait tous les appels à l'IA et fait tourner tous les scripts.
+   Les invités envoient leurs actions et reçoivent l'histoire par une table d'événements Supabase,
+   chiffrés de bout en bout avec une clé qui n'existe que dans le lien d'invitation.
+   Plusieurs scènes peuvent exister en même temps : le tour de rôle se fait à l'intérieur d'une scène,
+   les scènes séparées avancent chacune à leur rythme (traitées à la suite, très vite, par l'hôte). */
+const MP_POLL = 1500, MP_ONLINE = 75000, MP_PER = ["scene", "mindFrom", "mindLog", "scFrom", "ctxAnchor", "summary"];
+const MULTI_RULE = `[Multiplayer rules — they override any earlier instruction about point of view]
+- Several player characters share this story, each controlled by a real person. Narrate in the third person, present tense, and call everyone by name; never address anyone as "you".
+- Lines like "> Name : action" or "> Name : « speech »" are that player character's own action or words, written by their player. Narrate the attempt and its consequences.
+- NEVER write dialogue, decisions, deliberate actions, thoughts or feelings for a player character beyond what their own line states. You may only describe what anyone could observe (where they stand, that they hear or are affected by something). Exception: a line "> Name : (laisse l'IA jouer ce tour)" lets you decide that character's action this time, true to their personality.
+- Player characters start as strangers unless their descriptions say otherwise; their relationships grow through play.
+- Keep each passage to 1 or 2 paragraphs so that every player gets to act often.
+- Over time, leave natural opportunities for separated player characters to cross paths, without forcing it.`;
+const mp = { gen: 0, loop: null, rid: null, role: null, key: null, keyStr: "", last: 0, queue: [], busy: false, busySid: null, next: null, actor: null,
+  liveText: {}, liveAt: 0, rosterT: null, pingAt: 0, cleanAt: 0, onlineSig: "", err: 0 };
+let mpLiveTap = null;
+let room = null; // côté invité : l'état de la partie rejointe
+const b64u = buf => b64(buf).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64u = s => unb64(s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4));
+const myPseudo = () => (auth?.user?.email || "joueur").split("@")[0];
+const reEsc = t => String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const wordIn = (text, name) => !!name && new RegExp("(^|[^\\p{L}\\p{N}])" + reEsc(name) + "($|[^\\p{L}\\p{N}])", "iu").test(text || "");
+const hashT = t => { let h = 0; for(const c of String(t || "")) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36) + "." + String(t || "").length; };
+
+/* ---------- transport chiffré ---------- */
+async function mpUseKey(k){ if(mp.keyStr !== k){ mp.keyStr = k; mp.key = await crypto.subtle.importKey("raw", unb64u(k), "AES-GCM", false, ["encrypt", "decrypt"]); } return mp.key; }
+async function mpSend(kind, obj){
+  if(!mp.rid || !mp.key) return;
+  const box = await seal(TE.encode(JSON.stringify(obj || {})), mp.key);
+  await sbFetch("/rest/v1/lanterne_room_events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify([{ room: mp.rid, kind, payload: JSON.stringify(box) }]) });
+}
+async function mpFetch(){
+  const rows = await sbFetch(`/rest/v1/lanterne_room_events?select=id,sender,kind,payload&room=eq.${mp.rid}&id=gt.${mp.last}&order=id.asc&limit=200`);
+  const out = [];
+  for(const r of rows || []){
+    mp.last = Math.max(mp.last, Number(r.id) || 0);
+    try{ out.push({ id: r.id, sender: r.sender, kind: r.kind, d: JSON.parse(TD.decode(await unseal(JSON.parse(r.payload), mp.key))) }); }catch(e){ /* événement illisible : ignoré */ }
+  }
+  return out;
+}
+function mpStop(){ mp.gen++; clearTimeout(mp.loop); mp.loop = null; mp.rid = null; mp.role = null; mp.queue = []; mp.busySid = null; mp.liveText = {}; }
+async function mpRun(rid, key, role, last){
+  mpStop(); const g = mp.gen;
+  mp.rid = rid; mp.role = role; mp.last = last || 0; mp.err = 0; mp.pingAt = 0;
+  await mpUseKey(key);
+  const tick = async () => {
+    if(g !== mp.gen) return;
+    try{
+      const evs = await mpFetch();
+      if(g !== mp.gen) return;
+      if(role === "host") hostEvents(evs); else guestEvents(evs);
+      const now = Date.now();
+      if(now - mp.pingAt > 25000){ mp.pingAt = now; mpSend("ping", {}).catch(() => {}); }
+      if(role === "host") hostHousekeeping(now);
+      else if(now - (mp.roomCheck || 0) > 20000){
+        mp.roomCheck = now;
+        const rows = await sbFetch(`/rest/v1/lanterne_rooms?select=id&id=eq.${rid}`).catch(() => null);
+        if(rows && !rows.length && room && g === mp.gen){ room.ended = true; saveRoom(); toast(L("L'hôte a terminé la partie", "The host ended the game")); renderRoom(false); mpStop(); return; }
+      }
+      if(mp.err >= 3) toast(L("Reconnecté à la partie", "Reconnected to the game"));
+      mp.err = 0;
+    }catch(e){
+      mp.err++; console.warn("multi", e.message);
+      if(mp.err === 3) toast(L("Connexion à la partie perdue, nouvel essai…", "Lost connection to the game, retrying…"));
+    }
+    if(g === mp.gen) mp.loop = setTimeout(tick, document.hidden ? 5000 : MP_POLL);
+  };
+  tick();
+}
+
+/* ---------- état de l'hôte ---------- */
+const M_ = () => adv?.multi;
+const mpPlayer = id => M_()?.players.find(p => p.id === id);
+const charOfPid = id => mpPlayer(id)?.char || "?";
+const sceneOfPid = id => Object.values(M_()?.scenes || {}).find(s => !s.archived && s.members.includes(id));
+function mpOnline(id){ const M = M_(); if(!M) return false; if(id === M.hostId) return true; const p = mpPlayer(id); return !!p && !p.kicked && Date.now() - (p.seen || 0) < MP_ONLINE; }
+function relOf(m, pid){ return m.relBy?.[pid] || { trust: 0, affection: 0, fear: 0, tension: 0 }; }
+function mpShown(){
+  if(!adv) return [];
+  const M = adv.multi; if(!M) return adv.actions;
+  if(M._all) return M.active === M.view ? adv.actions : M._all.filter(x => x.sc === M.view);
+  return adv.actions.filter(x => x.sc === M.view);
+}
+function actionsOfScene(sid){
+  const M = adv.multi;
+  if(M._all && M.active === sid) return adv.actions;
+  return (M._all || adv.actions).filter(x => x.sc === sid);
+}
+function mpLoadScene(a, sid){
+  const M = a.multi; if(M.loaded === sid) return;
+  const cur = M.scenes[M.loaded]; if(cur) MP_PER.forEach(f => { cur[f] = a[f]; });
+  const S = M.scenes[sid]; MP_PER.forEach(f => { if(S[f] === undefined) delete a[f]; else a[f] = S[f]; });
+  a.summary ??= "";
+  M.loaded = sid;
+}
+function mpSyncView(a){
+  const M = a.multi; if(!M?._all) return;
+  const sid = M.active, view = a.actions, inView = new Set(view);
+  for(let i = M._all.length - 1; i >= 0; i--){ const x = M._all[i]; if(x.sc === sid && !inView.has(x)) M._all.splice(i, 1); }
+  const inAll = new Set(M._all);
+  view.forEach(x => { if(!inAll.has(x)){ x.sc = sid; M._all.push(x); } });
+  const S = M.scenes[sid]; if(S) MP_PER.forEach(f => { S[f] = a[f]; });
+}
+async function mpInScene(sid, fn){
+  const a = adv, M = a.multi;
+  mpLoadScene(a, sid);
+  M._all = a.actions; a.actions = M._all.filter(x => x.sc === sid); M.active = sid;
+  try{ return await fn(); }
+  finally{
+    mpSyncView(a); a.actions = M._all; delete M._all; M.active = null;
+    mpLoadScene(a, M.view); saveAdv();
+  }
+}
+function mpSetView(sid){
+  const M = adv.multi; if(!M.scenes[sid]) return;
+  M.view = sid;
+  if(!M._all) mpLoadScene(adv, sid);
+  saveAdv(); renderStory(true);
+}
+function mpNewScene(members, name){
+  const M = adv.multi, id = "s" + uid();
+  Object.values(M.scenes).forEach(s => { s.members = s.members.filter(p => !members.includes(p)); if(!s.members.length) s.archived = true; });
+  M.scenes[id] = { id, name: name || "", members: [...members], turn: members[0], turnAt: Date.now(), notes: [], summary: "" };
+  return M.scenes[id];
+}
+function mpMoveTo(pid, S, note){
+  const M = adv.multi;
+  Object.values(M.scenes).forEach(s => { if(s !== S && s.members.includes(pid)){ s.members = s.members.filter(p => p !== pid); if(!s.members.length) s.archived = true; else if(s.turn === pid) s.turn = mpNextIn(s, pid); } });
+  if(!S.members.includes(pid)) S.members.push(pid);
+  S.archived = false;
+  if(note) (S.notes ||= []).push({ t: note, n: 4 });
+}
+const lastAiOf = sid => [...actionsOfScene(sid)].reverse().find(x => x.type === "ai" && !x.hidden);
+function mpNextIn(S, actor, text){
+  const ok = p => mpOnline(p) && !mpPlayer(p)?.kicked;
+  if(text){ const hit = S.members.find(p => p !== actor && ok(p) && wordIn(text, charOfPid(p))); if(hit) return hit; }
+  const n = S.members.length, i = Math.max(0, S.members.indexOf(actor));
+  for(let k = 1; k <= n; k++){ const p = S.members[(i + k) % n]; if(ok(p)) return p; }
+  return actor;
+}
+function mpSystem(a){
+  const M = a.multi; if(!M) return "";
+  const pl = M.players.filter(p => !p.kicked).map(p => `- ${p.char} (played by ${p.name})${p.desc ? ": " + p.desc.replace(/\n+/g, "; ") : ""}`).join("\n");
+  return "\n\n" + MULTI_RULE + "\n\n[Player characters]\n" + pl;
+}
+function mpBlock(a){
+  const M = a.multi; if(!M || !M.active) return "";
+  const S = M.scenes[M.active];
+  const here = S.members.map(mpPlayer).filter(p => p && !p.kicked);
+  const on = here.filter(p => mpOnline(p.id)), off = here.filter(p => !mpOnline(p.id));
+  const away = Object.values(M.scenes).filter(s => s !== S && !s.archived).flatMap(s => s.members.map(id => charOfPid(id) + (s.name ? ` (${s.name})` : "")));
+  const nx = mp.next && mpPlayer(mp.next);
+  return [`[Multiplayer] Player characters in this scene: ${on.map(p => p.char).join(", ") || "(none)"}.`,
+    off.length ? `Absent (their player is away): ${off.map(p => p.char).join(", ")} — keep them in the background (asleep, resting, busy nearby); they take no action and say nothing.` : "",
+    away.length ? `Elsewhere, NOT in this scene: ${away.join(", ")}.` : "",
+    ...(S.notes || []).map(n => n.t),
+    nx ? `Next to act: ${nx.char}. End your passage at a moment where ${nx.char} can act or answer.` : ""].filter(Boolean).join("\n");
+}
+function mpRelLine(a, m){
+  const S = a.multi.scenes[a.multi.active];
+  return S.members.map(pid => { const r = relOf(m, pid); return `toward ${charOfPid(pid)}: trust ${signed(r.trust || 0)}, affection ${signed(r.affection || 0)}, fear ${r.fear || 0}, tension ${r.tension || 0}`; }).join("; ");
+}
+function mpMindsCtx(a){
+  const M = a.multi; if(!M || !M.active) return null;
+  const S = M.scenes[M.active], live = M.players.filter(p => !p.kicked);
+  const others = Object.values(M.scenes).filter(s => s !== S && !s.archived);
+  return { all: live.map(p => p.char), here: S.members.map(charOfPid),
+    elsewhere: others.flatMap(s => s.members.map(id => charOfPid(id) + (s.name ? ` (at ${s.name})` : ""))),
+    elsewhereNames: others.flatMap(s => s.members.map(charOfPid)),
+    pidOf: n => live.find(p => sameName(p.char, n) || sameName(p.char.split(/\s+/)[0], n))?.id, charOf: charOfPid };
+}
+function presentNow(){
+  if(!adv) return [];
+  if(adv.multi) return (adv.multi.present?.[adv.multi.view] || []).map(x => findMind(adv, x.name)).filter(m => m && !m.dead);
+  return presentMinds(adv);
+}
+
+/* ---------- créer / terminer une partie ---------- */
+function renderMultiTab(b){
+  const M = adv.multi;
+  if(!M){
+    hint(b, L("Invite tes amis dans cette aventure. Chacun crée son personnage et joue depuis son téléphone. Tout se passe dans ta partie : c'est ton appli et ta clé qui font tourner l'IA et les scripts, et tu gardes tous les droits (Guide, Histoire, Réessayer…). <b>Prototype</b> : dis-moi ce qui accroche !",
+      "Invite your friends into this adventure. Everyone creates a character and plays from their own phone. Everything runs in your game: your app and your key run the AI and the scripts, and you keep every right (Guide, Story, Retry…). <b>Prototype</b>: tell me what breaks!"));
+    if(!auth){ hint(b, L("Il faut être connecté à un compte (Réglages → Compte), toi comme tes amis.", "You need to be signed in (Settings → Account), you and your friends.")); btn(b, L("Se connecter", "Sign in"), "small", () => openSettings("sync")); return; }
+    btn(b, L("👥 Jouer à plusieurs", "👥 Play together"), "wide", () => mpCreate().catch(e => toast(L("Impossible : ", "Failed: ") + mpErr(e))));
+    return;
+  }
+  const link = mpLink();
+  sec(b, L("Inviter", "Invite"));
+  hint(b, L("Envoie ce lien à tes amis. Il contient la clé de la partie : ne le partage qu'avec eux.", "Send this link to your friends. It holds the game's key: share it only with them."));
+  const lk = field(b, L("Lien d'invitation", "Invite link"), link, () => {}); lk.readOnly = true; lk.onclick = () => lk.select();
+  const row = el("div", "row"); row.style.cssText = "gap:8px;flex-wrap:wrap;margin-bottom:6px"; b.appendChild(row);
+  btn(row, L("Copier", "Copy"), "small", () => { navigator.clipboard?.writeText(link).then(() => toast(L("Lien copié", "Link copied")), () => { lk.select(); toast(L("Sélectionné : copie-le", "Selected: copy it")); }); });
+  if(navigator.share) btn(row, L("Partager", "Share"), "ghost small", () => navigator.share({ title: adv.title, text: L("Rejoins ma partie Lanterne : ", "Join my Lanterne game: ") + adv.title, url: link }).catch(() => {}));
+  sec(b, L("Joueurs", "Players"));
+  M.players.filter(p => !p.kicked).forEach(p => {
+    const S = sceneOfPid(p.id);
+    const d = el("div", "mprow", `<span class="mpdot${mpOnline(p.id) ? "" : " off"}"></span><div class="grow"><div class="n">${esc(p.char)}${p.host ? L(" · hôte", " · host") : ""}</div><div class="d">${esc(p.name)} · ${S ? esc(S.name || L("scène sans nom", "unnamed scene")) : "—"}${S && S.turn === p.id ? L(" · à son tour", " · their turn") : ""}</div></div>`);
+    b.appendChild(d);
+    if(p.host) return;
+    const acts = el("div", "row"); acts.style.cssText = "gap:6px;flex-wrap:wrap;margin:4px 0 6px 18px"; b.appendChild(acts);
+    if(S && S.turn === p.id) btn(acts, L("Passer son tour", "Skip their turn"), "ghost small", () => { mpEnqueue({ sid: S.id, pid: p.id, kind: "pass" }); toast(L("Tour passé", "Turn skipped")); });
+    btn(acts, L("Déplacer…", "Move…"), "ghost small", () => mpMoveSheet(p));
+    btn(acts, L("Exclure", "Kick"), "danger small", () => { if(!confirm(L(`Exclure ${p.name} (${p.char}) de la partie ?`, `Kick ${p.name} (${p.char}) from the game?`))) return; p.kicked = true; Object.values(M.scenes).forEach(s => { s.members = s.members.filter(x => x !== p.id); if(!s.members.length) s.archived = true; else if(s.turn === p.id) s.turn = mpNextIn(s, p.id); }); saveAdv(); mpSend("kick", { id: p.id }).catch(() => {}); mpRoster(); openAdventureSheet("multi"); });
+  });
+  sec(b, L("Réglages de la partie", "Game settings"));
+  toggle(b, L("Cacher les autres scènes", "Hide the other scenes"), L("Chacun ne voit que sa scène. Plus de surprise quand vous vous retrouvez.", "Everyone only sees their own scene. More surprise when you meet."), () => !!M.settings.hide, v => { M.settings.hide = v; saveAdv(); mpRoster(); });
+  toggle(b, L("Les nouveaux arrivent dans mon groupe", "Newcomers join my group"), L("Sinon, chaque nouveau joueur commence dans sa propre scène et vous ne vous connaissez pas.", "Otherwise each new player starts in their own scene and you don't know each other."), () => M.settings.newcomer === "group", v => { M.settings.newcomer = v ? "group" : "own"; saveAdv(); });
+  const tl = el("label", "f", `<span>${L("Minuteur de tour", "Turn timer")}</span><div class="hint">${L("Si un joueur ne joue pas à temps, son perso passe son tour tout seul.", "If a player doesn't act in time, their character skips the turn.")}</div>`); b.appendChild(tl);
+  const tc = el("div", "chips"); tl.appendChild(tc);
+  [[0, L("Aucun", "None")], [2, "2 min"], [5, "5 min"], [10, "10 min"]].forEach(([v, t]) => { const c = el("button", "mode" + ((M.settings.timer || 0) === v ? " on" : ""), t); c.onclick = ev => { ev.preventDefault(); M.settings.timer = v; saveAdv(); openAdventureSheet("multi"); }; tc.appendChild(c); });
+  sec(b, L("Terminer", "End"));
+  btn(b, L("Terminer la partie à plusieurs", "End the multiplayer game"), "danger small", () => mpEnd());
+}
+function mpLink(){ const M = adv.multi; return location.origin + location.pathname + "#join=" + M.room + "." + M.key; }
+const mpErr = e => /relation .*lanterne_room|does not exist|42P01|PGRST205/i.test(e.message || "") ? L("la base n'est pas prête : colle le SQL du multi dans Supabase", "the database isn't ready: paste the multiplayer SQL into Supabase") : (e.message || String(e));
+async function mpCreate(){
+  if(!auth) throw new Error(L("connecte-toi d'abord", "sign in first"));
+  if(mp.busy || generating) throw new Error(L("attends la fin de la réponse", "wait for the answer to finish"));
+  // le perso de l'hôte : repris de la fiche de départ s'il y en a une, sinon on le crée
+  let char = (adv.scripts.player || "").trim(), desc = "";
+  const m = adv.essentials.match(/(^|\n)(Ton personnage|Your character) —\n([\s\S]*?)(\n\n|$)/);
+  if(m){ desc = m[3].trim(); if(!char){ const nm = desc.match(/^(Prénom|Nom|Name)\s*:\s*(.+)$/m); if(nm) char = nm[2].trim(); } }
+  if(!char || !desc){
+    const ch = Object.assign({ enabled: true, fields: ["name", "gender", "age", "look", "personality", "past"], questions: [] }, adv.origin?.character?.enabled ? adv.origin.character : {});
+    const ans = await characterSheet({ title: adv.title, character: ch, essentials: adv.essentials, opening: "" });
+    if(!ans) return;
+    char = (ans.name || char || L("Héros", "Hero")).trim(); desc = charBlock(ch, ans).split("\n").slice(1).join("\n");
+  }
+  if(m) adv.essentials = adv.essentials.replace(m[0], m[1]).trim();
+  const rid = crypto.randomUUID(), key = b64u(crypto.getRandomValues(new Uint8Array(32)));
+  await sbFetch("/rest/v1/lanterne_rooms", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify([{ id: rid }]) });
+  const sid = "s" + uid(), me = auth.user.id;
+  adv.actions.forEach(x => { x.sc = sid; delete x.pub; });
+  adv.multi = { room: rid, key, hostId: me, players: [{ id: me, name: myPseudo(), char, desc, host: true, seen: Date.now() }],
+    scenes: { [sid]: { id: sid, name: "", members: [me], turn: me, turnAt: Date.now(), notes: [] } },
+    view: sid, loaded: sid, settings: { hide: false, timer: 0, newcomer: "own" }, lastEv: 0, chat: [], present: {}, pubIds: {} };
+  adv.scripts.player = char;
+  Object.assign(adv.scripts, { minds: true, mindEvery: 1, ac: false, is: false, rpg: false });
+  saveAdv();
+  await mpStartHost();
+  const ch = adv.origin?.character?.enabled ? adv.origin.character : { enabled: true, fields: ["name", "gender", "age", "look", "personality", "past"], questions: [] };
+  await mpSend("hello", { title: adv.title, cfg: ch, hostName: myPseudo() });
+  mpRoster(true); await mpPublish(sid);
+  renderStory(true); openAdventureSheet("multi");
+  toast(L("Partie à plusieurs créée : envoie le lien à tes amis", "Multiplayer game created: send the link to your friends"));
+}
+async function mpStartHost(){
+  const M = adv.multi; if(!M) return;
+  if(mp.rid === M.room && mp.role === "host") return;
+  if(!auth){ toast(L("Connecte-toi pour reprendre la partie à plusieurs", "Sign in to resume the multiplayer game")); return; }
+  await mpRun(M.room, M.key, "host", M.lastEv || 0);
+}
+async function mpEnd(){
+  if(!confirm(L("Terminer la partie à plusieurs ? Tes amis ne pourront plus jouer. L'aventure reste chez toi, en solo.", "End the multiplayer game? Your friends won't be able to play anymore. The adventure stays with you, solo."))) return;
+  const M = adv.multi;
+  try{ await mpSend("end", {}); }catch(e){}
+  const rid = M.room;
+  setTimeout(() => sbFetch(`/rest/v1/lanterne_rooms?id=eq.${rid}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }).catch(e => console.warn(e)), 6000);
+  mpStop();
+  adv.actions.forEach(x => { delete x.pub; });
+  delete adv.multi; adv.scripts.mindEvery = 2;
+  saveAdv(); closeSheet(); renderStory(true);
+  toast(L("Partie à plusieurs terminée", "Multiplayer game ended"));
+}
+function mpMoveSheet(p){
+  const M = adv.multi;
+  openSheet(L("Déplacer ", "Move ") + p.char, null, (_, b) => {
+    hint(b, L("Choisis la scène où mettre ce perso. Le narrateur intègre son arrivée au prochain passage.", "Pick the scene for this character. The narrator weaves in their arrival on the next passage."));
+    Object.values(M.scenes).filter(s => !s.archived && !s.members.includes(p.id)).forEach(s => btn(b, (s.name || L("Scène", "Scene")) + " — " + s.members.map(charOfPid).join(", "), "ghost wide", () => {
+      const from = sceneOfPid(p.id); mpMoveTo(p.id, s, `${p.char} has just arrived and joins this scene${from?.name ? ` (coming from ${from.name})` : ""}.`); saveAdv(); mpRoster(); closeSheet(); renderStory(false);
+    }));
+    btn(b, L("+ Nouvelle scène, seul", "+ New scene, alone"), "wide", () => { const S = mpNewScene([p.id], ""); S.notes.push({ t: `${p.char} is now on their own, away from the others. Start this new scene around them.`, n: 3 }); saveAdv(); mpRoster(); closeSheet(); renderStory(false); });
+  }, undefined, { back: () => openAdventureSheet("multi") });
+}
+
+/* ---------- événements reçus par l'hôte ---------- */
+function hostEvents(evs){
+  const M = adv?.multi; if(!M || !evs.length) return;
+  const me = M.hostId;
+  let dirty = false;
+  evs.forEach(e => {
+    if(e.sender === me) return;
+    if(e.kind !== "ping") dirty = true;
+    const p = mpPlayer(e.sender);
+    if(p) p.seen = Date.now();
+    if(e.kind === "join") return hostJoin(e.sender, e.d);
+    if(!p || p.kicked) return;
+    if(e.kind === "chat") return mpChatIn({ from: p.name, char: p.char, text: String(e.d.text || "").slice(0, 600), t: Date.now(), me: false });
+    if(e.kind === "act"){
+      if(e.d.t && Date.now() - e.d.t > 180000) return; // action trop ancienne (l'hôte était absent)
+      const S = M.scenes[e.d.sid]; if(!S || S.archived || !S.members.includes(p.id)) return;
+      if(S.turn !== p.id || S.lock === p.id) return;
+      if(mp.queue.some(j => j.sid === S.id && j.pid === p.id)) return;
+      S.lock = p.id;
+      const kind = ["do", "say", "auto", "pass"].includes(e.d.kind) ? e.d.kind : "do";
+      mpEnqueue({ sid: S.id, pid: p.id, kind, text: String(e.d.text || "").slice(0, 2000) });
+    }
+  });
+  M.lastEv = mp.last;
+  if(dirty) saveAdv(); // les simples signaux de présence ne déclenchent pas de sauvegarde (ni de synchro)
+}
+function hostJoin(uid0, d){
+  const M = adv.multi;
+  let p = mpPlayer(uid0);
+  if(p?.kicked) return;
+  if(!p){
+    if(!d.charName) return;
+    p = { id: uid0, name: String(d.name || "joueur").slice(0, 40), char: String(d.charName).slice(0, 60), desc: String(d.desc || "").slice(0, 1500), seen: Date.now() };
+    M.players.push(p);
+    toast(L(`${p.name} rejoint la partie avec ${p.char}`, `${p.name} joins with ${p.char}`));
+    if(M.settings.newcomer === "group"){ const S = sceneOfPid(M.hostId) || Object.values(M.scenes).find(s => !s.archived); mpMoveTo(p.id, S, `${p.char}, a newcomer, joins this scene now: introduce them naturally.`); }
+    else { const S = mpNewScene([p.id], ""); mpEnqueue({ sid: S.id, pid: p.id, kind: "intro" }); }
+    saveAdv(); renderStory(false);
+  } else p.seen = Date.now();
+  mpRoster(true); mpSyncTo(p.id);
+}
+function hostHousekeeping(now){
+  const M = adv?.multi; if(!M) return;
+  const sig = M.players.map(p => p.id + (mpOnline(p.id) ? 1 : 0)).join(",");
+  let changed = sig !== mp.onlineSig; mp.onlineSig = sig;
+  Object.values(M.scenes).forEach(S => {
+    if(S.archived || mp.queue.some(j => j.sid === S.id) || mp.busySid === S.id) return;
+    if(S.turn && !S.members.includes(S.turn)){ S.turn = S.members[0]; changed = true; }
+    if(S.turn && !mpOnline(S.turn)){ const n = mpNextIn(S, S.turn); if(n !== S.turn){ S.turn = n; S.turnAt = now; changed = true; } }
+    if(M.settings.timer && S.turn && S.turn !== M.hostId && now - (S.turnAt || now) > M.settings.timer * 60000) mpEnqueue({ sid: S.id, pid: S.turn, kind: "pass", auto: true });
+  });
+  if(changed){ saveAdv(); mpRoster(); if(adv) refreshSmartBar(); }
+  if(now - mp.cleanAt > 180000){
+    mp.cleanAt = now;
+    const iso = new Date(now - 120000).toISOString();
+    sbFetch(`/rest/v1/lanterne_room_events?room=eq.${M.room}&kind=eq.ping&created_at=lt.${iso}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }).catch(() => {});
+  }
+}
+function mpRoster(now){
+  clearTimeout(mp.rosterT);
+  const send = () => { const M = adv?.multi; if(!M || !mp.rid) return; mpSend("roster", {
+    players: M.players.filter(p => !p.kicked).map(p => ({ id: p.id, name: p.name, char: p.char, host: !!p.host, on: mpOnline(p.id) })),
+    scenes: Object.values(M.scenes).map(s => ({ id: s.id, name: s.name || "", members: s.members, turn: s.turn, archived: !!s.archived })),
+    settings: { hide: !!M.settings.hide, timer: M.settings.timer || 0 }, present: M.present || {}, busy: mp.busySid }).catch(e => console.warn(e)); };
+  if(now) send(); else mp.rosterT = setTimeout(send, 300);
+}
+async function mpSyncTo(pid){
+  const M = adv.multi, list = [];
+  Object.keys(M.scenes).forEach(sid => actionsOfScene(sid).filter(x => !x.hidden).slice(-150).forEach(x => list.push({ id: x.id, sc: sid, type: x.type, text: visible(x.text) })));
+  const order = new Map((M._all || adv.actions).map((x, i) => [x.id, i]));
+  list.sort((x, y) => (order.get(x.id) ?? 0) - (order.get(y.id) ?? 0));
+  await mpSend("sync", { to: pid, list }).catch(e => console.warn(e));
+  if(M.chat?.length) mpSend("chatlog", { to: pid, list: M.chat.slice(-40) }).catch(() => {});
+}
+async function mpPublish(sid){
+  const M = adv?.multi; if(!M || !mp.rid) return;
+  const list = actionsOfScene(sid).filter(x => !x.hidden);
+  const changed = list.filter(x => x.pub !== hashT(x.text));
+  const ids = new Set(list.map(x => x.id));
+  M.pubIds ||= {};
+  const gone = (M.pubIds[sid] || []).filter(id => !ids.has(id));
+  M.pubIds[sid] = [...ids];
+  if(changed.length){ await mpSend("pass", { sid, list: changed.map(x => ({ id: x.id, type: x.type, text: visible(x.text) })) }); changed.forEach(x => x.pub = hashT(x.text)); }
+  if(gone.length) await mpSend("del", { ids: gone });
+}
+function mpAfterEdit(){ if(adv?.multi && !adv.multi._all){ mpPublish(adv.multi.view).then(() => saveAdv()).catch(e => console.warn(e)); } }
+
+/* ---------- la file des tours (chez l'hôte) ---------- */
+function mpEnqueue(job){ mp.queue.push(job); if(adv) refreshSmartBar(); mpProcess(); }
+function mpHostJob(kind){
+  const M = adv.multi;
+  if(kind === "cont" || kind === "retry" || kind === "undo") mpEnqueue({ sid: M.view, pid: M.hostId, kind, host: true });
+}
+function mpHostSubmit(){
+  const M = adv.multi, inp = $("#inp"), raw = inp.value;
+  if(mode === "story" || mode === "guide"){
+    if(!raw.trim()) return toast(L("Écris quelque chose d'abord", "Write something first"));
+    mpEnqueue({ sid: M.view, pid: M.hostId, kind: mode, text: raw, host: true });
+  } else {
+    const S = sceneOfPid(M.hostId);
+    if(!S) return toast(L("Ton perso n'est dans aucune scène", "Your character isn't in any scene"));
+    if(S.id !== M.view) return toast(L("Ton perso est dans une autre scène. Ici, tu peux utiliser Histoire ou Guide.", "Your character is in another scene. Here you can use Story or Guide."));
+    if(!raw.trim()) mpEnqueue({ sid: S.id, pid: M.hostId, kind: "cont", host: true });
+    else mpEnqueue({ sid: S.id, pid: M.hostId, kind: mode === "say" ? "say" : "do", text: raw });
+  }
+  inp.value = ""; autosize();
+}
+function mpQuick(kind){
+  if(room) return roomSubmit(kind);
+  const M = adv?.multi; if(!M) return;
+  const S = sceneOfPid(M.hostId); if(!S) return;
+  if(S.id !== M.view) return toast(L("Ton perso est dans une autre scène.", "Your character is in another scene."));
+  mpEnqueue({ sid: S.id, pid: M.hostId, kind });
+}
+async function mpPuppetCheck(text, names){
+  const hit = names.filter(n => wordIn(text, n)); if(!hit.length) return [];
+  try{
+    const r = parseJSON(await complete(`Player characters (each controlled by a real person): ${hit.join(", ")}.
+Passage:
+"""
+${String(text).slice(0, 4000)}
+"""
+Does this passage put words in the mouth of any of these player characters (dialogue), or decide for them a deliberate action, a decision, a thought or a feeling? Merely describing them as present, listening, watching or being affected by events is fine.
+Return ONLY JSON: {"who":["names of the player characters that were puppeted — empty if none"]}`, 80, true));
+    return (r.who || []).filter(n => hit.some(h => sameName(h, n)));
+  }catch(e){ return []; }
+}
+async function mpProcess(){
+  if(mp.busy || !adv?.multi || !mp.queue.length) return;
+  const job = mp.queue.shift(), a = adv, M = a.multi, S = M.scenes[job.sid];
+  if(!S || S.archived){ return mpProcess(); }
+  mp.busy = true; mp.busySid = S.id; mp.liveText[S.id] = ""; mpRoster(true); refreshSmartBar();
+  const actorChar = job.pid ? charOfPid(job.pid) : "";
+  try{
+    await mpInScene(S.id, async () => {
+      const acting = ["do", "say", "auto", "pass", "intro"].includes(job.kind);
+      if(job.kind === "pass" && S.members.some(p => p !== job.pid && mpOnline(p))){
+        S.turn = mpNextIn(S, job.pid); S.turnAt = Date.now(); delete S.lock;
+        if(job.auto) mpChatIn({ from: "Lanterne", text: L(`${actorChar} passe son tour (temps écoulé).`, `${actorChar} skips their turn (time out).`), t: Date.now(), sys: true });
+        return;
+      }
+      mp.next = acting ? (job.kind === "intro" ? job.pid : mpNextIn(S, job.pid, job.kind === "say" || job.kind === "do" ? job.text : "")) : S.turn;
+      mp.actor = job.pid ? actorChar : null;
+      let tick = 0;
+      mpLiveTap = partial => { mp.liveText[S.id] = cleanOutput(partial); if(Date.now() - tick > 1200){ tick = Date.now(); mpSend("live", { sid: S.id, text: mp.liveText[S.id].slice(-6000) }).catch(() => {}); } if(M.view === S.id && M.active !== M.view) renderStory(false); };
+      let res = null;
+      if(job.kind === "do" || job.kind === "say") res = await generate({ kind: job.kind, raw: job.text });
+      else if(job.kind === "auto") res = await generate({ kind: "auto", raw: "" });
+      else if(job.kind === "story") res = await generate({ kind: "story", raw: job.text });
+      else if(job.kind === "guide") res = await generate({ kind: "guide", raw: job.text });
+      else if(job.kind === "intro") res = await generate(null, { guide: `Introduce ${actorChar}'s first appearance in the story as a new player character, consistent with their description. Set the scene around them and end where ${actorChar} can act. Do not make them speak or decide anything.` });
+      else if(job.kind === "retry") res = await retryLast();
+      else if(job.kind === "undo"){ undoLast(); }
+      else res = await generate(null); // cont ou pass seul
+      mpLiveTap = null;
+      if(res?.bg) await res.bg;
+      // le narrateur a-t-il fait parler ou agir un perso joueur ?
+      if(res?.finalAction && !res.errMsg){
+        const names = S.members.filter(p => !(job.kind === "auto" && p === job.pid)).map(charOfPid);
+        const who = await mpPuppetCheck(res.finalAction.text, names);
+        if(who.length && a.actions[a.actions.length - 1] === res.finalAction){
+          a.actions.pop(); rollbackMinds(a, a.actions.length);
+          mpLiveTap = partial => { mp.liveText[S.id] = cleanOutput(partial); };
+          const r2 = await generate(null, { guide: `Do NOT write dialogue, decisions, deliberate actions, thoughts or feelings for ${who.join(", ")}: they are controlled by real players.` });
+          mpLiveTap = null;
+          if(r2?.bg) await r2.bg;
+        }
+      }
+      const pa = [...a.actions].reverse().find(x => x.type === "player" && !x.by);
+      if(pa && job.pid && (job.kind === "do" || job.kind === "say" || job.kind === "auto")) pa.by = job.pid;
+      if(acting){ S.turn = mp.next; S.turnAt = Date.now(); }
+      delete S.lock;
+      S.notes = (S.notes || []).map(n => Object.assign({}, n, { n: n.n - 1 })).filter(n => n.n > 0);
+      M.present ||= {}; M.present[S.id] = presentMinds(a).slice(0, 10).map(m => ({ name: m.name, mood: m.mood || "", relBy: m.relBy || {} }));
+      await mpPublish(S.id).catch(e => console.warn(e));
+    });
+    mpApplyOps();
+  }catch(e){ console.warn("multi job", e); toast("⚠ " + e.message); }
+  mpLiveTap = null; mp.actor = null; mp.next = null; mp.busy = false; mp.busySid = null; mp.liveText = {};
+  sbFetch(`/rest/v1/lanterne_room_events?room=eq.${M.room}&kind=eq.live`, { method: "DELETE", headers: { Prefer: "return=minimal" } }).catch(() => {});
+  saveAdv(); mpRoster(true);
+  if(adv === a) renderStory(false);
+  setTimeout(mpProcess, 30);
+}
+function mpApplyOps(){
+  const M = adv.multi, ops = M.pendOps || []; M.pendOps = [];
+  const mine0 = sceneOfPid(M.hostId)?.id;
+  ops.forEach(o => {
+    const S = M.scenes[o.sid]; if(!S || S.archived) return;
+    const loc = visible(o.location || "").trim(); if(loc) S.name = loc.slice(0, 40);
+    const pidIn = (n, list) => list.find(p => sameName(charOfPid(p), n) || sameName(charOfPid(p).split(/\s+/)[0], n));
+    // un perso joueur part de son côté
+    const left = (Array.isArray(o.left) ? o.left : []).map(x => ({ pid: pidIn(String(x?.name || ""), S.members), where: visible(String(x?.where || "")).trim().slice(0, 40) })).filter(x => x.pid);
+    if(left.length && left.length < S.members.length){
+      const recap = visible(lastAiOf(S.id)?.text || "").slice(-600);
+      left.forEach(x => {
+        const T = mpNewScene([x.pid], x.where);
+        T.notes.push({ t: `[How this scene began] ${charOfPid(x.pid)} has just split off from the others${S.name ? ` (at ${S.name})` : ""} and is now on their own${x.where ? `, heading to or arriving at ${x.where}` : ""}. Last thing that happened before: ${recap}`, n: 4 });
+        adv.actions.push({ id: uid(), type: "story", text: `✦ ${charOfPid(x.pid)}${x.where ? " — " + x.where : ""}`, sc: T.id });
+        mpChatIn({ from: "Lanterne", text: L(`${charOfPid(x.pid)} part de son côté${x.where ? " : " + x.where : ""}. Nouvelle scène.`, `${charOfPid(x.pid)} goes their own way${x.where ? ": " + x.where : ""}. New scene.`), t: Date.now(), sys: true });
+        mpPublish(T.id).catch(() => {});
+      });
+      if(!S.members.includes(S.turn)) S.turn = S.members[0];
+    }
+    // des persos joueurs venus d'ailleurs arrivent ici
+    (Array.isArray(o.joined) ? o.joined : []).forEach(n => {
+      const p = M.players.find(x => !x.kicked && (sameName(x.char, n) || sameName(x.char.split(/\s+/)[0], n))); if(!p || S.members.includes(p.id)) return;
+      const U = sceneOfPid(p.id); const recap = U ? visible(lastAiOf(U.id)?.text || "").slice(-500) : "";
+      mpMoveTo(p.id, S, `${p.char} has just arrived and joined this scene${U?.name ? ` (coming from ${U.name})` : ""}. What ${p.char} was doing just before: ${recap}`);
+      mpChatIn({ from: "Lanterne", text: L(`${p.char} rejoint ${S.members.filter(x => x !== p.id).map(charOfPid).join(", ")}.`, `${p.char} joins ${S.members.filter(x => x !== p.id).map(charOfPid).join(", ")}.`), t: Date.now(), sys: true });
+    });
+    // messages envoyés à un perso joueur ailleurs
+    (Array.isArray(o.messages) ? o.messages : []).forEach(x => {
+      const p = M.players.find(q => !q.kicked && (sameName(q.char, x?.to) || sameName(q.char.split(/\s+/)[0], x?.to))); if(!p) return;
+      const T = sceneOfPid(p.id); if(!T || T === S || !visible(x.content || "")) return;
+      (T.notes ||= []).push({ t: `[Incoming message for ${p.char}] From ${x.from || "someone"}${x.means ? ` (${x.means})` : ""}: "${String(x.content).slice(0, 400)}". Have it reach ${p.char} in a plausible way and at a plausible time.`, n: 3 });
+    });
+  });
+  const mine1 = sceneOfPid(M.hostId)?.id;
+  if(mine1 && mine1 !== mine0) mpSetView(mine1);
+  else if(M.scenes[M.view]?.archived && mine1) mpSetView(mine1);
+}
+
+/* ---------- discussion hors-jeu ---------- */
+function mpChatIn(msg){
+  const list = room ? room.chat : adv?.multi?.chat; if(!list) return;
+  list.push(msg); if(list.length > 120) list.splice(0, list.length - 120);
+  if(room) saveRoom(); else saveAdv();
+  if($("#chatList")) renderChatList(); else { mp.unread = (mp.unread || 0) + (msg.me || msg.sys ? 0 : 1); if(!msg.me && !msg.sys) toast(`💬 ${msg.from} : ${msg.text.slice(0, 60)}`); }
+  if(room) guestBar(); else if(adv) refreshSmartBar();
+}
+function renderChatList(){
+  const host = $("#chatList"); if(!host) return;
+  const list = room ? room.chat : adv?.multi?.chat || [];
+  host.innerHTML = list.length ? "" : `<div class="hint">${L("Discussion entre joueurs, jamais envoyée à l'IA.", "Chat between players, never sent to the AI.")}</div>`;
+  list.forEach(m => host.appendChild(el("div", "msg" + (m.me ? " me" : ""), `<b>${esc(m.from)}</b>${esc(m.text)}`)));
+  host.scrollTop = host.scrollHeight;
+}
+function openChat(){
+  mp.unread = 0;
+  openSheet(L("Discussion hors-jeu", "Out-of-game chat"), null, (_, b) => {
+    const l = el("div", "chatlist"); l.id = "chatList"; b.appendChild(l); renderChatList();
+    let txt = "";
+    const f = field(b, "", "", v => txt = v, { placeholder: L("Message aux autres joueurs…", "Message to the other players…") });
+    const send = () => { const t = txt.trim(); if(!t) return; f.value = ""; txt = ""; mpSend("chat", { text: t }).catch(e => toast(e.message)); mpChatIn({ from: room ? L("Moi", "Me") : myPseudo(), text: t, t: Date.now(), me: true }); };
+    f.onkeydown = e => { if(e.key === "Enter"){ e.preventDefault(); send(); } };
+    btn(b, L("Envoyer", "Send"), "small", send);
+  });
+  if(room) guestBar(); else refreshSmartBar();
+}
+
+/* ---------- barre et onglets (hôte et invités) ---------- */
+function mpTabsHTML(scenes, view, mine, turnName){
+  return scenes.map(s => `<button class="mptab${s.id === view ? " on" : ""}" data-s="${s.id}">${s.id === mine ? "★ " : "✦ "}${esc(s.name || L("Scène", "Scene"))} — ${esc(s.members.map(turnName).join(", "))}</button>`).join("");
+}
+function mpUI(){
+  const on = !!(room || adv?.multi), guest = !!room;
+  document.querySelectorAll(".mpb").forEach(b => b.classList.toggle("hidden", !on));
+  document.querySelectorAll('.mode[data-m="story"],.mode[data-m="guide"]').forEach(b => b.classList.toggle("hidden", guest));
+  ["#contBtn", "#retryBtn", "#undoBtn"].forEach(id => $(id)?.classList.toggle("hidden", guest));
+  ["#redoBtn", "#ideaBtn"].forEach(id => $(id)?.classList.toggle("hidden", on));
+  const tabs = $("#mptabs");
+  if(!on){ tabs.classList.add("hidden"); tabs.innerHTML = ""; $("#inp").disabled = false; $("#sendBtn").disabled = false; document.querySelectorAll(".mpb").forEach(b => b.disabled = false); return; }
+  if(guest) return;
+  const M = adv.multi, mine = sceneOfPid(M.hostId)?.id;
+  const sc = Object.values(M.scenes).filter(s => !s.archived);
+  tabs.innerHTML = sc.length > 1 ? mpTabsHTML(sc, M.view, mine, charOfPid) : "";
+  tabs.classList.toggle("hidden", sc.length <= 1);
+  tabs.querySelectorAll(".mptab").forEach(b => b.onclick = () => mpSetView(b.dataset.s));
+}
+function mpBar(s){
+  const M = adv.multi, S = M.scenes[M.view];
+  const nPl = M.players.filter(p => !p.kicked).length, nOn = M.players.filter(p => !p.kicked && mpOnline(p.id)).length;
+  const pl = el("button", "pill", `👥 <b>${nOn}</b>/${nPl}`); pl.onclick = () => openAdventureSheet("multi"); s.appendChild(pl);
+  if(S){
+    const busy = mp.busySid === S.id, q = mp.queue.filter(j => j.sid === S.id).length;
+    const t = busy ? L("Le narrateur écrit…", "The narrator is writing…") : S.turn === M.hostId ? L("À toi de jouer", "Your turn") : L("Tour : ", "Turn: ") + `<b>${esc(charOfPid(S.turn))}</b>`;
+    s.appendChild(el("span", "pill turn" + (!busy && S.turn === M.hostId ? " me" : ""), (busy ? `<span class="dot"></span>` : "🎲 ") + t + (q ? ` <span>+${q}</span>` : "")));
+  }
+  const n = mp.unread || 0;
+  const c = el("button", "pill", `💬${n ? ` <span class="bdg">${n}</span>` : ""}`); c.onclick = openChat; s.appendChild(c);
+}
+
+/* ---------- côté invité ---------- */
+const roomKey = rid => "lan.room." + rid;
+function saveRoom(){ if(!room) return; const r = Object.assign({}, room); delete r.asking; LS.set(roomKey(room.rid), r); }
+function roomList(){ const out = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.room.")){ const r = LS.get(k, null); if(r) out.push(r); } } return out.sort((x, y) => (y.at || 0) - (x.at || 0)); }
+function roomsInLibrary(lib){
+  const list = roomList(); if(!list.length) return;
+  lib.appendChild(el("div", "secT", L("Parties à plusieurs rejointes", "Multiplayer games joined")));
+  list.forEach(r => {
+    const it = el("div", "item");
+    it.appendChild(el("div", "grow", `<div class="t">👥 ${esc(r.title || L("Partie", "Game"))}</div><div class="m">${r.ended ? L("terminée", "ended") : L("hôte : ", "host: ") + esc(r.hostName || "?")}</div>`));
+    const x = el("button", "ib", "✕"); x.title = L("Oublier", "Forget"); x.onclick = e => { e.stopPropagation(); if(confirm(L("Retirer cette partie de ta liste ?", "Remove this game from your list?"))){ LS.del(roomKey(r.rid)); showLibrary(); } };
+    it.appendChild(x);
+    it.style.cursor = "pointer"; it.onclick = () => r.ended ? toast(L("Cette partie est terminée", "This game has ended")) : openRoom(r.rid);
+    lib.appendChild(it);
+  });
+}
+async function joinFromHash(){
+  const m = location.hash.match(/^#join=([0-9a-f-]{36})\.([A-Za-z0-9_-]{20,})$/);
+  if(!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if(!auth){ LS.set("lan.pendingJoin", { rid: m[1], key: m[2] }); toast(L("Connecte-toi (ou crée un compte) pour rejoindre la partie, puis rouvre le lien.", "Sign in (or create an account) to join the game, then open the link again.")); openSettings("sync"); return; }
+  joinRoom(m[1], m[2]);
+}
+async function joinRoom(rid, key){
+  try{
+    let r = LS.get(roomKey(rid), null);
+    if(!r){
+      const rows = await sbFetch(`/rest/v1/lanterne_rooms?select=host&id=eq.${rid}`);
+      if(!rows?.length) return toast(L("Partie introuvable ou terminée", "Game not found or ended"));
+      if(rows[0].host === auth.user.id) return toast(L("C'est ta propre partie : ouvre-la depuis tes aventures", "This is your own game: open it from your adventures"));
+      r = { rid, key, hostId: rows[0].host, me: auth.user.id, title: "…", passes: [], chat: [], players: [], scenes: [], settings: {}, present: {}, lastEv: 0, at: Date.now() };
+      LS.set(roomKey(rid), r);
+    }
+    openRoom(rid);
+  }catch(e){ toast(L("Impossible de rejoindre : ", "Can't join: ") + mpErr(e)); }
+}
+function openRoom(rid){
+  const r = LS.get(roomKey(rid), null); if(!r) return;
+  if(adv) showLibrary();
+  room = Object.assign(r, { live: {}, busy: null, waiting: false, asking: false, at: Date.now() });
+  room.me = auth?.user?.id || room.me;
+  $(".app").classList.remove("wide"); applyStyle(globalStyle());
+  $("#libView").classList.add("hidden");
+  $("#storyView").classList.remove("hidden"); $("#bar").classList.remove("hidden");
+  $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.add("hidden"); $("#searchBtn").classList.add("hidden");
+  setHeaderTitle(room.title, false);
+  mode = "do"; document.querySelectorAll(".mode[data-m]").forEach(x => x.classList.toggle("on", x.dataset.m === "do"));
+  mpUI(); renderRoom(true);
+  mpRun(rid, room.key, "guest", room.lastEv || 0);
+}
+const roomMine = () => room.scenes.find(s => !s.archived && s.members.includes(room.me));
+const roomPlayer = id => room.players.find(p => p.id === id);
+function roomVisibleScenes(){
+  const mine = roomMine();
+  const sc = room.scenes.filter(s => !s.archived);
+  return room.settings?.hide ? (mine ? [mine] : []) : sc;
+}
+function roomShown(){ return room.passes.filter(x => x.sc === room.view); }
+function guestEvents(evs){
+  if(!room) return;
+  let dirty = false, scroll = false;
+  evs.forEach(e => {
+    const fromHost = e.sender === room.hostId;
+    if(e.kind === "chat"){ if(e.sender !== room.me){ const p = roomPlayer(e.sender); mpChatIn({ from: p ? p.name : "?", text: String(e.d.text || ""), t: Date.now() }); } return; }
+    if(!fromHost) return;
+    const d = e.d;
+    if(e.kind === "hello"){ room.title = d.title || room.title; room.cfg = d.cfg; room.hostName = d.hostName; setHeaderTitle(room.title, false); dirty = true; }
+    else if(e.kind === "roster"){ room.players = d.players || []; room.scenes = d.scenes || []; room.settings = d.settings || {}; room.present = d.present || {}; room.busy = d.busy || null; if(room.busy == null) room.live = {}; room.waiting = false; dirty = true; }
+    else if(e.kind === "pass" || (e.kind === "sync" && d.to === room.me)){
+      (d.list || []).forEach(x => { const sc = x.sc || d.sid; const i = room.passes.findIndex(y => y.id === x.id); const v = { id: x.id, sc, type: x.type, text: x.text }; if(i >= 0) room.passes[i] = v; else room.passes.push(v); });
+      if(d.sid) delete room.live[d.sid];
+      dirty = scroll = true;
+    }
+    else if(e.kind === "del"){ const ids = new Set(d.ids || []); room.passes = room.passes.filter(x => !ids.has(x.id)); dirty = true; }
+    else if(e.kind === "live"){ room.live[d.sid] = d.text || ""; dirty = scroll = true; }
+    else if(e.kind === "chatlog" && d.to === room.me && !room.chat.length){ room.chat = (d.list || []).map(m => Object.assign({}, m, { me: false })); }
+    else if(e.kind === "kick" && d.id === room.me){ room.ended = true; toast(L("L'hôte t'a retiré de la partie", "The host removed you from the game")); dirty = true; }
+    else if(e.kind === "end"){ room.ended = true; toast(L("L'hôte a terminé la partie", "The host ended the game")); dirty = true; }
+  });
+  if(room.passes.length > 3000) room.passes = room.passes.slice(-3000);
+  room.lastEv = mp.last;
+  const mine = roomMine();
+  if(mine && mine.id !== room.mineId){ room.mineId = mine.id; room.view = mine.id; scroll = dirty = true; } // ma scène a changé : on la suit
+  if(!room.view || !room.scenes.some(s => s.id === room.view && !s.archived) || (room.settings?.hide && mine && room.view !== mine.id)) room.view = mine?.id || roomVisibleScenes()[0]?.id || room.view;
+  saveRoom();
+  if(dirty) renderRoom(scroll);
+  if(room.ended) return mpStop();
+  if(!room.asking && room.cfg && room.players.length && !room.players.some(p => p.id === room.me) && !room.joinSent){
+    room.asking = true;
+    const cfg = Object.assign({ enabled: true, fields: ["name", "gender", "age", "look", "personality", "past"], questions: [] }, room.cfg || {});
+    if(!cfg.fields?.length) cfg.fields = ["name", "gender", "age", "look", "personality", "past"];
+    characterSheet({ title: room.title, character: cfg, essentials: "", opening: "" }).then(ans => {
+      room.asking = false;
+      if(!ans) return toast(L("Rouvre la partie pour créer ton perso", "Reopen the game to create your character"));
+      const desc = charBlock(cfg, ans).split("\n").slice(1).join("\n");
+      mpSend("join", { name: myPseudo(), charName: (ans.name || L("Voyageur", "Traveller")).trim(), desc }).then(() => { room.joinSent = true; saveRoom(); toast(L("Personnage envoyé, l'hôte t'ajoute…", "Character sent, the host is adding you…")); }).catch(e => toast(e.message));
+    });
+  }
+}
+function renderRoom(scroll){
+  if(!room) return;
+  const s = $("#story"); s.innerHTML = "";
+  const list = roomShown();
+  list.forEach(a => { const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player")); d.textContent = a.text; s.appendChild(d); });
+  const live = room.live[room.view];
+  if(room.busy === room.view){ const d = el("div", "act ai" + (live ? " live" : "")); if(live) d.textContent = live; else d.innerHTML = `<span class="wait"><i></i><i></i><i></i></span>`; s.appendChild(d); }
+  if(!list.length && room.busy !== room.view) s.appendChild(el("div", "empty", `<span style="font-family:var(--sans)">${room.players.some(p => p.id === room.me) ? L("La partie commence…", "The game is starting…") : L("Connexion à la partie…", "Connecting to the game…")}</span>`));
+  s.appendChild(el("div", "meta", ""));
+  guestBar();
+  if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
+}
+function guestBar(){
+  if(!room) return;
+  const tabs = $("#mptabs"), sc = roomVisibleScenes(), mine = roomMine();
+  const nm = id => roomPlayer(id)?.char || "?";
+  tabs.innerHTML = sc.length > 1 ? mpTabsHTML(sc, room.view, mine?.id, nm) : "";
+  tabs.classList.toggle("hidden", sc.length <= 1);
+  tabs.querySelectorAll(".mptab").forEach(b => b.onclick = () => { room.view = b.dataset.s; saveRoom(); renderRoom(true); });
+  const s = $("#sbar"); s.innerHTML = "";
+  const on = room.players.filter(p => p.on).length;
+  const pl = el("button", "pill", `👥 <b>${on}</b>/${room.players.length}`); pl.onclick = roomPlayersSheet; s.appendChild(pl);
+  const S = room.scenes.find(x => x.id === room.view);
+  const myTurn = !!(S && mine && S.id === mine.id && S.turn === room.me && room.busy !== S.id && !room.waiting);
+  if(S){
+    const busy = room.busy === S.id;
+    s.appendChild(el("span", "pill turn" + (myTurn ? " me" : ""), busy || room.waiting ? `<span class="dot"></span>${L("Le narrateur écrit…", "The narrator is writing…")}` : S.turn === room.me ? L("🎲 À toi de jouer", "🎲 Your turn") : `🎲 ${L("Tour : ", "Turn: ")}<b>${esc(nm(S.turn))}</b>`));
+  }
+  const pres = (room.present?.[room.view] || []);
+  if(pres.length){
+    const p = el("button", "pill chars", `<span class="mavs">${pres.slice(0, 4).map(m => `<span class="mav" style="background:hsl(${hueOf(m.name)} 38% 36%)" title="${esc(m.name)}">${esc(m.name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span>`).join("")}</span><span>${pres.length}</span>`);
+    p.onclick = () => openSheet(L("Dans la scène", "In the scene"), null, (_, b) => { hint(b, L("Les personnages présents et leur relation avec ton perso.", "The characters here and their relationship with your character.")); pres.forEach(m => b.appendChild(mindTile("", { name: m.name, mood: m.mood, rel: m.relBy?.[room.me] || {}, goals: {} }, () => {}))); });
+    s.appendChild(p);
+  }
+  const n = mp.unread || 0;
+  const c = el("button", "pill", `💬${n ? ` <span class="bdg">${n}</span>` : ""}`); c.onclick = openChat; s.appendChild(c);
+  s.classList.remove("hidden");
+  const inp = $("#inp"), sb = $("#sendBtn");
+  inp.disabled = !myTurn; sb.disabled = !myTurn;
+  document.querySelectorAll(".mpb").forEach(b => b.disabled = !myTurn);
+  inp.placeholder = room.ended ? L("Partie terminée", "Game over") : !room.players.some(p => p.id === room.me) ? L("En attente de ton perso…", "Waiting for your character…")
+    : S && mine && S.id !== mine.id ? L("Tu regardes une autre scène", "You're watching another scene") : myTurn ? tr({ do: "Que fais-tu ?", say: "Que dis-tu ?" }[mode] || "Que fais-tu ?") : L("Attends ton tour…", "Wait for your turn…");
+  sb.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+}
+function roomPlayersSheet(){
+  openSheet(L("Joueurs", "Players"), null, (_, b) => {
+    room.players.forEach(p => { const S = room.scenes.find(s => !s.archived && s.members.includes(p.id)); b.appendChild(el("div", "mprow", `<span class="mpdot${p.on ? "" : " off"}"></span><div class="grow"><div class="n">${esc(p.char)}${p.host ? L(" · hôte", " · host") : ""}${p.id === room.me ? L(" · toi", " · you") : ""}</div><div class="d">${esc(p.name)}${S?.name ? " · " + esc(S.name) : ""}</div></div>`)); });
+  });
+}
+function roomSubmit(kind){
+  if(!room || room.ended) return;
+  const mine = roomMine(); if(!mine) return;
+  if(mine.turn !== room.me || room.waiting) return toast(L("Ce n'est pas ton tour", "It's not your turn"));
+  const inp = $("#inp"), raw = inp.value;
+  if((kind === "do" || kind === "say") && !raw.trim()) return toast(L("Écris ton action, ou utilise IA joue / Passer", "Write your action, or use AI plays / Skip"));
+  room.waiting = true; guestBar();
+  mpSend("act", { sid: mine.id, kind: kind === "story" || kind === "guide" ? "do" : kind, text: kind === "do" || kind === "say" ? raw : "", t: Date.now() })
+    .then(() => { if(kind === "do" || kind === "say"){ inp.value = ""; autosize(); } setTimeout(() => { if(room && room.waiting){ room.waiting = false; guestBar(); } }, 20000); })
+    .catch(e => { room.waiting = false; guestBar(); toast(e.message); });
+}
+
 /* ================= Wiring ================= */
 $("#backBtn").onclick = showLibrary;
 $("#setBtn").onclick = () => openSettings();
 $("#advBtn").onclick = () => openAdventureSheet();
 $("#sendBtn").onclick = submit;
-$("#contBtn").onclick = () => { if(!generating){ redoStack = []; generate(null); } };
-$("#retryBtn").onclick = () => {
-  if(generating) return;
+$("#contBtn").onclick = () => { if(adv?.multi) return mpHostJob("cont"); if(!generating){ redoStack = []; generate(null); } };
+$("#retryBtn").onclick = () => { if(adv?.multi) return mpHostJob("retry"); if(!generating) retryLast(); };
+function retryLast(){
   popTrailingHidden();
   const last = adv.actions[adv.actions.length - 1];
   let alts = null, restore = null, guide = "";
@@ -4798,24 +5595,25 @@ $("#retryBtn").onclick = () => {
   }
   else if(!last || last.type === "ai") return toast("Rien à réessayer");
   popTrailingHidden();
-  redoStack = []; saveAdv(); generate(null, { alts, restore, guide });
-};
-$("#undoBtn").onclick = () => {
-  if(generating) return;
+  redoStack = []; saveAdv(); return generate(null, { alts, restore, guide });
+}
+$("#undoBtn").onclick = () => { if(adv?.multi) return mpHostJob("undo"); if(!generating) undoLast(); };
+function undoLast(){
   popTrailingHidden();
   if(!adv.actions.length) return;
   const u = adv.actions.pop(); if(u.rpgPrev) adv.rpg = clone(u.rpgPrev);
   redoStack.push(u); popTrailingHidden(); rollbackMinds(adv, adv.actions.length); saveAdv(); renderStory(true);
-};
+}
 $("#redoBtn").onclick = () => { if(generating || !redoStack.length) return; const r = redoStack.pop(); if(r.rpgAfter) adv.rpg = clone(r.rpgAfter); adv.actions.push(r); saveAdv(); renderStory(true); };
 $("#inp").addEventListener("input", autosize);
 $("#ideaBtn").onclick = fetchIdeas;
-$("#ttsBtn").onclick = () => { if(speaking()) stopSpeaking(); else { const a = [...adv.actions].reverse().find(x => x.type === "ai" && !x.hidden); if(a) speak(a.text); else toast("Rien à lire"); } };
+$("#ttsBtn").onclick = () => { if(speaking()) stopSpeaking(); else if(room){ const a = [...roomShown()].reverse().find(x => x.type === "ai"); if(a) speak(a.text); else toast("Rien à lire"); } else { const a = [...mpShown()].reverse().find(x => x.type === "ai" && !x.hidden); if(a) speak(a.text); else toast("Rien à lire"); } };
 $("#searchBtn").onclick = openSearch;
 $("#inp").addEventListener("keydown", e => { if(e.key === "Enter" && !e.shiftKey && !matchMedia("(pointer:coarse)").matches){ e.preventDefault(); submit(); } });
-document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
+document.querySelectorAll(".mpb").forEach(b => b.onclick = () => mpQuick(b.dataset.act));
+document.querySelectorAll(".mode[data-m]").forEach(b => b.onclick = () => {
   mode = b.dataset.m;
-  document.querySelectorAll(".mode").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".mode[data-m]").forEach(x => x.classList.toggle("on", x === b));
   $("#inp").placeholder = tr({ do: "Que fais-tu ?", say: "Que dis-tu ?", story: "Écris la suite de l'histoire...", guide: "Oriente la suite (invisible dans l'histoire)…" }[mode]);
 });
 window.addEventListener("beforeunload", () => saveAdv());
@@ -4825,8 +5623,8 @@ updateTools();
 try{ purgeOldTrash(); }catch(e){}
 showLibrary();
 onboarding();
-handleAuthRedirect().finally(() => syncNow(false));
-loadFx().then(() => { if(!adv && !$("#sheetHost").innerHTML) showLibrary(); });
+handleAuthRedirect().finally(() => { syncNow(false); joinFromHash(); });
+loadFx().then(() => { if(!adv && !room && !$("#sheetHost").innerHTML) showLibrary(); });
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }

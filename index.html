@@ -201,6 +201,13 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .pill.low .hpb i{background:var(--err)}
 .pill.sug{color:var(--acc2);border-color:color-mix(in srgb,var(--acc) 45%,var(--line))}
 .pill.busy{color:var(--tx3)}
+.mavs{display:inline-flex;align-items:center}
+.mav{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:9.5px;font-weight:700;color:#fff;border:2px solid var(--bg2);margin-left:-6px;transition:transform .35s,opacity .35s}
+.mav:first-child{margin-left:0}
+.mav.pop{animation:mavpop .45s cubic-bezier(.3,1.6,.5,1)}
+.mav.out{transform:scale(0);opacity:0}
+@keyframes mavpop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.mthought{font-style:italic;-webkit-line-clamp:3}
 .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:pulse 1.2s infinite}
 @keyframes pulse{50%{opacity:.25}}
 .roll{display:inline-block;margin-left:10px;font:500 11.5px var(--sans);font-style:normal;padding:2px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line);color:var(--tx2);vertical-align:2px;white-space:nowrap}
@@ -886,6 +893,7 @@ const CHANGELOG = [
       "Stats et données réunies dans un seul onglet",
       "Apparence générale pour le menu et les histoires (Réglages → Apparence), 8 nouveaux thèmes et 9 nouvelles polices",
       "Ton statut (Admin, Créateur) affiché dans Réglages → Compte",
+      "Personnages en scène façon salon vocal : ils apparaissent quand ils arrivent et disparaissent quand ils partent. Annuler ou effacer un passage récent remet aussi leurs relations comme avant",
       "Corbeille : les aventures et scénarios supprimés se restaurent pendant 30 jours (Réglages → Données → Corbeille)"],
     en: [
       "Long-term memory: the story is filed into small memories, and each turn the AI finds the ones related to the scene, even hundreds of turns later",
@@ -901,6 +909,7 @@ const CHANGELOG = [
       "Stats and data merged into a single tab",
       "General appearance for the menu and stories (Settings → Appearance), 8 new themes and 9 new fonts",
       "Your status (Admin, Creator) shown in Settings → Account",
+      "Characters in scene, voice-channel style: they pop in when they arrive and disappear when they leave. Undoing or deleting a recent passage also restores their relationships",
       "Trash: deleted adventures and scenarios can be restored for 30 days (Settings → Data → Trash)"] },
   { v: "7.3", fr: ["Onglet Découvrir : scénarios partagés, avec recherche, ♥ et compteur de parties", "Publication réservée aux créateurs choisis par l'admin, qui peut aussi retirer n'importe quel scénario", "Création de personnage au lancement (prénom, genre, apparence…, questions perso), sans balises à écrire", "Import d'aventures, de scénarios et de Story Cards"],
     en: ["Discover tab: shared scenarios, with search, ♥ and play counter", "Publishing limited to creators chosen by the admin, who can also remove any scenario", "Character creation at launch (name, gender, appearance…, custom questions), no tags to write", "Import of adventures, scenarios and Story Cards"] },
@@ -1458,7 +1467,7 @@ function instructionsEditor(b, get, set, getWish, setWish){
 function scriptToggles(b, s, onChange, live){
   smartToggles(b, s, onChange, live);
   sec(b, L("Scripts classiques", "Classic scripts"));
-  hint(b, L("Deux scripts plus anciens, gardés pour ceux qui y sont habitués. Les outils Lanterne au-dessus font la même chose en mieux : un seul des deux à la fois.", "Two older scripts, kept for those used to them. The Lanterne tools above do the same, better: only one of each at a time."));
+  hint(b, L("Deux scripts plus anciens, gardés pour ceux qui y sont habitués. Ils marchent très bien ensemble. Chacun remplace son équivalent Lanterne : Cartes auto ↔ Cartes intelligentes, Pensées intérieures ↔ Esprit des personnages.", "Two older scripts, kept for those used to them. They work well together. Each one replaces its Lanterne equivalent: Auto cards ↔ Smart cards, Inner thoughts ↔ Character minds."));
   toggle(b, L("Cartes auto", "Auto cards"), L("Crée tout seul des Story Cards pour les personnages, lieux et objets importants.", "Creates Story Cards on its own for important characters, places and items."), () => s.ac, v => {
     s.ac = v;
     if(v && s.sc){ s.sc = false; toast(L("Cartes intelligentes désactivées : un seul système de cartes à la fois", "Smart cards turned off: one card system at a time")); onChange(); if(live) return live(); }
@@ -1510,7 +1519,7 @@ function renderStory(scroll){
       nav.onclick = ev => {
         const b = ev.target.closest("button"); if(!b || generating) return;
         const n = Math.max(0, Math.min(a.alts.length - 1, i + Number(b.dataset.d)));
-        a.altIdx = n; a.text = a.alts[n]; saveAdv(); renderStory(false);
+        a.altIdx = n; a.text = a.alts[n]; rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); renderStory(false);
       };
       s.appendChild(nav);
     }
@@ -1553,8 +1562,8 @@ function actionMenu(a, ev){
     const act = x.target.dataset.a; if(!act) return; close();
     if(act === "edit") editAction(a);
     if(act === "tts") speak(a.text);
-    if(act === "del"){ adv.actions = adv.actions.filter(y => y.id !== a.id); redoStack = []; saveAdv(); renderStory(); }
-    if(act === "cut"){ const i = adv.actions.findIndex(y => y.id === a.id); if(confirm("Supprimer ce passage et tout ce qui suit ?")){ adv.actions = adv.actions.slice(0, i); redoStack = []; saveAdv(); renderStory(); } }
+    if(act === "del"){ const i = adv.actions.findIndex(y => y.id === a.id); adv.actions = adv.actions.filter(y => y.id !== a.id); redoStack = []; rollbackMindsNear(adv, i); saveAdv(); renderStory(); }
+    if(act === "cut"){ const i = adv.actions.findIndex(y => y.id === a.id); if(confirm("Supprimer ce passage et tout ce qui suit ?")){ adv.actions = adv.actions.slice(0, i); redoStack = []; rollbackMinds(adv, i); saveAdv(); renderStory(); } }
   };
 }
 function editAction(a){
@@ -1562,7 +1571,7 @@ function editAction(a){
   let txt = visible(a.text);
   openSheet("Modifier", null, (_, body) => {
     const t = field(body, a.type === "ai" ? "Texte de l'IA" : "Ton action", txt, v => txt = v, { multiline: true, rows: 12 });
-    btn(body, "Enregistrer", "wide", () => { a.text = lead + txt; saveAdv(); closeSheet(); renderStory(); });
+    btn(body, "Enregistrer", "wide", () => { const changed = a.text !== lead + txt; a.text = lead + txt; if(changed) rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); closeSheet(); renderStory(); });
     setTimeout(() => t.focus(), 50);
   });
 }
@@ -2556,6 +2565,14 @@ function findMind(a, name){
   return Object.values(a.minds).find(m => sameName(m.name, name) || (m.aliases || []).some(x => sameName(x, name)) || (mindCard(a, m)?.keys || "").split(",").some(x => sameName(x, name)));
 }
 function presentMinds(a, depth){
+  // Présence « comme un salon vocal » : la liste de la scène donnée par l'IA à la dernière mise à jour des esprits,
+  // plus les personnages cités depuis. Ceux qui sont partis disparaissent à la mise à jour suivante.
+  if(!depth && a.scene && Array.isArray(a.scene.names) && a.scene.at <= a.actions.length && a.actions.length - a.scene.at <= 12){
+    const inScene = Object.values(a.minds).filter(m => a.scene.names.some(n => sameName(n, m.name) || mindTerms(a, m).some(t => sameName(t, n))));
+    const since = a.actions.slice(a.scene.at).filter(x => !x.hidden);
+    const fresh = since.length ? presentMinds(a, since.length).filter(m => !inScene.includes(m) && !(a.scene.left || []).some(n => sameName(n, m.name))) : [];
+    return [...fresh, ...inScene];
+  }
   const acts = a.actions.filter(x => !x.hidden).slice(-(depth || Math.max(3, settings.cardScanDepth)));
   const texts = acts.map(x => visible(x.text).toLowerCase());
   const out = [];
@@ -2600,6 +2617,7 @@ async function maybeMinds(force){
   if(!force && aiCount < (a.scripts.mindEvery || 2)) return;
   if(!acts.length){ if(force) toast("Rien de nouveau à analyser"); return; }
   minding = true; refreshSmartBar();
+  const snapId = a.actions[a.actions.length - 1]?.id;
   try{
     const ctxActs = a.actions.filter(x => !x.hidden).slice(-Math.max(acts.length, 4));
     const story = ctxActs.map(x => visible(x.text)).join("\n\n").slice(-12000);
@@ -2639,8 +2657,15 @@ ${absent.length ? `Then, for these ABSENT characters, advance their life off-scr
 Write every text value in the language of the story (${lang} if unsure). Keep everything concise.
 Return ONLY JSON:
 {"characters":[{"name":"","mood":"","rel":{"trust":0,"affection":0,"fear":0,"tension":0},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
- "offscreen":[{"name":"","offscreen":"","plan":""}]}`;
+ "offscreen":[{"name":"","offscreen":"","plan":""}],
+ "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left"]}`;
     const r = parseJSON(await complete(prompt, 2400, true));
+    const before = clone({ minds: a.minds, scene: a.scene || null });
+    if(Array.isArray(r.scene)){
+      const names = r.scene.map(x => visible(String(x || "")).trim()).filter(Boolean).slice(0, 12);
+      const prev = (a.scene?.names || []);
+      a.scene = { names, at: a.actions.length, left: prev.filter(n => !names.some(x => sameName(x, n))) };
+    }
     const deltas = [];
     const player = (a.scripts.player || "").trim();
     (r.characters || []).forEach(c => {
@@ -2671,6 +2696,7 @@ Return ONLY JSON:
     });
     const lastAi = [...a.actions].reverse().find(x => x.type === "ai" && !x.hidden);
     if(lastAi && deltas.length) lastAi.mindDelta = [...(lastAi.mindDelta || []), ...deltas].slice(-8);
+    if(snapId) a.mindLog = [...(a.mindLog || []), { id: snapId, prev: before }].slice(-20);
     a.mindFrom = a.actions.length;
     if(adv === a){ saveAdv(); if(!generating) renderStory(false); } else LS.set("lan.adv." + a.id, a);
     if(force) toast(L("Esprits mis à jour", "Minds updated"));
@@ -2715,23 +2741,40 @@ function mindTile(key, m, onClick){
     ${m.goals?.short ? `<div class="e">${esc(m.goals.short)}</div>` : ""}`);
   d.onclick = onClick; return d;
 }
+let sceneShown = { id: null, names: [] };
+/* Quand un passage est annulé, supprimé, modifié ou réessayé, les esprits reviennent à leur état d'avant ce passage
+   (relations, humeurs, ce qu'ils savent, qui est en scène), puis seront recalculés sur la nouvelle version. */
+// Modifier/supprimer un vieux passage ne touche pas aux relations : seuls les passages récents les font revenir en arrière.
+function rollbackMindsNear(a, idx){ if(idx >= 0 && a.actions.length - idx <= 6) rollbackMinds(a, idx); }
+function rollbackMinds(a, fromIdx){
+  if(!a || !a.mindLog || !a.mindLog.length) return;
+  const pos = new Map(a.actions.map((x, i) => [x.id, i]));
+  let changed = false;
+  while(a.mindLog.length){
+    const e = a.mindLog[a.mindLog.length - 1], i = pos.get(e.id);
+    if(i != null && i < fromIdx) break;
+    a.minds = e.prev.minds || {}; a.scene = e.prev.scene || undefined; a.mindLog.pop(); changed = true;
+  }
+  if(changed) a.mindFrom = Math.min(a.mindFrom ?? 0, fromIdx, a.actions.length);
+}
 function openMindList(onlyPresent){
-  const render = (_, b) => {
-    b.innerHTML = "";
-    const keys = Object.keys(adv.minds);
-    const pres = presentMinds(adv).map(m => keys.find(k => adv.minds[k] === m));
-    const list = onlyPresent ? pres : [...pres, ...keys.filter(k => !pres.includes(k))];
-    if(!list.length) hint(b, L("Aucun personnage pour l'instant. Les esprits se créent quand des personnages importants apparaissent dans l'histoire.", "No characters yet. Minds are created when important characters appear in the story."));
-    if(pres.length && !onlyPresent) sec(b, L("Dans la scène", "In the scene"));
-    list.forEach((k, i) => {
-      if(!onlyPresent && i === pres.length && pres.length) sec(b, L("Ailleurs", "Elsewhere"));
-      b.appendChild(mindTile(k, adv.minds[k], () => openMind(k, () => openMindList(onlyPresent))));
+  const keys = Object.keys(adv.minds);
+  const pres = presentMinds(adv).map(m => keys.find(k => adv.minds[k] === m)).filter(Boolean);
+  openSheet(L("Personnages", "Characters"), [["scene", L(`Dans la scène (${pres.length})`, `In the scene (${pres.length})`)], ["all", L(`Tous (${keys.length})`, `All (${keys.length})`)]], (k, b) => {
+    const list = k === "scene" ? pres : [...pres, ...keys.filter(x => !pres.includes(x))].sort((x, y) => adv.minds[x].name.localeCompare(adv.minds[y].name));
+    if(k === "scene") hint(b, L("Qui est là en ce moment, comme dans un salon vocal : un personnage apparaît quand il arrive dans la scène et disparaît quand il part.", "Who's here right now, like a voice channel: a character pops in when they arrive and disappears when they leave."));
+    else hint(b, L("Tous les personnages rencontrés, avec leur relation avec toi.", "Every character met, with their relationship with you."));
+    if(!list.length) hint(b, k === "scene" ? L("Personne d'autre que toi dans la scène.", "Nobody but you in the scene.") : L("Aucun personnage pour l'instant. Les esprits se créent quand des personnages importants apparaissent dans l'histoire.", "No characters yet. Minds are created when important characters appear in the story."));
+    list.forEach(x => {
+      const m = adv.minds[x];
+      const t = mindTile(x, m, () => openMind(x, () => openMindList(onlyPresent)));
+      if(k === "scene" && m.thought) t.appendChild(el("div", "e mthought", `« ${esc(m.thought)} »`));
+      if(k === "all" && pres.includes(x)) t.querySelector(".row")?.insertAdjacentHTML("beforeend", `<span class="chip acc">${L("en scène", "in scene")}</span>`);
+      b.appendChild(t);
     });
-    if(onlyPresent && keys.length > pres.length) btn(b, L("Voir tous les personnages", "See all characters"), "ghost small", () => openMindList(false)).style.marginTop = "8px";
     const ab = btn(b, minding ? L("Analyse en cours…", "Analyzing…") : L("Mettre à jour maintenant", "Update now"), "ghost small", async () => { ab.disabled = true; ab.textContent = tr("Analyse en cours…"); await maybeMinds(true); if($("#sheetHost").innerHTML) openMindList(onlyPresent); });
     ab.style.marginTop = "8px"; if(minding) ab.disabled = true;
-  };
-  openSheet(onlyPresent ? L("Personnages en scène", "Characters in scene") : L("Personnages", "Characters"), null, render);
+  }, onlyPresent === false ? "all" : "scene");
 }
 function seedMindsFromBrains(a){
   if(a.mindsSeeded) return; a.mindsSeeded = true;
@@ -2755,9 +2798,14 @@ function refreshSmartBar(){
   }
   if(adv.scripts.minds && adv.minds && Object.keys(adv.minds).length){
     const pres = presentMinds(adv);
-    const names = pres.slice(0, 2).map(m => esc(m.name)).join(", ") + (pres.length > 2 ? ` +${pres.length - 2}` : "");
+    const now = pres.map(m => m.name), was = sceneShown.id === adv.id ? sceneShown.names : now;
+    const gone = was.filter(n => !now.includes(n)).slice(0, 3);
+    sceneShown = { id: adv.id, names: now };
+    const av = (n, cls) => `<span class="mav ${cls}" style="background:hsl(${hueOf(n)} 38% 36%)" title="${esc(n)}">${esc(n.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span>`;
+    const names = pres.length ? `<span class="mavs">${pres.slice(0, 4).map(m => av(m.name, was.includes(m.name) ? "" : "pop")).join("")}${gone.map(n => av(n, "out")).join("")}</span>${pres.length > 4 ? `<span>+${pres.length - 4}</span>` : ""}<span>${L(`${pres.length} en scène`, `${pres.length} in scene`)}</span>` : "";
     const p = el("button", "pill chars", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/></svg><span class="noi18n">${names || L("Personnages", "Characters")}</span>${minding ? `<span class="dot"></span>` : ""}`);
     p.onclick = () => openMindList(!!pres.length); s.appendChild(p);
+    if(gone.length) setTimeout(() => p.querySelectorAll(".mav.out").forEach(x => x.remove()), 500);
   }
   if(carding){ s.appendChild(el("span", "pill busy", `<span class="dot"></span>Cartes…`)); }
   else if(adv.pending?.length){
@@ -3319,6 +3367,7 @@ function characterSheet(sc){
           const l = el("label", "f", `<span>${L(fr, en)}</span>`); b.appendChild(l);
           const row = el("div", "chips"); l.appendChild(row);
           [L("Homme", "Man"), L("Femme", "Woman"), L("Autre", "Other")].forEach(g => { const c = el("button", "mode" + (ans.gender === g ? " on" : ""), g); c.onclick = ev => { ev.preventDefault(); ans.gender = g; render(_, b); }; row.appendChild(c); });
+          if(ans.gender === L("Autre", "Other")){ const gi = field(b, L("Précise (optionnel)", "Specify (optional)"), ans.genderOther || "", v => ans.genderOther = v.trim(), { placeholder: L("Ex. : non-binaire, créature sans genre…", "E.g. non-binary, genderless creature…") }); gi.parentElement.style.marginTop = "-4px"; }
           return;
         }
         field(b, L(fr, en), ans[f] || "", v => ans[f] = v.trim(), { multiline: f === "look" || f === "personality" || f === "past", rows: 2, placeholder: { name: L("Ex. : Kaelen", "E.g. Kaelen"), age: "25", look: L("Ex. : cheveux noirs, cicatrice sur la joue", "E.g. black hair, scar on the cheek"), personality: L("Ex. : impulsif mais loyal", "E.g. impulsive but loyal"), past: L("Ex. : ancien soldat devenu voleur", "E.g. former soldier turned thief") }[f] });
@@ -3337,7 +3386,7 @@ function characterSheet(sc){
         }catch(e){ toast(L("Échec : ", "Failed: ") + e.message); ib.disabled = false; ib.textContent = L("✨ Inventer ce qui manque", "✨ Make up the rest"); }
       });
       ib.style.marginBottom = "14px";
-      btn(b, L("Commencer l'aventure", "Start the adventure"), "wide", () => { done = true; LS.set("lan.lastChar", Object.fromEntries(CHAR_FIELDS.map(([f]) => [f, ans[f] || ""]))); closeSheet(); resolve(ans); });
+      btn(b, L("Commencer l'aventure", "Start the adventure"), "wide", () => { done = true; if(ans.gender === L("Autre", "Other") && ans.genderOther) ans.gender = ans.genderOther; LS.set("lan.lastChar", Object.fromEntries(CHAR_FIELDS.map(([f]) => [f, ans[f] || ""]))); closeSheet(); resolve(ans); });
     };
     openSheet(L("Ton personnage", "Your character"), null, render);
     const host = $("#sheetHost"); const obs = new MutationObserver(() => { if(!host.innerHTML && !done){ obs.disconnect(); resolve(null); } else if(done) obs.disconnect(); }); obs.observe(host, { childList: true });
@@ -4669,6 +4718,7 @@ $("#retryBtn").onclick = () => {
   if(last && last.type === "ai" && adv.actions.length > 1){
     restore = adv.actions.pop();
     if(restore.rpgPrev) adv.rpg = clone(restore.rpgPrev);
+    rollbackMinds(adv, adv.actions.length);
     alts = restore.alts?.length ? [...restore.alts] : [restore.text];
     guide = restore.guide || "";
   }
@@ -4681,7 +4731,7 @@ $("#undoBtn").onclick = () => {
   popTrailingHidden();
   if(!adv.actions.length) return;
   const u = adv.actions.pop(); if(u.rpgPrev) adv.rpg = clone(u.rpgPrev);
-  redoStack.push(u); popTrailingHidden(); saveAdv(); renderStory(true);
+  redoStack.push(u); popTrailingHidden(); rollbackMinds(adv, adv.actions.length); saveAdv(); renderStory(true);
 };
 $("#redoBtn").onclick = () => { if(generating || !redoStack.length) return; const r = redoStack.pop(); if(r.rpgAfter) adv.rpg = clone(r.rpgAfter); adv.actions.push(r); saveAdv(); renderStory(true); };
 $("#inp").addEventListener("input", autosize);

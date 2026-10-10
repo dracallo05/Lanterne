@@ -910,23 +910,23 @@ const CHANGELOG = [
   { v: "8.1", fr: [
       "Prototype : jouer à plusieurs ! Dans une aventure, onglet « À plusieurs » : tu crées la partie et tu envoies le lien d'invitation à tes amis",
       "Chacun crée son personnage et joue depuis son téléphone. Tout se passe dans la partie de l'hôte, avec sa clé, et il garde tous les droits (Guide, Histoire, Réessayer, Annuler…)",
-      "Tour de rôle à l'intérieur d'une scène. Si on s'adresse au perso d'un joueur, c'est lui qui joue ensuite. À ton tour : Faire, Dire, IA joue ou Passer",
-      "Scènes séparées : chacun peut être ailleurs. Chaque scène avance à son rythme, les persos peuvent se séparer, se retrouver, et s'envoyer des messages par les moyens du monde (lettre, messager, magie…)",
+      "Une seule histoire pour tout le monde, avec un tour de rôle entre tous les joueurs, hôte compris. Si on s'adresse au perso d'un joueur, c'est lui qui joue ensuite. À ton tour : Faire, Dire, IA joue ou Passer",
+      "Vos persos peuvent être à des endroits différents : le narrateur suit celui qui joue et coupe de l'un à l'autre, comme dans une série, sur une seule chronologie. L'hôte voit où est chacun",
       "Le narrateur ne fait jamais parler ni agir le perso d'un joueur. S'il le fait quand même, la réponse est refaite toute seule",
       "Relations par joueur : un PNJ peut adorer un joueur et se méfier d'un autre. Les joueurs absents sont mis de côté, et un minuteur de tour est disponible",
       "Discussion hors-jeu entre joueurs, jamais envoyée à l'IA. Tout est chiffré de bout en bout : la clé n'est que dans le lien d'invitation",
-      "Deux joueurs au même endroit jouent automatiquement dans la même scène. Les scènes passées restent lisibles (⌛), et l'hôte peut rejoindre d'un geste la scène qu'il regarde",
-      "En multi, le narrateur écrit toujours à la troisième personne, même si le scénario dit « tu », et ne fait pas apparaître un PNJ déjà occupé dans une autre scène"],
+      "En multi, le narrateur écrit toujours à la troisième personne, même si le scénario dit « tu »",
+      "Recommencer depuis le début relance la partie à plusieurs elle-même : mêmes joueurs, mêmes persos, même lien"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
       "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
-      "Turns within a scene. Address a player's character and they play next. On your turn: Do, Say, AI plays or Skip",
-      "Separate scenes: everyone can be elsewhere. Each scene moves at its own pace; characters can split, meet again, and send messages through the world's means (letter, messenger, magic…)",
+      "One story for everyone, with turns shared by all players, host included. Address a player's character and they play next. On your turn: Do, Say, AI plays or Skip",
+      "Your characters can be in different places: the narrator follows whoever plays and cuts from one to the other, like a TV series, on a single timeline. The host sees where everyone is",
       "The narrator never makes a player's character speak or act. If it does anyway, the answer is redone automatically",
       "Per-player relationships: an NPC can love one player and distrust another. Absent players are kept in the background, and a turn timer is available",
       "Out-of-game chat between players, never sent to the AI. Everything is end-to-end encrypted: the key only lives in the invite link",
-      "Two players in the same place automatically play in the same scene. Past scenes stay readable (⌛), and the host can join the scene they're watching in one tap",
-      "In multiplayer the narrator always writes in the third person, even if the scenario says “you”, and doesn't bring in an NPC already busy in another scene"] },
+      "In multiplayer the narrator always writes in the third person, even if the scenario says “you”",
+      "Restart from the beginning restarts the multiplayer game itself: same players, same characters, same link"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -1488,6 +1488,7 @@ function originFull(a){
   return o;
 }
 function restartAdventure(a){
+  if(a.multi){ if(adv?.id !== a.id) openAdventure(a.id); return mpRestart(); }
   const o = originFull(a);
   if(!confirm(L(`Recommencer « ${o.title || a.title} » depuis le début ?\n\nUne nouvelle partie est créée avec le matériel de départ (ouverture, essentiels, cartes, instructions). Ta partie actuelle est gardée.`, `Restart “${o.title || a.title}” from the beginning?\n\nA new game is created with the starting material (opening, essentials, cards, instructions). Your current game is kept.`))) return;
   if(a.hasCover) o.cover = getCover(a.id);
@@ -1552,7 +1553,7 @@ function openAdventure(id){
   $("#backBtn").classList.remove("hidden"); $("#advBtn").classList.remove("hidden"); $("#searchBtn").classList.remove("hidden");
   setHeaderTitle(adv.title, false);
   renderBanner();
-  if(adv.multi){ delete adv.multi._all; adv.multi.active = null; if(adv.multi.loaded !== adv.multi.view) mpSetView(adv.multi.view); mpStartHost(); }
+  if(adv.multi){ delete adv.multi._all; adv.multi.active = null; mpUnify(adv); if(adv.multi.loaded !== adv.multi.view) mpSetView(adv.multi.view); mpStartHost().then(() => { if(adv?.multi?.needReset){ delete adv.multi.needReset; saveAdv(); mpSend("reset", {}).then(() => { mpRoster(true); return mpPublish(adv.multi.view); }).catch(() => {}); } }); }
   renderStory(true);
 }
 function renderBanner(){ $("#bannerHost").innerHTML = ""; }
@@ -2730,7 +2731,7 @@ async function maybeMinds(force){
     const MP = mpMindsCtx(a);
     const prompt =
 `${MP ? `You manage the inner lives of the characters of an interactive story with several player characters, each controlled by a real person: ${MP.all.join(", ")}. Player characters must NEVER get a mind.
-Player characters in this scene: ${MP.here.join(", ") || "(none)"}.${MP.elsewhere.length ? ` Player characters elsewhere (not in this scene): ${MP.elsewhere.join(", ")}.` : ""}` : `You manage the inner lives of the characters of an interactive story. The player is "you"${a.scripts.player ? ` (named ${a.scripts.player})` : ""} and must never get a mind.`}
+Player characters (they may be in different places): ${MP.here.map(n => n + (MP.posOf(n) ? ` (last seen at ${MP.posOf(n)})` : "")).join(", ")}.` : `You manage the inner lives of the characters of an interactive story. The player is "you"${a.scripts.player ? ` (named ${a.scripts.player})` : ""} and must never get a mind.`}
 Plot essentials: ${visible(a.essentials).slice(0, 1200) || "(none)"}
 Character cards:
 ${cardsHint || "(none)"}
@@ -2748,7 +2749,7 @@ For each important named character who appears or acts in the recent story (not 
 - name: as written in the story — their real name once known
 - was: "" — or, if this character already exists above under ANOTHER name or a description (e.g. "the pink-eyed girl", "the hooded stranger") and is now known by a new name, that old name EXACTLY as listed (never create a second entry for the same person)
 - mood: one short phrase
-${MP ? `- rel: for each player character present (${MP.here.join(", ")}), how this character's attitude toward them CHANGED in this passage: {"<player character name>": {"trust":0,"affection":0,"fear":0,"tension":0}} — integers from -2 to +2, omit the ones that did not change` : "- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)"}
+${MP ? `- rel: for each player character this character interacted with or witnessed (${MP.here.join(", ")}), how their attitude toward them CHANGED in this passage: {"<player character name>": {"trust":0,"affection":0,"fear":0,"tension":0}} — integers from -2 to +2, omit the ones that did not change` : "- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)"}
 - goals: {"short": what they want right now, "long": their deeper goal} — keep the previous ones unless they changed
 - plan: what they intend to do next
 - learned: new facts this character now knows because they witnessed them or were told (never things they could not know)
@@ -2764,10 +2765,7 @@ Return ONLY JSON:
  "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left or died"],
  "dead":["names of named characters who clearly DIED in the recent story (not just hurt or unconscious) — usually empty"]${deadNames.length ? `,
  "revived":["dead characters who clearly came back to life in the recent story (resurrection, fake death revealed…) — usually empty"]` : ""}${MP ? `,
- "location":"short name (2 to 4 words) of the place where this scene is at the END of the recent story. If it is the same place as another scene listed above, reuse EXACTLY that name",
- "players_left":[{"name":"a player character who split off from the other player characters of this scene to go somewhere else on their own","where":"short place"}],
- "players_joined":["player characters from elsewhere (${MP.elsewhereNames.join(", ") || "none"}) who are now at the SAME place as this scene (same building, room or spot) — also when someone here walks into the place where they are, even if the story has not described them yet"],
- "messages":[{"from":"","to":"a player character who is NOT in this scene","content":"what the message says","means":"letter, messenger, magic…"}]` : ""}}`;
+ "positions":{"<player character name>":"short place (2 to 4 words) where this player character is at the END of the recent story — give it for every player character whose whereabouts are known"}` : ""}}`;
     const r = parseJSON(await complete(prompt, 2400, true));
     const before = clone({ minds: a.minds, scene: a.scene || null });
     if(Array.isArray(r.scene)){
@@ -2824,7 +2822,7 @@ Return ONLY JSON:
     const lastAi = [...a.actions].reverse().find(x => x.type === "ai" && !x.hidden);
     if(lastAi && deltas.length) lastAi.mindDelta = [...(lastAi.mindDelta || []), ...deltas].slice(-8);
     if(snapId) a.mindLog = [...(a.mindLog || []), { id: snapId, prev: before }].slice(-20);
-    if(MP) (a.multi.pendOps ||= []).push({ sid: a.multi.active, location: r.location, left: r.players_left, joined: r.players_joined, messages: r.messages });
+    if(MP) (a.multi.pendOps ||= []).push({ sid: a.multi.active, positions: r.positions });
     a.mindFrom = a.actions.length;
     if(adv === a){ saveAdv(); if(!generating) renderStory(false); } else LS.set("lan.adv." + a.id, a);
     if(force) toast(L("Esprits mis à jour", "Minds updated"));
@@ -4873,6 +4871,7 @@ const MULTI_RULE = `[Multiplayer rules — they override any earlier instruction
 - NEVER write dialogue, decisions, deliberate actions, thoughts or feelings for a player character beyond what their own line states. You may only describe what anyone could observe (where they stand, that they hear or are affected by something). Exception: a line "> Name : (laisse l'IA jouer ce tour)" lets you decide that character's action this time, true to their personality.
 - Player characters start as strangers unless their descriptions say otherwise; their relationships grow through play.
 - Keep each passage to 1 or 2 paragraphs so that every player gets to act often.
+- Player characters may be in different places. Each passage follows the character who just acted, then hands over to the next one: when the next character is somewhere else, make a clear scene cut (for example "Pendant ce temps, à la gare…") and continue from their situation. There is ONE shared timeline: time passes at the same pace for everyone.
 - Over time, leave natural opportunities for separated player characters to cross paths, without forcing it.`;
 const mp = { gen: 0, loop: null, rid: null, role: null, key: null, keyStr: "", last: 0, queue: [], busy: false, busySid: null, next: null, actor: null,
   liveText: {}, liveAt: 0, rosterT: null, pingAt: 0, cleanAt: 0, onlineSig: "", err: 0 };
@@ -5020,7 +5019,9 @@ function mpBlock(a){
   const nx = mp.next && mpPlayer(mp.next);
   const busyNpc = Object.values(M.scenes).filter(s => s !== S && !s.archived && (M.present?.[s.id] || []).length)
     .map(s => `${M.present[s.id].map(x => x.name).join(", ")} (with ${s.members.map(charOfPid).join(", ")}${s.name ? ` at ${s.name}` : ""})`);
-  return [`[Multiplayer] Write in the THIRD person: never address anyone as "tu", "vous" or "you". Player characters in this scene: ${on.map(p => p.char).join(", ") || "(none)"}.`,
+  const where = here.filter(p => M.pos?.[p.id]).map(p => `${p.char} — ${M.pos[p.id]}`);
+  return [`[Multiplayer] Write in the THIRD person: never address anyone as "tu", "vous" or "you". Player characters: ${on.map(p => p.char).join(", ") || "(none)"}.`,
+    where.length ? `Where they are (last known): ${where.join("; ")}.` : "",
     busyNpc.length ? `Non-player characters currently busy in another scene: ${busyNpc.join("; ")}. They cannot also be here unless they arrive.` : "",
     off.length ? `Absent (their player is away): ${off.map(p => p.char).join(", ")} — keep them in the background (asleep, resting, busy nearby); they take no action and say nothing.` : "",
     away.length ? `Elsewhere, NOT in this scene: ${away.join(", ")}.` : "",
@@ -5038,7 +5039,8 @@ function mpMindsCtx(a){
   return { all: live.map(p => p.char), here: S.members.map(charOfPid),
     elsewhere: others.flatMap(s => s.members.map(id => charOfPid(id) + (s.name ? ` (at ${s.name})` : ""))),
     elsewhereNames: others.flatMap(s => s.members.map(charOfPid)),
-    pidOf: n => live.find(p => sameName(p.char, n) || sameName(p.char.split(/\s+/)[0], n))?.id, charOf: charOfPid };
+    pidOf: n => live.find(p => sameName(p.char, n) || sameName(p.char.split(/\s+/)[0], n))?.id, charOf: charOfPid,
+    posOf: n => { const p = live.find(q => sameName(q.char, n)); return p && M.pos?.[p.id] || ""; } };
 }
 function presentNow(){
   if(!adv) return [];
@@ -5066,7 +5068,7 @@ function renderMultiTab(b){
   sec(b, L("Joueurs", "Players"));
   M.players.filter(p => !p.kicked).forEach(p => {
     const S = sceneOfPid(p.id);
-    const d = el("div", "mprow", `<span class="mpdot${mpOnline(p.id) ? "" : " off"}"></span><div class="grow"><div class="n">${esc(p.char)}${p.host ? L(" · hôte", " · host") : ""}</div><div class="d">${esc(p.name)} · ${S ? esc(S.name || L("scène sans nom", "unnamed scene")) : "—"}${S && S.turn === p.id ? L(" · à son tour", " · their turn") : ""}</div></div>`);
+    const d = el("div", "mprow", `<span class="mpdot${mpOnline(p.id) ? "" : " off"}"></span><div class="grow"><div class="n">${esc(p.char)}${p.host ? L(" · hôte", " · host") : ""}</div><div class="d">${esc(p.name)}${M.pos?.[p.id] ? " · " + esc(M.pos[p.id]) : ""}${S && S.turn === p.id ? L(" · à son tour", " · their turn") : ""}</div></div>`);
     b.appendChild(d);
     if(p.host) return;
     const acts = el("div", "row"); acts.style.cssText = "gap:6px;flex-wrap:wrap;margin:4px 0 6px 18px"; b.appendChild(acts);
@@ -5075,12 +5077,13 @@ function renderMultiTab(b){
     btn(acts, L("Exclure", "Kick"), "danger small", () => { if(!confirm(L(`Exclure ${p.name} (${p.char}) de la partie ?`, `Kick ${p.name} (${p.char}) from the game?`))) return; p.kicked = true; Object.values(M.scenes).forEach(s => { s.members = s.members.filter(x => x !== p.id); if(!s.members.length) s.archived = true; else if(s.turn === p.id) s.turn = mpNextIn(s, p.id); }); saveAdv(); mpSend("kick", { id: p.id }).catch(() => {}); mpRoster(); openAdventureSheet("multi"); });
   });
   sec(b, L("Réglages de la partie", "Game settings"));
-  toggle(b, L("Cacher les autres scènes", "Hide the other scenes"), L("Chacun ne voit que sa scène. Plus de surprise quand vous vous retrouvez.", "Everyone only sees their own scene. More surprise when you meet."), () => !!M.settings.hide, v => { M.settings.hide = v; saveAdv(); mpRoster(); });
-  toggle(b, L("Les nouveaux arrivent dans mon groupe", "Newcomers join my group"), L("Sinon, chaque nouveau joueur commence dans sa propre scène et vous ne vous connaissez pas.", "Otherwise each new player starts in their own scene and you don't know each other."), () => M.settings.newcomer === "group", v => { M.settings.newcomer = v ? "group" : "own"; saveAdv(); });
+  hint(b, L("Une seule histoire pour tout le monde : chacun joue à son tour, et le narrateur suit le perso de celui qui joue. Si vos persos sont à des endroits différents, il coupe de l'un à l'autre, comme dans une série.", "One story for everyone: each player acts in turn, and the narrator follows the character who's playing. If your characters are in different places, it cuts from one to the other, like a TV series."));
+  toggle(b, L("Les nouveaux arrivent près du groupe", "Newcomers arrive near the group"), L("Sinon, chaque nouveau perso commence ailleurs, en inconnu, et vos chemins se croiseront plus tard.", "Otherwise each new character starts elsewhere, as a stranger, and your paths will cross later."), () => M.settings.newcomer === "group", v => { M.settings.newcomer = v ? "group" : "own"; saveAdv(); });
   const tl = el("label", "f", `<span>${L("Minuteur de tour", "Turn timer")}</span><div class="hint">${L("Si un joueur ne joue pas à temps, son perso passe son tour tout seul.", "If a player doesn't act in time, their character skips the turn.")}</div>`); b.appendChild(tl);
   const tc = el("div", "chips"); tl.appendChild(tc);
   [[0, L("Aucun", "None")], [2, "2 min"], [5, "5 min"], [10, "10 min"]].forEach(([v, t]) => { const c = el("button", "mode" + ((M.settings.timer || 0) === v ? " on" : ""), t); c.onclick = ev => { ev.preventDefault(); M.settings.timer = v; saveAdv(); openAdventureSheet("multi"); }; tc.appendChild(c); });
-  sec(b, L("Terminer", "End"));
+  sec(b, L("Recommencer ou terminer", "Restart or end"));
+  btn(b, L("↺ Recommencer depuis le début", "↺ Restart from the beginning"), "ghost small", () => mpRestart()).style.marginBottom = "8px";
   btn(b, L("Terminer la partie à plusieurs", "End the multiplayer game"), "danger small", () => mpEnd());
 }
 function mpLink(){ const M = adv.multi; return location.origin + location.pathname + "#join=" + M.room + "." + M.key; }
@@ -5105,7 +5108,7 @@ async function mpCreate(){
   adv.actions.forEach(x => { x.sc = sid; delete x.pub; });
   adv.multi = { room: rid, key, hostId: me, players: [{ id: me, name: myPseudo(), char, desc, host: true, seen: Date.now() }],
     scenes: { [sid]: { id: sid, name: "", members: [me], turn: me, turnAt: Date.now(), notes: [] } },
-    view: sid, loaded: sid, settings: { hide: false, timer: 0, newcomer: "own" }, lastEv: 0, chat: [], present: {}, pubIds: {} };
+    view: sid, loaded: sid, mode: "one", pos: {}, settings: { timer: 0, newcomer: "own" }, lastEv: 0, chat: [], present: {}, pubIds: {} };
   adv.scripts.player = char;
   Object.assign(adv.scripts, { minds: true, mindEvery: 1, ac: false, is: false, rpg: false });
   saveAdv();
@@ -5180,7 +5183,8 @@ function hostJoin(uid0, d){
     p = { id: uid0, name: String(d.name || "joueur").slice(0, 40), char: String(d.charName).slice(0, 60), desc: String(d.desc || "").slice(0, 1500), seen: Date.now() };
     M.players.push(p);
     toast(L(`${p.name} rejoint la partie avec ${p.char}`, `${p.name} joins with ${p.char}`));
-    if(M.settings.newcomer === "group"){ const S = sceneOfPid(M.hostId) || Object.values(M.scenes).find(s => !s.archived); mpMoveTo(p.id, S, `${p.char}, a newcomer, joins this scene now: introduce them naturally.`); }
+    if(M.mode === "one"){ const S = mpMain(); mpMoveTo(p.id, S); mpEnqueue({ sid: S.id, pid: p.id, kind: "intro", near: M.settings.newcomer === "group" }); }
+    else if(M.settings.newcomer === "group"){ const S = sceneOfPid(M.hostId) || Object.values(M.scenes).find(s => !s.archived); mpMoveTo(p.id, S, `${p.char}, a newcomer, joins this scene now: introduce them naturally.`); }
     else { const S = mpNewScene([p.id], ""); mpEnqueue({ sid: S.id, pid: p.id, kind: "intro" }); }
     saveAdv(); renderStory(false);
   } else p.seen = Date.now();
@@ -5206,7 +5210,7 @@ function hostHousekeeping(now){
 function mpRoster(now){
   clearTimeout(mp.rosterT);
   const send = () => { const M = adv?.multi; if(!M || !mp.rid) return; mpSend("roster", {
-    players: M.players.filter(p => !p.kicked).map(p => ({ id: p.id, name: p.name, char: p.char, host: !!p.host, on: mpOnline(p.id) })),
+    players: M.players.filter(p => !p.kicked).map(p => ({ id: p.id, name: p.name, char: p.char, host: !!p.host, on: mpOnline(p.id), pos: M.pos?.[p.id] || "" })),
     scenes: Object.values(M.scenes).map(s => ({ id: s.id, name: s.name || "", members: s.members, past: s.past || [], turn: s.turn, archived: !!s.archived })),
     settings: { hide: !!M.settings.hide, timer: M.settings.timer || 0 }, present: M.present || {}, busy: mp.busySid }).catch(e => console.warn(e)); };
   if(now) send(); else mp.rosterT = setTimeout(send, 300);
@@ -5247,6 +5251,7 @@ function mpHostSubmit(){
     const S = sceneOfPid(M.hostId);
     if(!S) return toast(L("Ton perso n'est dans aucune scène", "Your character isn't in any scene"));
     if(S.id !== M.view) return toast(L("Ton perso est dans une autre scène. Ici, tu peux utiliser Histoire ou Guide.", "Your character is in another scene. Here you can use Story or Guide."));
+    if(M.mode === "one" && raw.trim() && (S.turn !== M.hostId || mp.queue.some(j => j.sid === S.id && j.pid === M.hostId))) return toast(L(`C'est au tour de ${charOfPid(S.turn)}. Tu peux quand même utiliser Histoire ou Guide.`, `It's ${charOfPid(S.turn)}'s turn. You can still use Story or Guide.`));
     if(!raw.trim()) mpEnqueue({ sid: S.id, pid: M.hostId, kind: "cont", host: true });
     else mpEnqueue({ sid: S.id, pid: M.hostId, kind: mode === "say" ? "say" : "do", text: raw });
   }
@@ -5257,6 +5262,7 @@ function mpQuick(kind){
   const M = adv?.multi; if(!M) return;
   const S = sceneOfPid(M.hostId); if(!S) return;
   if(S.id !== M.view) return toast(L("Ton perso est dans une autre scène.", "Your character is in another scene."));
+  if(M.mode === "one" && S.turn !== M.hostId) return toast(L(`C'est au tour de ${charOfPid(S.turn)}`, `It's ${charOfPid(S.turn)}'s turn`));
   mpEnqueue({ sid: S.id, pid: M.hostId, kind });
 }
 async function mpPuppetCheck(text, names){
@@ -5295,7 +5301,9 @@ async function mpProcess(){
       else if(job.kind === "auto") res = await generate({ kind: "auto", raw: "" });
       else if(job.kind === "story") res = await generate({ kind: "story", raw: job.text });
       else if(job.kind === "guide") res = await generate({ kind: "guide", raw: job.text });
-      else if(job.kind === "intro") res = await generate(null, { guide: `Introduce ${actorChar}'s first appearance in the story as a new player character, consistent with their description. Set the scene around them and end where ${actorChar} can act. Do not make them speak or decide anything.` });
+      else if(job.kind === "intro") res = await generate(null, { guide: M.mode === "one"
+        ? `A new player character, ${actorChar}, enters the story now. ${job.near ? "They arrive near the other player characters." : "They start somewhere else, as a stranger to the others: make a clear scene cut to them."} Introduce them consistently with their description, set the scene around them and end where ${actorChar} can act. Do not make them speak or decide anything.`
+        : `Introduce ${actorChar}'s first appearance in the story as a new player character, consistent with their description. Set the scene around them and end where ${actorChar} can act. Do not make them speak or decide anything.` });
       else if(job.kind === "retry") res = await retryLast();
       else if(job.kind === "undo"){ undoLast(); }
       else res = await generate(null); // cont ou pass seul
@@ -5331,6 +5339,13 @@ async function mpProcess(){
 }
 function mpApplyOps(){
   const M = adv.multi, ops = M.pendOps || []; M.pendOps = [];
+  if(M.mode === "one"){
+    ops.forEach(o => Object.entries(o.positions && typeof o.positions === "object" ? o.positions : {}).forEach(([n, place]) => {
+      const p = M.players.find(q => !q.kicked && (sameName(q.char, n) || sameName(q.char.split(/\s+/)[0], n)));
+      const v = visible(String(place || "")).trim().slice(0, 40); if(p && v) (M.pos ||= {})[p.id] = v;
+    }));
+    return;
+  }
   const mine0 = sceneOfPid(M.hostId)?.id;
   ops.forEach(o => {
     const S = M.scenes[o.sid]; if(!S || S.archived) return;
@@ -5383,6 +5398,54 @@ function mpMergeSamePlace(fresh){
       mpChatIn({ from: "Lanterne", text: L(`Vous êtes au même endroit (${T.name}) : ${T.members.map(charOfPid).join(", ")} jouent maintenant ensemble.`, `You're in the same place (${T.name}): ${T.members.map(charOfPid).join(", ")} now play together.`), t: Date.now(), sys: true });
     });
   });
+}
+
+/* ---------- une seule histoire pour tout le monde ---------- */
+function mpMain(){
+  const M = adv.multi;
+  let S = Object.values(M.scenes).find(s => !s.archived);
+  if(!S){ const id = "s" + uid(); S = M.scenes[id] = { id, name: "", members: [], turn: M.hostId, turnAt: Date.now(), notes: [] }; }
+  return S;
+}
+function mpUnify(a){
+  // parties créées avec les scènes parallèles : on les réunit en une seule histoire
+  const M = a.multi; if(!M || M.mode === "one") return;
+  const T = Object.values(M.scenes).find(s => !s.archived && s.members.includes(M.hostId)) || Object.values(M.scenes).find(s => !s.archived) || Object.values(M.scenes)[0];
+  mpLoadScene(a, T.id);
+  T.members = [M.hostId, ...M.players.filter(p => !p.kicked && p.id !== M.hostId).map(p => p.id)];
+  T.archived = false; T.notes = []; delete T.past;
+  a.actions.forEach(x => { x.sc = T.id; delete x.pub; });
+  M.scenes = { [T.id]: T }; M.view = M.loaded = T.id; M.mode = "one"; M.pos ||= {}; M.pubIds = {}; M.needReset = true;
+  delete M.settings.hide;
+}
+async function mpRestart(){
+  const a = adv, M = a?.multi; if(!M) return;
+  if(mp.busy || generating) return toast(L("Attends la fin de la réponse", "Wait for the answer to finish"));
+  if(!confirm(L("Recommencer la partie à plusieurs depuis le début ?\n\nMêmes joueurs, mêmes persos, même lien. L'histoire, les relations, les cartes et la mémoire repartent de zéro.", "Restart the multiplayer game from the beginning?\n\nSame players, same characters, same link. The story, relationships, cards and memory start over."))) return;
+  closeSheet();
+  const o = originFull(a), sid = "s" + uid();
+  mp.queue = [];
+  const host = mpPlayer(M.hostId);
+  let opening = visible(o.opening || "");
+  if(opening && settings.apiKey){
+    try{
+      const out = await complete(`Rewrite this opening of an interactive story in the THIRD person, present tense, same language, same events, length and style. The protagonist is ${host.char}${host.desc ? ` (${host.desc.replace(/\n+/g, "; ")})` : ""}: call them by name instead of "you"/"tu".\n"""\n${opening}\n"""\nReturn only the rewritten text.`, 1200, true);
+      if(out && out.length > opening.length * 0.5) opening = out.replace(/^"""|"""$/g, "").trim();
+    }catch(e){}
+  }
+  a.actions = opening ? [{ id: uid(), type: "ai", text: opening, sc: sid }] : [];
+  a.cards = (o.cards || []).map(c => normalizeCard(Object.assign({ title: c.title, type: c.type, keys: c.keys, entry: c.entry }, (o.scripts?.scCanon || c.canon) ? { canon: true } : {})));
+  a.essentials = String(o.essentials || "").replace(/(^|\n)(Ton personnage|Your character) —\n[\s\S]*?(\n\n|$)/, "$1").trim();
+  a.authorsNote = o.authorsNote || ""; a.instructions = o.instructions || a.instructions;
+  a.minds = {}; delete a.mem; a.summary = ""; a.pending = []; a.scIgnore = []; delete a.scene; a.mindFrom = 0; a.mindLog = []; a.scFrom = 0; delete a.ctxAnchor;
+  const members = [M.hostId, ...M.players.filter(p => !p.kicked && p.id !== M.hostId).map(p => p.id)];
+  M.scenes = { [sid]: { id: sid, name: "", members, turn: M.hostId, turnAt: Date.now(), notes: [] } };
+  M.view = M.loaded = sid; M.mode = "one"; M.pos = {}; M.present = {}; M.pubIds = {}; M.pendOps = [];
+  saveAdv(); renderStory(true);
+  try{ await mpSend("reset", {}); }catch(e){}
+  mpRoster(true); await mpPublish(sid).catch(() => {});
+  members.filter(p => p !== M.hostId).forEach(pid => mpEnqueue({ sid, pid, kind: "intro", near: M.settings.newcomer === "group" }));
+  toast(L("La partie recommence depuis le début", "The game starts over"));
 }
 
 /* ---------- discussion hors-jeu ---------- */
@@ -5525,6 +5588,7 @@ function guestEvents(evs){
       if(d.sid) delete room.live[d.sid];
       dirty = scroll = true;
     }
+    else if(e.kind === "reset"){ room.passes = []; room.live = {}; room.present = {}; dirty = scroll = true; }
     else if(e.kind === "del"){ const ids = new Set(d.ids || []); room.passes = room.passes.filter(x => !ids.has(x.id)); dirty = true; }
     else if(e.kind === "live"){ room.live[d.sid] = d.text || ""; dirty = scroll = true; }
     else if(e.kind === "chatlog" && d.to === room.me && !room.chat.length){ room.chat = (d.list || []).map(m => Object.assign({}, m, { me: false })); }
@@ -5598,7 +5662,7 @@ function guestBar(){
 }
 function roomPlayersSheet(){
   openSheet(L("Joueurs", "Players"), null, (_, b) => {
-    room.players.forEach(p => { const S = room.scenes.find(s => !s.archived && s.members.includes(p.id)); b.appendChild(el("div", "mprow", `<span class="mpdot${p.on ? "" : " off"}"></span><div class="grow"><div class="n">${esc(p.char)}${p.host ? L(" · hôte", " · host") : ""}${p.id === room.me ? L(" · toi", " · you") : ""}</div><div class="d">${esc(p.name)}${S?.name ? " · " + esc(S.name) : ""}</div></div>`)); });
+    room.players.forEach(p => { const S = room.scenes.find(s => !s.archived && s.members.includes(p.id)); b.appendChild(el("div", "mprow", `<span class="mpdot${p.on ? "" : " off"}"></span><div class="grow"><div class="n">${esc(p.char)}${p.host ? L(" · hôte", " · host") : ""}${p.id === room.me ? L(" · toi", " · you") : ""}</div><div class="d">${esc(p.name)}${p.pos ? " · " + esc(p.pos) : S?.name ? " · " + esc(S.name) : ""}</div></div>`)); });
   });
 }
 function roomSubmit(kind){

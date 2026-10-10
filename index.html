@@ -1930,6 +1930,7 @@ async function generate(input, opts = {}){
         }
         break;
       }
+      if(safe && isGibberish(r.text)) throw new Error(L("le modèle déraille encore (soupe de mots). Remets les réglages avancés par défaut (Réglages → IA), ou change de modèle.", "the model is still garbling (word soup). Reset the advanced settings to default (Settings → AI), or switch models."));
       const ex = extractRpg(r.text);
       final = cleanOutput(ex.text);
       if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
@@ -2365,7 +2366,9 @@ function isGibberish(t){
   const w = visible(String(t || "")).toLowerCase().replace(/[«»"“”]/g, " ").split(/[^\p{L}']+/u).flatMap(x => x.split("'")).filter(Boolean);
   if(w.length < 40) return false;
   const glue = w.filter(x => GLUE.has(x)).length / w.length;
-  return glue < 0.1;
+  const avg = w.reduce((n, x) => n + x.length, 0) / w.length;
+  // un texte normal a 30 à 45 % de petits mots ; la soupe en a très peu, avec des mots longs ou tronqués
+  return glue < 0.08 || (glue < 0.18 && avg > 5.8);
 }
 function gibOf(a){ const h = a.text.length; if(a._gibLen !== h){ a._gibLen = h; a._gib = isGibberish(a.text); } return a._gib; }
 function cleanOutput(t){

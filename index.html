@@ -278,6 +278,9 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,var(--bg))}
 .story{padding:18px 18px 30px;font-family:var(--serif);font-size:var(--fs);line-height:1.62;position:relative}
 .act{white-space:pre-wrap;word-wrap:break-word;padding:2px 0;border-radius:6px}
+.act.newest{position:relative}
+.act.newest::before{content:"";position:absolute;left:-11px;top:1.35em;bottom:.3em;width:2px;border-radius:2px;background:var(--acc);opacity:.55}
+.act.newest::after{content:"▶";position:absolute;left:-15px;top:.38em;color:var(--acc);font-family:var(--sans);font-size:.62em;line-height:1}
 .act.player{color:var(--acc2);font-style:italic;margin:12px 0}
 .act.sel{background:var(--bg3)}
 .fi{animation:fi .6s ease-out both}
@@ -917,7 +920,8 @@ const CHANGELOG = [
       "Discussion hors-jeu entre joueurs, jamais envoyée à l'IA. Tout est chiffré de bout en bout : la clé n'est que dans le lien d'invitation",
       "En multi, le narrateur écrit toujours à la troisième personne, même si le scénario dit « tu »",
       "Recommencer depuis le début relance la partie à plusieurs elle-même : mêmes joueurs, mêmes persos, même lien",
-      "Si un modèle part en « soupe de mots » (mots tronqués à la chaîne), la réponse est refaite toute seule avec des réglages plus sages"],
+      "Si un modèle part en « soupe de mots » (mots tronqués à la chaîne), la réponse est refaite toute seule avec des réglages plus sages",
+      "Un petit repère ▸ dans la marge montre où commence la dernière réponse, pour ne pas se perdre dans la lecture"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
       "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
@@ -928,7 +932,8 @@ const CHANGELOG = [
       "Out-of-game chat between players, never sent to the AI. Everything is end-to-end encrypted: the key only lives in the invite link",
       "In multiplayer the narrator always writes in the third person, even if the scenario says “you”",
       "Restart from the beginning restarts the multiplayer game itself: same players, same characters, same link",
-      "If a model turns into “word soup” (strings of truncated words), the answer is redone automatically with calmer settings"] },
+      "If a model turns into “word soup” (strings of truncated words), the answer is redone automatically with calmer settings",
+      "A small ▸ marker in the margin shows where the latest answer starts, so you don't get lost while reading"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -1563,8 +1568,9 @@ const scriptsOn = () => !!(adv && (adv.scripts.ac || adv.scripts.is));
 function renderStory(scroll){
   const s = $("#story"); s.innerHTML = "";
   const shown = mpShown().filter(a => !a.hidden);
+  const newest = shown.length > 1 ? [...shown].reverse().find(a => a.type === "ai") : null;
   shown.forEach(a => {
-    const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player"));
+    const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : ""));
     d.dataset.id = a.id;
     d.textContent = visible(a.text);
     if(a.roll && a.type !== "ai"){ const n = a.roll; d.appendChild(el("span", "roll" + (n >= 20 ? " crit" : n <= 1 ? " fumble" : n <= 7 ? " fail" : ""), `d20 · ${n} · ${rollLabel(n)}`)); }
@@ -5641,7 +5647,8 @@ function renderRoom(scroll){
   if(!room) return;
   const s = $("#story"); s.innerHTML = "";
   const list = roomShown();
-  list.forEach(a => { const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player")); d.textContent = a.text; s.appendChild(d); });
+  const newest = list.length > 1 && room.busy !== room.view ? [...list].reverse().find(a => a.type === "ai") : null;
+  list.forEach(a => { const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : "")); d.textContent = a.text; s.appendChild(d); });
   const live = room.live[room.view];
   if(room.busy === room.view){ const d = el("div", "act ai" + (live ? " live" : "")); if(live) d.textContent = live; else d.innerHTML = `<span class="wait"><i></i><i></i><i></i></span>`; s.appendChild(d); }
   if(!list.length && room.busy !== room.view) s.appendChild(el("div", "empty", `<span style="font-family:var(--sans)">${room.players.some(p => p.id === room.me) ? L("La partie commence…", "The game is starting…") : L("Connexion à la partie…", "Connecting to the game…")}</span>`));

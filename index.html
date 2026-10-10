@@ -916,7 +916,8 @@ const CHANGELOG = [
       "Relations par joueur : un PNJ peut adorer un joueur et se méfier d'un autre. Les joueurs absents sont mis de côté, et un minuteur de tour est disponible",
       "Discussion hors-jeu entre joueurs, jamais envoyée à l'IA. Tout est chiffré de bout en bout : la clé n'est que dans le lien d'invitation",
       "En multi, le narrateur écrit toujours à la troisième personne, même si le scénario dit « tu »",
-      "Recommencer depuis le début relance la partie à plusieurs elle-même : mêmes joueurs, mêmes persos, même lien"],
+      "Recommencer depuis le début relance la partie à plusieurs elle-même : mêmes joueurs, mêmes persos, même lien",
+      "Si un modèle part en « soupe de mots » (mots tronqués à la chaîne), la réponse est refaite toute seule avec des réglages plus sages"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
       "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
@@ -926,7 +927,8 @@ const CHANGELOG = [
       "Per-player relationships: an NPC can love one player and distrust another. Absent players are kept in the background, and a turn timer is available",
       "Out-of-game chat between players, never sent to the AI. Everything is end-to-end encrypted: the key only lives in the invite link",
       "In multiplayer the narrator always writes in the third person, even if the scenario says “you”",
-      "Restart from the beginning restarts the multiplayer game itself: same players, same characters, same link"] },
+      "Restart from the beginning restarts the multiplayer game itself: same players, same characters, same link",
+      "If a model turns into “word soup” (strings of truncated words), the answer is redone automatically with calmer settings"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -1718,7 +1720,8 @@ function buildMessages(guide, dry){
   const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;
   const start = stickyStart(adv, histBudget(adv, dynEst), x => estTok(x.text), dry);
   const dyn = dynBlock(adv, start, reserve);
-  const hist = adv.actions.slice(start).filter(a => !a.hidden);
+  // les passages en « soupe de mots » ne sont jamais renvoyés au modèle : il les imiterait
+  const hist = adv.actions.slice(start).filter(a => !a.hidden && !(a.type === "ai" && gibOf(a)));
   const msgs = [];
   const push = (role, content) => {
     const last = msgs[msgs.length - 1];
@@ -1892,12 +1895,12 @@ async function generate(input, opts = {}){
       const view = $("#storyView");
       await prepareRecall(signal, playerText || guide);
       const msgs0 = buildMessages(guide);
-      let r, attempt = 0, modRetry = false;
+      let r, attempt = 0, modRetry = false, safe = false;
       lastCost = 0; lastCache = null;
       while(true){
         let started = false, cut = false, partial = "";
         try{
-          r = await callModel(attempt ? withRepeatNote(msgs0) : msgs0, { signal, onDelta: delta => {
+          r = await callModel(attempt ? withRepeatNote(msgs0) : msgs0, { signal, ...(safe ? { temperature: Math.min(0.75, settings.temperature), top_p: 0.9, plain: true } : {}), onDelta: delta => {
             partial += delta;
             if(mpLiveTap) mpLiveTap(partial);
             if(cut) return;
@@ -1914,6 +1917,13 @@ async function generate(input, opts = {}){
           else throw e;
         }
         lastCost += r.cost || 0;
+        if(!safe && !signal.aborted && isGibberish(r.text)){
+          // texte incohérent (mots tronqués, plus aucun petit mot) : réglages trop poussés ou fournisseur défaillant → on refait en mode sage
+          safe = true; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`;
+          ph.setStatus(L("Texte incohérent, nouvelle version plus sage…", "Garbled text, trying a calmer version…"));
+          toast(L("Le modèle a produit un texte incohérent : nouvelle version avec des réglages plus sages", "The model produced garbled text: retrying with calmer settings"));
+          continue;
+        }
         if(!attempt && adv.scripts.ar && adv.scripts.arRetry !== false && !signal.aborted && isRepeat(extractRpg(r.text).text)){
           attempt = 1; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`; ph.setStatus("Répétition détectée, nouvelle version…");
           continue;
@@ -2349,6 +2359,15 @@ function offerMemoryBuild(a0){
     });
   }, 600);
 }
+/* Détecte la « soupe de mots » : un vrai texte contient toujours beaucoup de petits mots (le, de, et, the, of…). */
+const GLUE = new Set("le la les l un une des du de d et à a au aux en dans sur pour par avec sans que qui ne pas se sa son ses il elle ils elles on je tu nous vous lui leur y est c ce cette mais ou the of and to in is it that was he she his her you for on with as at but not".split(" "));
+function isGibberish(t){
+  const w = visible(String(t || "")).toLowerCase().replace(/[«»"“”]/g, " ").split(/[^\p{L}']+/u).flatMap(x => x.split("'")).filter(Boolean);
+  if(w.length < 40) return false;
+  const glue = w.filter(x => GLUE.has(x)).length / w.length;
+  return glue < 0.1;
+}
+function gibOf(a){ const h = a.text.length; if(a._gibLen !== h){ a._gibLen = h; a._gib = isGibberish(a.text); } return a._gib; }
 function cleanOutput(t){
   t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s+/, "").replace(/\s+$/, "");
   const m = t.match(/^[\s\S]*[.!?…"”»*)\]`]/);

@@ -235,11 +235,12 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .roll.crit{color:#7fc79a;border-color:color-mix(in srgb,#7fc79a 45%,var(--line))}
 .roll.fail{color:var(--tx3)}
 .roll.fumble{color:var(--err);border-color:color-mix(in srgb,var(--err) 45%,var(--line))}
-.rpgd{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 14px;font-family:var(--sans)}
+.rpgd{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 16px;font-family:var(--sans);line-height:1.4}
 .rpgd span{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line)}
 .rpgd .neg{color:var(--err)}
 .rpgd .pos{color:#7fc79a}
-.rpgd.mind{margin-top:-6px}
+.rpgd.mind{margin-top:8px}
+.rpgd + .rpgd.mind{margin-top:-8px}
 .rpgd.mind span{color:var(--tx3)}
 .rpgd.mind .pos{color:#c9a7ff}
 .rpgd.mind .neg{color:var(--err)}
@@ -279,8 +280,7 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .story{padding:18px 18px 30px;font-family:var(--serif);font-size:var(--fs);line-height:1.62;position:relative}
 .act{white-space:pre-wrap;word-wrap:break-word;padding:2px 0;border-radius:6px}
 .act.newest{position:relative}
-.act.newest::before{content:"";position:absolute;left:-11px;top:1.35em;bottom:.3em;width:2px;border-radius:2px;background:var(--acc);opacity:.55}
-.act.newest::after{content:"▶";position:absolute;left:-15px;top:.38em;color:var(--acc);font-family:var(--sans);font-size:.62em;line-height:1}
+.act.newest::before{content:"";position:absolute;left:-11px;top:.3em;bottom:.3em;width:2px;border-radius:2px;background:var(--acc);opacity:.6}
 .act.player{color:var(--acc2);font-style:italic;margin:12px 0}
 .act.sel{background:var(--bg3)}
 .fi{animation:fi .6s ease-out both}
@@ -921,7 +921,8 @@ const CHANGELOG = [
       "En multi, le narrateur écrit toujours à la troisième personne, même si le scénario dit « tu »",
       "Recommencer depuis le début relance la partie à plusieurs elle-même : mêmes joueurs, mêmes persos, même lien",
       "Si un modèle part en « soupe de mots » (mots tronqués à la chaîne), la réponse est refaite toute seule avec des réglages plus sages",
-      "Un petit repère ▸ dans la marge montre où commence la dernière réponse, pour ne pas se perdre dans la lecture"],
+      "Une fine ligne dans la marge montre où commence la dernière réponse, pour ne pas se perdre dans la lecture",
+      "Cartes intelligentes : une carte trop longue est coupée à la fin d'une phrase, plus jamais au milieu d'un mot. Les étiquettes de relation ne chevauchent plus le texte"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
       "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
@@ -933,7 +934,8 @@ const CHANGELOG = [
       "In multiplayer the narrator always writes in the third person, even if the scenario says “you”",
       "Restart from the beginning restarts the multiplayer game itself: same players, same characters, same link",
       "If a model turns into “word soup” (strings of truncated words), the answer is redone automatically with calmer settings",
-      "A small ▸ marker in the margin shows where the latest answer starts, so you don't get lost while reading"] },
+      "A thin line in the margin shows where the latest answer starts, so you don't get lost while reading",
+      "Smart cards: a card that's too long is cut at the end of a sentence, never mid-word. Relationship tags no longer overlap the text"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -2453,12 +2455,12 @@ Tasks:
 Do not propose anything about: ${ignored || "(nothing)"}
 Entry format by type (as short labelled sentences):
 ${Object.entries(isEN() ? CARD_FORMATS_EN : CARD_FORMATS).map(([k, v]) => "- " + k + ": " + v).join("\n")}
-Rules: factual, third person, present tense, written in the language of the story, each entry STRICTLY under ${Math.round(lim * 0.92)} characters. keys = comma-separated trigger words (name, nicknames, distinctive words — no common words). At most 4 new, 4 updates. If nothing is worth doing, return empty lists.
+Rules: factual, third person, present tense, written in the language of the story, each entry STRICTLY under ${Math.round(lim * 0.85)} characters — if there is too much to say, summarize; always end on a complete sentence. keys = comma-separated trigger words (name, nicknames, distinctive words — no common words). At most 4 new, 4 updates. If nothing is worth doing, return empty lists.
 Return ONLY JSON:
 {"new":[{"type":"personnage|lieu|objet|faction|concept|autre","title":"","keys":"","entry":""}],
  "update":[{"id":"card id without #","title":"only if the entity's real name is now known, else empty","entry":"full new entry","keys":"","why":"very short reason, in ${isEN() ? "English" : "French"}"}],
  "merge":[{"keep":"card id","remove":["card id"],"title":"","entry":"merged entry","keys":""}]}`;
-    const r = parseJSON(await complete(prompt, 2200, true));
+    const r = parseJSON(await complete(prompt, 3000, true));
     const ops = [];
     const byId = id => a.cards.find(c => c.id === String(id || "").replace(/^#/, ""));
     (r.new || []).forEach(n => {
@@ -2480,7 +2482,7 @@ Return ONLY JSON:
       if(!rm.length) return;
       ops.push({ op: "merge", cardId: k.id, removeIds: rm.map(c => c.id), removeNames: rm.map(cardName), title: visible(m.title) || cardName(k), type: k.type, entry: m.entry || k.entry, keys: m.keys || "" });
     });
-    ops.forEach(o => { o.id = uid(); o.entry = visible(o.entry).slice(0, lim); });
+    ops.forEach(o => { o.id = uid(); o.entry = cutClean(visible(o.entry), lim); });
     a.scFrom = a.actions.length;
     if(a.scripts.scAuto){
       ops.forEach(o => applyCardOp(a, o));
@@ -2497,14 +2499,30 @@ function cardOpsSummary(ops){
   const n = ops.filter(o => o.op === "new").length, u = ops.filter(o => o.op === "update").length, m = ops.filter(o => o.op === "merge").length;
   return [n && `${n} carte${n > 1 ? "s" : ""} créée${n > 1 ? "s" : ""}`, u && `${u} mise${u > 1 ? "s" : ""} à jour`, m && `${m} fusion${m > 1 ? "s" : ""}`].filter(Boolean).join(", ");
 }
+/* Coupe un texte trop long à la fin d'une phrase (jamais au milieu d'un mot). */
+function cutClean(t, lim){
+  t = String(t || "").trim();
+  if(t.length <= lim){
+    // l'IA s'est parfois arrêtée en pleine phrase : on revient à la dernière phrase complète
+    if(/[.!?…»")\]]$/.test(t)) return t;
+    const e2 = [...t.matchAll(/[.!?…»](?=\s|$)/g)].map(m => m.index + 1).pop() || -1;
+    return e2 > t.length * 0.6 ? t.slice(0, e2).trim() : t;
+  }
+  const cut = t.slice(0, lim);
+  const ends = [...cut.matchAll(/[.!?…»](?=\s|$)/g)].map(m => m.index + 1);
+  const end = ends.length ? ends[ends.length - 1] : -1;
+  if(end > lim * 0.5) return cut.slice(0, end).trim();
+  const sp = cut.lastIndexOf(" ");
+  return (sp > lim * 0.5 ? cut.slice(0, sp) : cut).replace(/[\s,;:·–—-]+$/, "") + "…";
+}
 function applyCardOp(a, p){
   const lim = settings.cardLimit;
-  if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: p.entry.slice(0, lim), auto: true, created: Date.now(), updated: Date.now() }));
-  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = p.entry.slice(0, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); if(p.rename){ c.keys = mergeKeys(p.rename, c.keys, cardName(c)); c.title = p.rename; } c.updated = Date.now(); } }
+  if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: cutClean(p.entry, lim), auto: true, created: Date.now(), updated: Date.now() }));
+  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = cutClean(p.entry, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); if(p.rename){ c.keys = mergeKeys(p.rename, c.keys, cardName(c)); c.title = p.rename; } c.updated = Date.now(); } }
   else if(p.op === "merge"){
     const k = a.cards.find(x => x.id === p.cardId); if(!k) return;
     const rm = a.cards.filter(c => p.removeIds.includes(c.id));
-    k.title = p.title || k.title; k.entry = p.entry.slice(0, lim); k.keys = mergeKeys(k.keys, ...rm.map(c => c.keys), ...rm.map(cardName), p.keys);
+    k.title = p.title || k.title; k.entry = cutClean(p.entry, lim); k.keys = mergeKeys(k.keys, ...rm.map(c => c.keys), ...rm.map(cardName), p.keys);
     a.cards = a.cards.filter(c => !p.removeIds.includes(c.id));
   }
 }

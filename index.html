@@ -197,6 +197,7 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .mptab{flex:none;border:1px solid var(--line);background:var(--bg2);color:var(--tx2);border-radius:999px;padding:5px 11px;font:500 12px var(--sans);cursor:pointer}
 .mptab.on{border-color:var(--acc);color:var(--tx)}
 .mptab .w{color:var(--acc2);margin-left:4px}
+.mptab.old{opacity:.6}
 .pill.turn.me{background:var(--acc);border-color:var(--acc);color:var(--onacc)}
 .pill.turn.me b{color:var(--onacc)}
 .pill .bdg{background:var(--acc);color:var(--onacc);border-radius:9px;padding:0 6px;font-size:11px;font-weight:700}
@@ -913,7 +914,9 @@ const CHANGELOG = [
       "Scènes séparées : chacun peut être ailleurs. Chaque scène avance à son rythme, les persos peuvent se séparer, se retrouver, et s'envoyer des messages par les moyens du monde (lettre, messager, magie…)",
       "Le narrateur ne fait jamais parler ni agir le perso d'un joueur. S'il le fait quand même, la réponse est refaite toute seule",
       "Relations par joueur : un PNJ peut adorer un joueur et se méfier d'un autre. Les joueurs absents sont mis de côté, et un minuteur de tour est disponible",
-      "Discussion hors-jeu entre joueurs, jamais envoyée à l'IA. Tout est chiffré de bout en bout : la clé n'est que dans le lien d'invitation"],
+      "Discussion hors-jeu entre joueurs, jamais envoyée à l'IA. Tout est chiffré de bout en bout : la clé n'est que dans le lien d'invitation",
+      "Deux joueurs au même endroit jouent automatiquement dans la même scène. Les scènes passées restent lisibles (⌛), et l'hôte peut rejoindre d'un geste la scène qu'il regarde",
+      "En multi, le narrateur écrit toujours à la troisième personne, même si le scénario dit « tu », et ne fait pas apparaître un PNJ déjà occupé dans une autre scène"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
       "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
@@ -921,7 +924,9 @@ const CHANGELOG = [
       "Separate scenes: everyone can be elsewhere. Each scene moves at its own pace; characters can split, meet again, and send messages through the world's means (letter, messenger, magic…)",
       "The narrator never makes a player's character speak or act. If it does anyway, the answer is redone automatically",
       "Per-player relationships: an NPC can love one player and distrust another. Absent players are kept in the background, and a turn timer is available",
-      "Out-of-game chat between players, never sent to the AI. Everything is end-to-end encrypted: the key only lives in the invite link"] },
+      "Out-of-game chat between players, never sent to the AI. Everything is end-to-end encrypted: the key only lives in the invite link",
+      "Two players in the same place automatically play in the same scene. Past scenes stay readable (⌛), and the host can join the scene they're watching in one tap",
+      "In multiplayer the narrator always writes in the third person, even if the scenario says “you”, and doesn't bring in an NPC already busy in another scene"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -1706,7 +1711,7 @@ function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
-  const system = (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
+  const system = mpPov(adv, adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
   const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;
@@ -2759,9 +2764,9 @@ Return ONLY JSON:
  "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left or died"],
  "dead":["names of named characters who clearly DIED in the recent story (not just hurt or unconscious) — usually empty"]${deadNames.length ? `,
  "revived":["dead characters who clearly came back to life in the recent story (resurrection, fake death revealed…) — usually empty"]` : ""}${MP ? `,
- "location":"short name of the place where this scene is at the END of the recent story",
+ "location":"short name (2 to 4 words) of the place where this scene is at the END of the recent story. If it is the same place as another scene listed above, reuse EXACTLY that name",
  "players_left":[{"name":"a player character who split off from the other player characters of this scene to go somewhere else on their own","where":"short place"}],
- "players_joined":["player characters from elsewhere (${MP.elsewhereNames.join(", ") || "none"}) who are now physically here — usually empty"],
+ "players_joined":["player characters from elsewhere (${MP.elsewhereNames.join(", ") || "none"}) who are now at the SAME place as this scene (same building, room or spot) — also when someone here walks into the place where they are, even if the story has not described them yet"],
  "messages":[{"from":"","to":"a player character who is NOT in this scene","content":"what the message says","means":"letter, messenger, magic…"}]` : ""}}`;
     const r = parseJSON(await complete(prompt, 2400, true));
     const before = clone({ minds: a.minds, scene: a.scene || null });
@@ -4977,13 +4982,13 @@ function mpSetView(sid){
 }
 function mpNewScene(members, name){
   const M = adv.multi, id = "s" + uid();
-  Object.values(M.scenes).forEach(s => { s.members = s.members.filter(p => !members.includes(p)); if(!s.members.length) s.archived = true; });
+  Object.values(M.scenes).forEach(s => { s.past = [...new Set([...(s.past || []), ...s.members.filter(p => members.includes(p))])]; s.members = s.members.filter(p => !members.includes(p)); if(!s.members.length) s.archived = true; });
   M.scenes[id] = { id, name: name || "", members: [...members], turn: members[0], turnAt: Date.now(), notes: [], summary: "" };
   return M.scenes[id];
 }
 function mpMoveTo(pid, S, note){
   const M = adv.multi;
-  Object.values(M.scenes).forEach(s => { if(s !== S && s.members.includes(pid)){ s.members = s.members.filter(p => p !== pid); if(!s.members.length) s.archived = true; else if(s.turn === pid) s.turn = mpNextIn(s, pid); } });
+  Object.values(M.scenes).forEach(s => { if(s !== S && s.members.includes(pid)){ s.past = [...new Set([...(s.past || []), pid])]; s.members = s.members.filter(p => p !== pid); if(!s.members.length) s.archived = true; else if(s.turn === pid) s.turn = mpNextIn(s, pid); } });
   if(!S.members.includes(pid)) S.members.push(pid);
   S.archived = false;
   if(note) (S.notes ||= []).push({ t: note, n: 4 });
@@ -4995,6 +5000,11 @@ function mpNextIn(S, actor, text){
   const n = S.members.length, i = Math.max(0, S.members.indexOf(actor));
   for(let k = 1; k <= n; k++){ const p = S.members[(i + k) % n]; if(ok(p)) return p; }
   return actor;
+}
+function mpPov(a, t){
+  if(!a.multi) return t;
+  return t.replace(/deuxi[eè]me personne/gi, "troisième personne").replace(/second[- ]person/gi, "third person")
+    .replace(/(désigné|désignée|appelé|appelée)\s+par\s+«\s*tu\s*»/gi, "désigné par son nom").replace(/addressed as "you"/gi, "called by name");
 }
 function mpSystem(a){
   const M = a.multi; if(!M) return "";
@@ -5008,7 +5018,10 @@ function mpBlock(a){
   const on = here.filter(p => mpOnline(p.id)), off = here.filter(p => !mpOnline(p.id));
   const away = Object.values(M.scenes).filter(s => s !== S && !s.archived).flatMap(s => s.members.map(id => charOfPid(id) + (s.name ? ` (${s.name})` : "")));
   const nx = mp.next && mpPlayer(mp.next);
-  return [`[Multiplayer] Player characters in this scene: ${on.map(p => p.char).join(", ") || "(none)"}.`,
+  const busyNpc = Object.values(M.scenes).filter(s => s !== S && !s.archived && (M.present?.[s.id] || []).length)
+    .map(s => `${M.present[s.id].map(x => x.name).join(", ")} (with ${s.members.map(charOfPid).join(", ")}${s.name ? ` at ${s.name}` : ""})`);
+  return [`[Multiplayer] Write in the THIRD person: never address anyone as "tu", "vous" or "you". Player characters in this scene: ${on.map(p => p.char).join(", ") || "(none)"}.`,
+    busyNpc.length ? `Non-player characters currently busy in another scene: ${busyNpc.join("; ")}. They cannot also be here unless they arrive.` : "",
     off.length ? `Absent (their player is away): ${off.map(p => p.char).join(", ")} — keep them in the background (asleep, resting, busy nearby); they take no action and say nothing.` : "",
     away.length ? `Elsewhere, NOT in this scene: ${away.join(", ")}.` : "",
     ...(S.notes || []).map(n => n.t),
@@ -5194,7 +5207,7 @@ function mpRoster(now){
   clearTimeout(mp.rosterT);
   const send = () => { const M = adv?.multi; if(!M || !mp.rid) return; mpSend("roster", {
     players: M.players.filter(p => !p.kicked).map(p => ({ id: p.id, name: p.name, char: p.char, host: !!p.host, on: mpOnline(p.id) })),
-    scenes: Object.values(M.scenes).map(s => ({ id: s.id, name: s.name || "", members: s.members, turn: s.turn, archived: !!s.archived })),
+    scenes: Object.values(M.scenes).map(s => ({ id: s.id, name: s.name || "", members: s.members, past: s.past || [], turn: s.turn, archived: !!s.archived })),
     settings: { hide: !!M.settings.hide, timer: M.settings.timer || 0 }, present: M.present || {}, busy: mp.busySid }).catch(e => console.warn(e)); };
   if(now) send(); else mp.rosterT = setTimeout(send, 300);
 }
@@ -5350,9 +5363,26 @@ function mpApplyOps(){
       (T.notes ||= []).push({ t: `[Incoming message for ${p.char}] From ${x.from || "someone"}${x.means ? ` (${x.means})` : ""}: "${String(x.content).slice(0, 400)}". Have it reach ${p.char} in a plausible way and at a plausible time.`, n: 3 });
     });
   });
+  mpMergeSamePlace(ops.map(o => o.sid));
   const mine1 = sceneOfPid(M.hostId)?.id;
   if(mine1 && mine1 !== mine0) mpSetView(mine1);
   else if(M.scenes[M.view]?.archived && mine1) mpSetView(mine1);
+}
+
+const placeKey = n => String(n || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\b(le|la|les|l|de|du|des|d|the|of|a|an)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+function mpMergeSamePlace(fresh){
+  // deux scènes au même endroit = une seule scène, un seul narrateur
+  const M = adv.multi, groups = {};
+  Object.values(M.scenes).filter(s => !s.archived && placeKey(s.name)).forEach(s => (groups[placeKey(s.name)] ||= []).push(s));
+  Object.values(groups).filter(g => g.length > 1).forEach(g => {
+    g.sort((x, y) => (fresh.includes(y.id) - fresh.includes(x.id)) || (y.members.length - x.members.length));
+    const T = g[0];
+    g.slice(1).forEach(U => {
+      const recap = visible(lastAiOf(U.id)?.text || "").slice(-500);
+      [...U.members].forEach(pid => mpMoveTo(pid, T, `${charOfPid(pid)} is here too (they were already at ${T.name}): bring them into the scene naturally. What ${charOfPid(pid)} was doing just before: ${recap}`));
+      mpChatIn({ from: "Lanterne", text: L(`Vous êtes au même endroit (${T.name}) : ${T.members.map(charOfPid).join(", ")} jouent maintenant ensemble.`, `You're in the same place (${T.name}): ${T.members.map(charOfPid).join(", ")} now play together.`), t: Date.now(), sys: true });
+    });
+  });
 }
 
 /* ---------- discussion hors-jeu ---------- */
@@ -5385,7 +5415,7 @@ function openChat(){
 
 /* ---------- barre et onglets (hôte et invités) ---------- */
 function mpTabsHTML(scenes, view, mine, turnName){
-  return scenes.map(s => `<button class="mptab${s.id === view ? " on" : ""}" data-s="${s.id}">${s.id === mine ? "★ " : "✦ "}${esc(s.name || L("Scène", "Scene"))} — ${esc(s.members.map(turnName).join(", "))}</button>`).join("");
+  return scenes.map(s => `<button class="mptab${s.id === view ? " on" : ""}${s.archived ? " old" : ""}" data-s="${s.id}">${s.archived ? "⌛ " : s.id === mine ? "★ " : "✦ "}${esc(s.name || L("Scène", "Scene"))} — ${esc((s.archived ? s.past || [] : s.members).map(turnName).join(", "))}</button>`).join("");
 }
 function mpUI(){
   const on = !!(room || adv?.multi), guest = !!room;
@@ -5397,7 +5427,7 @@ function mpUI(){
   if(!on){ tabs.classList.add("hidden"); tabs.innerHTML = ""; $("#inp").disabled = false; $("#sendBtn").disabled = false; document.querySelectorAll(".mpb").forEach(b => b.disabled = false); return; }
   if(guest) return;
   const M = adv.multi, mine = sceneOfPid(M.hostId)?.id;
-  const sc = Object.values(M.scenes).filter(s => !s.archived);
+  const sc = Object.values(M.scenes).filter(s => !s.archived || actionsOfScene(s.id).some(x => !x.hidden)).sort((x, y) => !!x.archived - !!y.archived);
   tabs.innerHTML = sc.length > 1 ? mpTabsHTML(sc, M.view, mine, charOfPid) : "";
   tabs.classList.toggle("hidden", sc.length <= 1);
   tabs.querySelectorAll(".mptab").forEach(b => b.onclick = () => mpSetView(b.dataset.s));
@@ -5406,13 +5436,19 @@ function mpBar(s){
   const M = adv.multi, S = M.scenes[M.view];
   const nPl = M.players.filter(p => !p.kicked).length, nOn = M.players.filter(p => !p.kicked && mpOnline(p.id)).length;
   const pl = el("button", "pill", `👥 <b>${nOn}</b>/${nPl}`); pl.onclick = () => openAdventureSheet("multi"); s.appendChild(pl);
-  if(S){
+  if(S?.archived) s.appendChild(el("span", "pill", L("⌛ Scène passée", "⌛ Past scene")));
+  else if(S){
     const busy = mp.busySid === S.id, q = mp.queue.filter(j => j.sid === S.id).length;
     const t = busy ? L("Le narrateur écrit…", "The narrator is writing…") : S.turn === M.hostId ? L("À toi de jouer", "Your turn") : L("Tour : ", "Turn: ") + `<b>${esc(charOfPid(S.turn))}</b>`;
     s.appendChild(el("span", "pill turn" + (!busy && S.turn === M.hostId ? " me" : ""), (busy ? `<span class="dot"></span>` : "🎲 ") + t + (q ? ` <span>+${q}</span>` : "")));
   }
   const n = mp.unread || 0;
   const c = el("button", "pill", `💬${n ? ` <span class="bdg">${n}</span>` : ""}`); c.onclick = openChat; s.appendChild(c);
+  if(S && !S.archived && !S.members.includes(M.hostId) && !mp.busy){
+    const j = el("button", "pill", L("↪ Rejoindre cette scène", "↪ Join this scene"));
+    j.onclick = () => { if(!confirm(L(`Mettre ${charOfPid(M.hostId)} dans cette scène ?`, `Put ${charOfPid(M.hostId)} in this scene?`))) return; const from = sceneOfPid(M.hostId); mpMoveTo(M.hostId, S, `${charOfPid(M.hostId)} has just arrived and joins this scene${from?.name ? ` (coming from ${from.name})` : ""}.`); saveAdv(); mpRoster(); renderStory(false); };
+    s.appendChild(j);
+  }
 }
 
 /* ---------- côté invité ---------- */
@@ -5469,8 +5505,9 @@ const roomMine = () => room.scenes.find(s => !s.archived && s.members.includes(r
 const roomPlayer = id => room.players.find(p => p.id === id);
 function roomVisibleScenes(){
   const mine = roomMine();
-  const sc = room.scenes.filter(s => !s.archived);
-  return room.settings?.hide ? (mine ? [mine] : []) : sc;
+  const been = s => s.archived && (s.past || []).includes(room.me) && room.passes.some(x => x.sc === s.id);
+  const sc = room.scenes.filter(s => !s.archived || been(s) || (!room.settings?.hide && room.passes.some(x => x.sc === s.id))).sort((x, y) => !!x.archived - !!y.archived);
+  return room.settings?.hide ? sc.filter(s => s === mine || been(s)) : sc;
 }
 function roomShown(){ return room.passes.filter(x => x.sc === room.view); }
 function guestEvents(evs){
@@ -5498,7 +5535,7 @@ function guestEvents(evs){
   room.lastEv = mp.last;
   const mine = roomMine();
   if(mine && mine.id !== room.mineId){ room.mineId = mine.id; room.view = mine.id; scroll = dirty = true; } // ma scène a changé : on la suit
-  if(!room.view || !room.scenes.some(s => s.id === room.view && !s.archived) || (room.settings?.hide && mine && room.view !== mine.id)) room.view = mine?.id || roomVisibleScenes()[0]?.id || room.view;
+  if(!room.view || !roomVisibleScenes().some(s => s.id === room.view)) room.view = mine?.id || roomVisibleScenes()[0]?.id || room.view;
   saveRoom();
   if(dirty) renderRoom(scroll);
   if(room.ended) return mpStop();
@@ -5538,7 +5575,8 @@ function guestBar(){
   const pl = el("button", "pill", `👥 <b>${on}</b>/${room.players.length}`); pl.onclick = roomPlayersSheet; s.appendChild(pl);
   const S = room.scenes.find(x => x.id === room.view);
   const myTurn = !!(S && mine && S.id === mine.id && S.turn === room.me && room.busy !== S.id && !room.waiting);
-  if(S){
+  if(S?.archived) s.appendChild(el("span", "pill", L("⌛ Scène passée", "⌛ Past scene")));
+  else if(S){
     const busy = room.busy === S.id;
     s.appendChild(el("span", "pill turn" + (myTurn ? " me" : ""), busy || room.waiting ? `<span class="dot"></span>${L("Le narrateur écrit…", "The narrator is writing…")}` : S.turn === room.me ? L("🎲 À toi de jouer", "🎲 Your turn") : `🎲 ${L("Tour : ", "Turn: ")}<b>${esc(nm(S.turn))}</b>`));
   }
@@ -5555,7 +5593,7 @@ function guestBar(){
   inp.disabled = !myTurn; sb.disabled = !myTurn;
   document.querySelectorAll(".mpb").forEach(b => b.disabled = !myTurn);
   inp.placeholder = room.ended ? L("Partie terminée", "Game over") : !room.players.some(p => p.id === room.me) ? L("En attente de ton perso…", "Waiting for your character…")
-    : S && mine && S.id !== mine.id ? L("Tu regardes une autre scène", "You're watching another scene") : myTurn ? tr({ do: "Que fais-tu ?", say: "Que dis-tu ?" }[mode] || "Que fais-tu ?") : L("Attends ton tour…", "Wait for your turn…");
+    : S?.archived ? L("Scène passée, en lecture seule", "Past scene, read only") : S && mine && S.id !== mine.id ? L("Tu regardes une autre scène", "You're watching another scene") : myTurn ? tr({ do: "Que fais-tu ?", say: "Que dis-tu ?" }[mode] || "Que fais-tu ?") : L("Attends ton tour…", "Wait for your turn…");
   sb.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
 }
 function roomPlayersSheet(){

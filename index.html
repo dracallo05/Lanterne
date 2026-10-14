@@ -922,7 +922,8 @@ const CHANGELOG = [
       "Recommencer depuis le début relance la partie à plusieurs elle-même : mêmes joueurs, mêmes persos, même lien",
       "Si un modèle part en « soupe de mots » (mots tronqués à la chaîne), la réponse est refaite toute seule avec des réglages plus sages",
       "Une fine ligne dans la marge montre où commence la dernière réponse, pour ne pas se perdre dans la lecture",
-      "Cartes intelligentes : une carte trop longue est coupée à la fin d'une phrase, plus jamais au milieu d'un mot. Les étiquettes de relation ne chevauchent plus le texte"],
+      "Cartes intelligentes : une carte trop longue est coupée à la fin d'une phrase, plus jamais au milieu d'un mot. Les étiquettes de relation ne chevauchent plus le texte",
+      "Modèles qui réfléchissent même quand on le leur interdit (certains GLM) : au lieu de ne rien écrire, Lanterne s'en rend compte, leur laisse un budget de réflexion et affiche « le modèle réfléchit… »"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
       "Everyone creates a character and plays from their own phone. Everything runs in the host's game, with their key, and the host keeps every right (Guide, Story, Retry, Undo…)",
@@ -935,7 +936,8 @@ const CHANGELOG = [
       "Restart from the beginning restarts the multiplayer game itself: same players, same characters, same link",
       "If a model turns into “word soup” (strings of truncated words), the answer is redone automatically with calmer settings",
       "A thin line in the margin shows where the latest answer starts, so you don't get lost while reading",
-      "Smart cards: a card that's too long is cut at the end of a sentence, never mid-word. Relationship tags no longer overlap the text"] },
+      "Smart cards: a card that's too long is cut at the end of a sentence, never mid-word. Relationship tags no longer overlap the text",
+      "Models that think even when told not to (some GLM): instead of writing nothing, Lanterne notices, gives them a thinking budget and shows “the model is thinking…”"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
       "Mes scénarios : tes scénarios privés, rangés à part de tes parties. Les modifier ne touche à aucune partie lancée",
@@ -1168,6 +1170,7 @@ async function callModel(messages, opts = {}){
     throw e;
   }
 }
+const THINKERS = LS.get("lan.thinkers", {});
 async function callModel0(messages, opts = {}){
   if(!settings.apiKey) throw new Error("Ajoute ta clé API dans les réglages");
   const { url, or } = apiConf();
@@ -1188,6 +1191,8 @@ async function callModel0(messages, opts = {}){
     const ign = opts._noIgnore ? [] : (settings.providerIgnore ?? ["alibaba"]);
     if(ign.length) body.provider = Object.assign(body.provider || {}, { ignore: ign });
     if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
+    // modèles qui réfléchissent même quand on le leur interdit (certains GLM…) : on leur laisse un budget de réflexion en plus
+    if(THINKERS[body.model]){ body.reasoning = { max_tokens: 1024, exclude: true }; body.max_tokens = (body.max_tokens || 300) + 1024; }
   }
   const mid = body.model.toLowerCase();
   if(/^anthropic\//.test(mid)){ delete body.top_p; delete body.top_k; delete body.min_p; delete body.presence_penalty; delete body.frequency_penalty; delete body.repetition_penalty; }
@@ -1204,11 +1209,12 @@ async function callModel0(messages, opts = {}){
     if(body.reasoning && /reason|think/i.test(String(msg))){ delete body.reasoning; res = await send(); if(!res.ok){ try{ j = await res.json(); }catch(e){} msg = (j && j.error && (j.error.message || j.error)) || ("HTTP " + res.status); } }
     if(!res.ok) throw new Error(msg);
   }
-  let text = "", cost = 0, usage = null;
+  let text = "", cost = 0, usage = null, finish = "", think = false;
   if(!body.stream){
     const j = await res.json();
     if(j.error) throw new Error(j.error.message || "Erreur du fournisseur");
     text = j.choices?.[0]?.message?.content || ""; usage = j.usage || null;
+    finish = j.choices?.[0]?.finish_reason || ""; think = !!(j.choices?.[0]?.message?.reasoning || j.choices?.[0]?.message?.reasoning_content);
   } else {
     const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = "";
     while(true){
@@ -1221,7 +1227,9 @@ async function callModel0(messages, opts = {}){
         const data = line.slice(5).trim(); if(data === "[DONE]") continue;
         let j; try{ j = JSON.parse(data); }catch(e){ continue; }
         if(j.error) throw new Error(j.error.message || "Erreur du fournisseur");
-        const delta = j.choices?.[0]?.delta?.content;
+        const ch = j.choices?.[0], delta = ch?.delta?.content;
+        if(ch?.finish_reason) finish = ch.finish_reason;
+        if(!think && (ch?.delta?.reasoning || ch?.delta?.reasoning_content || ch?.delta?.reasoning_details?.length)){ think = true; opts.onThink?.(); }
         if(delta){ text += delta; opts.onDelta?.(delta); }
         if(j.usage) usage = j.usage;
       }
@@ -1230,7 +1238,13 @@ async function callModel0(messages, opts = {}){
   if(usage?.cost != null) cost = Number(usage.cost);
   const ptd = usage?.prompt_tokens_details; if(!opts.plain && usage?.prompt_tokens) lastCache = Math.round(100 * (Number(ptd?.cached_tokens) || 0) / usage.prompt_tokens);
   addCost(cost, body.model);
-  return { text: text.replace(/<think>[\s\S]*?<\/think>/g, ""), cost, usage };
+  const clean = text.replace(/<think>[\s\S]*?<\/think>/g, "");
+  // rien d'écrit : le modèle a tout dépensé à réfléchir → on le note et on réessaie avec un budget de réflexion
+  if(!clean.trim() && !opts.signal?.aborted && (think || finish === "length" || Number(usage?.completion_tokens_details?.reasoning_tokens) > 0)){
+    if(!opts._thinkRetry && !THINKERS[body.model]){ THINKERS[body.model] = 1; LS.set("lan.thinkers", THINKERS); opts.onThink?.(); return callModel0(messages, Object.assign({}, opts, { _thinkRetry: true })); }
+    throw new Error(L("le modèle a réfléchi sans rien écrire. Réessaie, ou augmente la longueur de réponse dans Réglages → Génération.", "the model thought without writing anything. Retry, or raise the response length in Settings → Generation."));
+  }
+  return { text: clean, cost, usage };
 }
 /* Tâches de fond (résumé, souvenirs, cartes, esprits) : modèle économique au choix, par défaut DeepSeek V4 Flash */
 let bgResolved = null;
@@ -1908,7 +1922,7 @@ async function generate(input, opts = {}){
       while(true){
         let started = false, cut = false, partial = "";
         try{
-          r = await callModel(attempt ? withRepeatNote(msgs0) : msgs0, { signal, ...(safe ? { temperature: Math.min(0.75, settings.temperature), top_p: 0.9, plain: true } : {}), onDelta: delta => {
+          r = await callModel(attempt ? withRepeatNote(msgs0) : msgs0, { signal, ...(safe ? { temperature: Math.min(0.75, settings.temperature), top_p: 0.9, plain: true } : {}), onThink: () => { if(!started) ph.setStatus(L("🧠 le modèle réfléchit…", "🧠 the model is thinking…")); }, onDelta: delta => {
             partial += delta;
             if(mpLiveTap) mpLiveTap(partial);
             if(cut) return;

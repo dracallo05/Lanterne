@@ -925,6 +925,7 @@ const CHANGELOG = [
       "Une fine ligne dans la marge montre où commence la dernière réponse, pour ne pas se perdre dans la lecture",
       "Cartes intelligentes : une carte trop longue est coupée à la fin d'une phrase, plus jamais au milieu d'un mot. Les étiquettes de relation ne chevauchent plus le texte",
       "Modèles qui réfléchissent même quand on le leur interdit (certains GLM) : au lieu de ne rien écrire, Lanterne s'en rend compte, leur laisse un budget de réflexion et affiche « le modèle réfléchit… »",
+      "Prix par tour plus réaliste dans le choix du modèle : il tient compte du cache, qui rend la plus grande partie du contexte beaucoup moins chère",
       "Écho : un personnage peut encore reprendre ta réplique de temps en temps (surprise, choc…), mais s'il le fait à répétition (« Tu es belle… ? »), la réponse est refaite toute seule"],
     en: [
       "Prototype: play together! In an adventure, “Together” tab: create the game and send the invite link to your friends",
@@ -940,6 +941,7 @@ const CHANGELOG = [
       "A thin line in the margin shows where the latest answer starts, so you don't get lost while reading",
       "Smart cards: a card that's too long is cut at the end of a sentence, never mid-word. Relationship tags no longer overlap the text",
       "Models that think even when told not to (some GLM): instead of writing nothing, Lanterne notices, gives them a thinking budget and shows “the model is thinking…”",
+      "More realistic per-turn price in the model picker: it accounts for the cache, which makes most of the context much cheaper",
       "Echo: a character can still repeat your line now and then (surprise, shock…), but if it becomes a habit (“Beautiful…?”), the answer is redone automatically"] },
   { v: "8", fr: [
       "Mémoire longue : l'histoire est rangée en petits souvenirs, et à chaque tour l'IA retrouve ceux qui ont un rapport avec la scène, même des centaines de tours plus tard",
@@ -4687,7 +4689,10 @@ function badge(id){
 function turnCost(m){
   const pin = Number(m.pricing?.prompt), pout = Number(m.pricing?.completion);
   if(!(pin >= 0) || !(pout >= 0) || m.pricing == null) return null;
-  return pin * settings.contextTokens + pout * settings.max_tokens * 0.8;
+  // estimation réaliste : d'un tour à l'autre, l'essentiel du contexte est relu depuis le cache (beaucoup moins cher)
+  const cr = Number(m.pricing?.input_cache_read);
+  const inCost = cr >= 0 && cr < pin ? settings.contextTokens * (0.75 * cr + 0.25 * pin) : pin * settings.contextTokens;
+  return inCost + pout * settings.max_tokens * 0.8;
 }
 function modelRow(m, desc, onPick, pop, tags){
   const b = el("button", "mdl" + (m.id === settings.model ? " on" : ""));

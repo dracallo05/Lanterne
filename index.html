@@ -924,7 +924,7 @@ const CHANGELOG = [
       "Si un modèle part en « soupe de mots » (mots tronqués à la chaîne), la réponse est refaite toute seule avec des réglages plus sages",
       "Une fine ligne dans la marge montre où commence la dernière réponse, pour ne pas se perdre dans la lecture",
       "Cartes intelligentes : une carte trop longue est coupée à la fin d'une phrase, plus jamais au milieu d'un mot. Les étiquettes de relation ne chevauchent plus le texte",
-      "Modèles qui réfléchissent même quand on le leur interdit (certains GLM) : au lieu de ne rien écrire, Lanterne s'en rend compte, leur laisse un budget de réflexion et affiche « le modèle réfléchit… »",
+      "Modèles qui réfléchissent même quand on le leur interdit (certains GLM) : au lieu de ne rien écrire, Lanterne s'en rend compte, leur laisse un budget de réflexion et affiche « le modèle réfléchit… ». Leur réponse respecte quand même ta longueur de réponse",
       "Prix par tour plus réaliste dans le choix du modèle : il tient compte du cache, qui rend la plus grande partie du contexte beaucoup moins chère",
       "Écho : un personnage peut encore reprendre ta réplique de temps en temps (surprise, choc…), mais s'il le fait à répétition (« Tu es belle… ? »), la réponse est refaite toute seule"],
     en: [
@@ -940,7 +940,7 @@ const CHANGELOG = [
       "If a model turns into “word soup” (strings of truncated words), the answer is redone automatically with calmer settings",
       "A thin line in the margin shows where the latest answer starts, so you don't get lost while reading",
       "Smart cards: a card that's too long is cut at the end of a sentence, never mid-word. Relationship tags no longer overlap the text",
-      "Models that think even when told not to (some GLM): instead of writing nothing, Lanterne notices, gives them a thinking budget and shows “the model is thinking…”",
+      "Models that think even when told not to (some GLM): instead of writing nothing, Lanterne notices, gives them a thinking budget and shows “the model is thinking…”. Their answer still respects your response length",
       "More realistic per-turn price in the model picker: it accounts for the cache, which makes most of the context much cheaper",
       "Echo: a character can still repeat your line now and then (surprise, shock…), but if it becomes a habit (“Beautiful…?”), the answer is redone automatically"] },
   { v: "8", fr: [
@@ -1971,6 +1971,8 @@ async function generate(input, opts = {}){
       if(safe && isGibberish(r.text)) throw new Error(L("le modèle déraille encore (soupe de mots). Remets les réglages avancés par défaut (Réglages → IA), ou change de modèle.", "the model is still garbling (word soup). Reset the advanced settings to default (Settings → AI), or switch models."));
       const ex = extractRpg(r.text);
       final = cleanOutput(ex.text);
+      // réponse bien plus longue que demandé (modèle avec budget de réflexion, ou fournisseur qui ignore la limite) : on recoupe à une fin de phrase
+      if(final && estTok(final) > settings.max_tokens * (THINKERS[(settings.model || "").trim()] ? 1.2 : 1.4)) final = cutClean(final, Math.round(settings.max_tokens * 4.2));
       if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
     } else {
       if(input){

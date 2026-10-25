@@ -289,6 +289,8 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .wait i{width:6px;height:6px;border-radius:50%;background:var(--tx3);animation:wt 1.4s ease-in-out infinite}
 .wait i:nth-child(2){animation-delay:.2s}.wait i:nth-child(3){animation-delay:.4s}
 @keyframes wt{0%,100%{opacity:.25}50%{opacity:.8}}
+.spin{display:inline-block;width:17px;height:17px;border:2px solid color-mix(in srgb,var(--tx3) 35%,transparent);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin:4px 0}
+@keyframes spin{to{transform:rotate(360deg)}}
 .wstat{font-family:var(--sans);font-size:13px;color:var(--tx3);margin-left:10px;vertical-align:middle}
 .err{color:var(--err);font-family:var(--sans);font-size:14px;padding:8px 0}
 .meta{color:var(--tx3);font-size:12px;font-family:var(--sans);text-align:center;padding:6px 0 0;font-variant-numeric:tabular-nums}
@@ -553,7 +555,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", providerIgnore: ["alibaba"], showCosts: false
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", providerIgnore: ["alibaba"], showCosts: false, liveText: false, fastProvider: false, echoRetry: true
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -909,8 +911,16 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.1";
+const APP_VERSION = "8.2";
 const CHANGELOG = [
+  { v: "8.2", fr: [
+      "Roue de chargement : la réponse apparaît d'un coup une fois finie et nettoyée, au lieu d'un texte qui s'écrit puis se modifie ou s'efface. Le texte en direct reste disponible (Réglages → IA)",
+      "Plus rapide : nouvelle option « Priorité à la vitesse » (OpenRouter prend le fournisseur le plus rapide), recherche dans les souvenirs plus courte, et en multi la vérification des persos joueurs se fait en même temps que les esprits",
+      "Écho : les personnages reçoivent à chaque réplique un rappel de répondre avec leurs mots, la détection est moins pointilleuse sur les longues répliques, et la relance peut se couper (Réglages → IA)"],
+    en: [
+      "Loading wheel: the reply appears at once, finished and cleaned up, instead of text that streams in and then changes or disappears. Live text is still available (Settings → AI)",
+      "Faster: new \"Speed priority\" option (OpenRouter picks the fastest provider), shorter memory lookup, and in multiplayer the player-character check runs alongside the minds",
+      "Echo: characters get a reminder on each line to answer in their own words, detection is less picky on long lines, and the retry can be turned off (Settings → AI)"] },
   { v: "8.1", fr: [
       "Prototype : jouer à plusieurs ! Dans une aventure, onglet « À plusieurs » : tu crées la partie et tu envoies le lien d'invitation à tes amis",
       "Chacun crée son personnage et joue depuis son téléphone. Tout se passe dans la partie de l'hôte, avec sa clé, et il garde tous les droits (Guide, Histoire, Réessayer, Annuler…)",
@@ -1176,6 +1186,7 @@ async function callModel(messages, opts = {}){
   }
 }
 const THINKERS = LS.get("lan.thinkers", {});
+const SPIN = `<span class="spin"></span><span class="wstat"></span>`;
 async function callModel0(messages, opts = {}){
   if(!settings.apiKey) throw new Error("Ajoute ta clé API dans les réglages");
   const { url, or } = apiConf();
@@ -1195,6 +1206,8 @@ async function callModel0(messages, opts = {}){
     }
     const ign = opts._noIgnore ? [] : (settings.providerIgnore ?? ["alibaba"]);
     if(ign.length) body.provider = Object.assign(body.provider || {}, { ignore: ign });
+    // priorité à la vitesse : OpenRouter choisit le fournisseur le plus rapide plutôt que le moins cher
+    if(settings.fastProvider) body.provider = Object.assign(body.provider || {}, { sort: "throughput" });
     if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
     // modèles qui réfléchissent même quand on le leur interdit (certains GLM…) : on leur laisse un budget de réflexion en plus
     if(THINKERS[body.model]){ body.reasoning = { max_tokens: 1024, exclude: true }; body.max_tokens = (body.max_tokens || 300) + 1024; }
@@ -1614,7 +1627,7 @@ function renderStory(scroll){
   const m = el("div", "meta");
   if(!costsOn()) m.textContent = ""; else m.textContent = (lastCost != null ? "ce tour : " + money(lastCost) + (lastCache ? ` (${L("cache", "cache")} ${lastCache} %)` : "") + " · " : "") + "aventure : " + money(adv.spent || 0);
   s.appendChild(m);
-  if(adv.multi && mp.liveText[adv.multi.view] && mp.busySid === adv.multi.view && adv.multi.active !== adv.multi.view){ const lv = el("div", "act ai live"); lv.textContent = mp.liveText[adv.multi.view]; s.insertBefore(lv, m); }
+  if(adv.multi && mp.liveText[adv.multi.view] && mp.busySid === adv.multi.view && adv.multi.active !== adv.multi.view){ const lv = el("div", "act ai" + (settings.liveText ? " live" : "")); if(settings.liveText) lv.textContent = mp.liveText[adv.multi.view]; else { lv.innerHTML = SPIN; lv.querySelector(".wstat").textContent = L("✍️ écriture…", "✍️ writing…"); } s.insertBefore(lv, m); }
   updateTools(); refreshSmartBar(); mpUI();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
 }
@@ -1897,7 +1910,7 @@ async function runHook(hook, text, extraInfo = {}){
 /* ================= Generation ================= */
 function stopGen(){ if(generating){ generating.abort(); generating = null; } }
 function placeholder(){
-  const d = el("div", "act ai", `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`);
+  const d = el("div", "act ai", SPIN);
   if(adv?.multi && adv.multi.active !== adv.multi.view) return { el: d, setStatus: () => {} };
   const s = $("#story"); s.insertBefore(d, s.querySelector(".meta"));
   s.querySelector(".empty")?.remove();
@@ -1921,12 +1934,13 @@ async function generate(input, opts = {}){
       if(guide) ph.setStatus("🧭 guidé");
       const view = $("#storyView");
       await prepareRecall(signal, playerText || guide);
-      const msgs0 = buildMessages(guide);
+      const saidText0 = input && (input.kind === "say" || (input.kind === "do" && /["«“]/.test(input.raw))) ? input.raw : "";
+      const msgs0 = saidText0 ? withSayNote(buildMessages(guide)) : buildMessages(guide);
       let r, attempt = 0, modRetry = false, safe = false, echoTry = false;
-      const saidText = input && (input.kind === "say" || (input.kind === "do" && /["«“]/.test(input.raw))) ? input.raw : "";
+      const saidText = settings.echoRetry !== false ? saidText0 : "";
       lastCost = 0; lastCache = null;
       while(true){
-        let started = false, cut = false, partial = "";
+        let started = false, cut = false, partial = "", wc = 0;
         try{
           const m0 = echoTry ? withEchoNote(msgs0) : msgs0;
           r = await callModel(attempt ? withRepeatNote(m0) : m0, { signal, ...(safe ? { temperature: Math.min(0.75, settings.temperature), top_p: 0.9, plain: true } : {}), onThink: () => { if(!started) ph.setStatus(L("🧠 le modèle réfléchit…", "🧠 the model is thinking…")); }, onDelta: delta => {
@@ -1935,6 +1949,13 @@ async function generate(input, opts = {}){
             if(cut) return;
             const mi = partial.search(/⟦|\[\[/);
             if(mi >= 0){ cut = true; const keep = delta.length - (partial.length - mi); delta = keep > 0 ? delta.slice(0, keep) : ""; if(!delta) return; }
+            if(!settings.liveText){
+              // roue de chargement : le texte n'apparaît qu'une fois fini et nettoyé
+              if(!started){ started = true; ph.setStatus(L("✍️ écriture…", "✍️ writing…")); }
+              const n = (partial.match(/\S+/g) || []).length;
+              if(n - wc >= 15){ wc = n; ph.setStatus(L(`✍️ écriture… ${n} mots`, `✍️ writing… ${n} words`)); }
+              return;
+            }
             if(!started){ delta = delta.replace(/^\s+/, ""); if(!delta) return; started = true; ph.el.innerHTML = ""; }
             const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
             const sp = el("span", "fi"); sp.textContent = delta; ph.el.appendChild(sp);
@@ -1942,13 +1963,13 @@ async function generate(input, opts = {}){
           } });
         }catch(e){
           if(e.name === "AbortError") r = { text: partial, cost: 0 };
-          else if(e.mod && !modRetry){ modRetry = true; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`; ph.setStatus(L("Fournisseur trop filtré, changement…", "Provider too filtered, switching…")); continue; }
+          else if(e.mod && !modRetry){ modRetry = true; ph.el.innerHTML = SPIN; ph.setStatus(L("Fournisseur trop filtré, changement…", "Provider too filtered, switching…")); continue; }
           else throw e;
         }
         lastCost += r.cost || 0;
         if(!safe && !signal.aborted && isGibberish(r.text)){
           // texte incohérent (mots tronqués, plus aucun petit mot) : réglages trop poussés ou fournisseur défaillant → on refait en mode sage
-          safe = true; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`;
+          safe = true; ph.el.innerHTML = SPIN;
           ph.setStatus(L("Texte incohérent, nouvelle version plus sage…", "Garbled text, trying a calmer version…"));
           toast(L("Le modèle a produit un texte incohérent : nouvelle version avec des réglages plus sages", "The model produced garbled text: retrying with calmer settings"));
           continue;
@@ -1956,14 +1977,14 @@ async function generate(input, opts = {}){
         // un écho de temps en temps, c'est naturel ; on ne refait la réponse que si ça devient une habitude (moins de 4 tours depuis le dernier)
         const aiN = adv.actions.filter(x => x.type === "ai" && !x.hidden).length;
         const echoed = !echoTry && saidText && !signal.aborted && isEcho(extractRpg(r.text).text, saidText);
-        if(echoed && aiN - (adv.lastEcho ?? -99) >= 4){ adv.lastEcho = aiN; }
+        if(echoed && aiN - (adv.lastEcho ?? -99) >= 3){ adv.lastEcho = aiN; }
         else if(echoed){
-          echoTry = true; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`;
+          echoTry = true; ph.el.innerHTML = SPIN;
           ph.setStatus(L("Le personnage répétait ta réplique, nouvelle version…", "The character was echoing your line, new version…"));
           continue;
         }
         if(!attempt && adv.scripts.ar && adv.scripts.arRetry !== false && !signal.aborted && isRepeat(extractRpg(r.text).text)){
-          attempt = 1; ph.el.innerHTML = `<span class="wait"><i></i><i></i><i></i></span><span class="wstat"></span>`; ph.setStatus("Répétition détectée, nouvelle version…");
+          attempt = 1; ph.el.innerHTML = SPIN; ph.setStatus("Répétition détectée, nouvelle version…");
           continue;
         }
         break;
@@ -2018,7 +2039,7 @@ async function generate(input, opts = {}){
   generating = null;
   saveAdv();
   renderStory(false);
-  if(final && scriptsOn()){
+  if(final && (scriptsOn() || !settings.liveText)){
     const last = [...$("#story").querySelectorAll(".act.ai")].pop();
     if(last) last.classList.add("fi");
   }
@@ -2133,7 +2154,7 @@ async function prepareRecall(signal, extra){
   const q = texts.join("\u0000");
   let qv = recall.id === a.id && recall.q === q ? recall.qv : null;
   const canVec = a.mem.model === (settings.memModel || "").trim() && a.mem.items.some(it => it.e);
-  if(!qv && canVec){ try{ qv = await withTimeout(embed(texts, signal), 5000); }catch(e){ console.warn("recall embed", e.message); } }
+  if(!qv && canVec){ try{ qv = await withTimeout(embed(texts, signal), 2500); }catch(e){ console.warn("recall embed", e.message); } }
   const items = a.mem.items, lexS = lexScores(items, qScene), lexA = lexScores(items, qIn || qAct);
   const qs = qv ? qv.map(unpackVec) : null;
   // deux classements : ce que le joueur fait (prioritaire) et la scène en cours, puis on les entrelace
@@ -2415,6 +2436,8 @@ function cleanOutput(t){
   t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s+/, "").replace(/\s+$/, "");
   const m = t.match(/^[\s\S]*[.!?…"”»*)\]`]/);
   if(m && m[0].length > t.length * 0.6) t = m[0];
+  // guillemet ouvrant resté seul à la fin (réponse coupée juste avant une réplique)
+  t = t.replace(/\s+["“«]\s*$/, "").replace(/\s+$/, "");
   return t;
 }
 function submit(){
@@ -2632,10 +2655,11 @@ function isRepeat(text){
 function isEcho(out, said){
   const words = t => (String(t || "").toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).flatMap(x => x.split("'")).filter(Boolean);
   const w = words(said); if(w.length < 3) return false;
+  const n = w.length >= 7 ? 4 : 3; // longue réplique : il faut 4 mots repris d'affilée, pas 3
   const lines = String(out || "").match(/«[^»]*»|“[^”]*”|"[^"]*"|(^|\n)\s*[—–-][^\n]*/g) || [];
   const dlg = " " + words(lines.join(" ")).join(" ") + " ";
-  for(let i = 0; i + 3 <= w.length; i++){
-    const g = w.slice(i, i + 3); if(g.every(x => GLUE.has(x))) continue;
+  for(let i = 0; i + n <= w.length; i++){
+    const g = w.slice(i, i + n); if(g.filter(x => !GLUE.has(x)).length < (n > 3 ? 2 : 1)) continue;
     if(dlg.includes(" " + g.join(" ") + " ")) return true;
   }
   return false;
@@ -2643,6 +2667,11 @@ function isEcho(out, said){
 function withEchoNote(msgs){
   const m = msgs.map(x => Object.assign({}, x)); const last = m[m.length - 1];
   last.content += "\n\n[Your previous attempt had a character repeat the player's own words back. Do not echo or quote what the player just said: answer its meaning, in the character's own words.]";
+  return m;
+}
+function withSayNote(msgs){
+  const m = msgs.map(x => Object.assign({}, x)); const last = m[m.length - 1];
+  last.content += "\n\n[The characters react to what the player just said in their own words; they don't repeat it back.]";
   return m;
 }
 function withRepeatNote(msgs){
@@ -4867,6 +4896,9 @@ function openSettings(start){
         field(body, "Modèle", settings.model, v => { settings.model = v; saveSettings(); }, { placeholder: "deepseek-chat", hint: "L'identifiant du modèle chez ce fournisseur." });
       }
       settingToggle(body, "Désactiver le raisonnement", "Plus rapide et moins cher pour la narration. Désactive si un modèle refuse.", "noReasoning");
+      settingToggle(body, "Texte en direct", "Le texte s'affiche pendant que l'IA l'écrit. Désactivé : une roue de chargement, puis la réponse finie et déjà nettoyée d'un coup.", "liveText");
+      if(isOR()) settingToggle(body, "Priorité à la vitesse", "OpenRouter choisit le fournisseur le plus rapide pour ce modèle plutôt que le moins cher. Réponses plus rapides, parfois un peu plus chères.", "fastProvider");
+      settingToggle(body, "Relancer si un perso répète ta réplique", "Si un personnage reprend tes mots plusieurs tours de suite, la réponse est refaite. Désactive pour plus de rapidité si ça arrive souvent.", "echoRetry");
       if(isOR()){
         settingToggle(body, "Exiger le support des réglages", "Seuls les fournisseurs qui respectent top K, min P, etc. sont utilisés.", "requireParams");
         btn(body, "Tester la connexion", "ghost", testKey);
@@ -5406,11 +5438,11 @@ async function mpProcess(){
       else if(job.kind === "undo"){ undoLast(); }
       else res = await generate(null); // cont ou pass seul
       mpLiveTap = null;
+      // le narrateur a-t-il fait parler ou agir un perso joueur ? (vérifié en même temps que les esprits/cartes, pas après : un tour plus rapide)
+      const pchk = res?.finalAction && !res.errMsg ? mpPuppetCheck(res.finalAction.text, S.members.filter(p => !(job.kind === "auto" && p === job.pid)).map(charOfPid)) : null;
       if(res?.bg) await res.bg;
-      // le narrateur a-t-il fait parler ou agir un perso joueur ?
-      if(res?.finalAction && !res.errMsg){
-        const names = S.members.filter(p => !(job.kind === "auto" && p === job.pid)).map(charOfPid);
-        const who = await mpPuppetCheck(res.finalAction.text, names);
+      if(pchk){
+        const who = await pchk;
         if(who.length && a.actions[a.actions.length - 1] === res.finalAction){
           a.actions.pop(); rollbackMinds(a, a.actions.length);
           mpLiveTap = partial => { mp.liveText[S.id] = cleanOutput(partial); };
@@ -5720,7 +5752,7 @@ function renderRoom(scroll){
   const newest = list.length > 1 && room.busy !== room.view ? [...list].reverse().find(a => a.type === "ai") : null;
   list.forEach(a => { const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : "")); d.textContent = a.text; s.appendChild(d); });
   const live = room.live[room.view];
-  if(room.busy === room.view){ const d = el("div", "act ai" + (live ? " live" : "")); if(live) d.textContent = live; else d.innerHTML = `<span class="wait"><i></i><i></i><i></i></span>`; s.appendChild(d); }
+  if(room.busy === room.view){ const d = el("div", "act ai" + (live && settings.liveText ? " live" : "")); if(live && settings.liveText) d.textContent = live; else { d.innerHTML = SPIN; d.querySelector(".wstat").textContent = live ? L("✍️ écriture…", "✍️ writing…") : ""; } s.appendChild(d); }
   if(!list.length && room.busy !== room.view) s.appendChild(el("div", "empty", `<span style="font-family:var(--sans)">${room.players.some(p => p.id === room.me) ? L("La partie commence…", "The game is starting…") : L("Connexion à la partie…", "Connecting to the game…")}</span>`));
   s.appendChild(el("div", "meta", ""));
   guestBar();

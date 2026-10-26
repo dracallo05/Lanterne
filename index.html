@@ -916,11 +916,13 @@ const CHANGELOG = [
   { v: "8.2", fr: [
       "Roue de chargement : la réponse apparaît d'un coup une fois finie et nettoyée, au lieu d'un texte qui s'écrit puis se modifie ou s'efface. Le texte en direct reste disponible (Réglages → IA)",
       "Plus rapide : nouvelle option « Priorité à la vitesse » (OpenRouter prend le fournisseur le plus rapide), recherche dans les souvenirs plus courte, et en multi la vérification des persos joueurs se fait en même temps que les esprits",
-      "Écho : les personnages reçoivent à chaque réplique un rappel de répondre avec leurs mots, la détection est moins pointilleuse sur les longues répliques, et la relance peut se couper (Réglages → IA)"],
+      "Écho : les personnages reçoivent à chaque réplique un rappel de répondre avec leurs mots, la détection est moins pointilleuse sur les longues répliques, et la relance peut se couper (Réglages → IA)",
+      "Correctif : la fiche de perso ne reprend plus des champs que le scénario ne demande pas (la personnalité d'un perso d'une autre aventure ne s'invite plus)"],
     en: [
       "Loading wheel: the reply appears at once, finished and cleaned up, instead of text that streams in and then changes or disappears. Live text is still available (Settings → AI)",
       "Faster: new \"Speed priority\" option (OpenRouter picks the fastest provider), shorter memory lookup, and in multiplayer the player-character check runs alongside the minds",
-      "Echo: characters get a reminder on each line to answer in their own words, detection is less picky on long lines, and the retry can be turned off (Settings → AI)"] },
+      "Echo: characters get a reminder on each line to answer in their own words, detection is less picky on long lines, and the retry can be turned off (Settings → AI)",
+      "Fix: the character sheet no longer carries over fields the scenario doesn't ask for (a character's personality from another adventure no longer sneaks in)"] },
   { v: "8.1", fr: [
       "Prototype : jouer à plusieurs ! Dans une aventure, onglet « À plusieurs » : tu crées la partie et tu envoies le lien d'invitation à tes amis",
       "Chacun crée son personnage et joue depuis son téléphone. Tout se passe dans la partie de l'hôte, avec sa clé, et il garde tous les droits (Guide, Histoire, Réessayer, Annuler…)",
@@ -3626,13 +3628,15 @@ function substChar(text, ch, ans){
 }
 const hasTags = t => /\$\{[^}]+\}|\{(nom|prénom|prenom|name|genre|gender|sexe|âge|age|apparence|appearance|personnalité|personnalite|personality|passé|passe|background|\d+)\}/i.test(t || "");
 function charBlock(ch, ans){
-  const lines = CHAR_FIELDS.filter(([f]) => ans[f]).map(([f, fr, en]) => `${L(fr, en)} : ${ans[f]}`);
+  const lines = CHAR_FIELDS.filter(([f]) => ans[f] && (ch.fields || []).includes(f)).map(([f, fr, en]) => `${L(fr, en)} : ${ans[f]}`);
   (ch.questions || []).forEach((q, i) => { if(ans.q?.[i]) lines.push(`${q.replace(/\s*\?$/, "")} : ${ans.q[i]}`); });
   return lines.length ? `${L("Ton personnage", "Your character")} —\n${lines.join("\n")}` : "";
 }
 function characterSheet(sc){
   const ch = sc.character || {};
-  const ans = Object.assign({ q: [] }, LS.get("lan.lastChar", {}), { q: [] });
+  // on ne pré-remplit que les champs demandés par ce scénario (sinon la personnalité d'un perso d'une autre aventure s'invite)
+  const last = LS.get("lan.lastChar", {});
+  const ans = Object.assign({ q: [] }, Object.fromEntries((ch.fields || []).filter(f => last[f]).map(f => [f, last[f]])));
   return new Promise(resolve => {
     let done = false;
     const render = (_, b) => {
@@ -3662,7 +3666,7 @@ function characterSheet(sc){
         }catch(e){ toast(L("Échec : ", "Failed: ") + e.message); ib.disabled = false; ib.textContent = L("✨ Inventer ce qui manque", "✨ Make up the rest"); }
       });
       ib.style.marginBottom = "14px";
-      btn(b, L("Commencer l'aventure", "Start the adventure"), "wide", () => { done = true; if(ans.gender === L("Autre", "Other") && ans.genderOther) ans.gender = ans.genderOther; LS.set("lan.lastChar", Object.fromEntries(CHAR_FIELDS.map(([f]) => [f, ans[f] || ""]))); closeSheet(); resolve(ans); });
+      btn(b, L("Commencer l'aventure", "Start the adventure"), "wide", () => { done = true; if(ans.gender === L("Autre", "Other") && ans.genderOther) ans.gender = ans.genderOther; LS.set("lan.lastChar", Object.assign({}, LS.get("lan.lastChar", {}), Object.fromEntries((ch.fields || []).map(f => [f, ans[f] || ""])))); closeSheet(); resolve(ans); });
     };
     openSheet(L("Ton personnage", "Your character"), null, render);
     const host = $("#sheetHost"); const obs = new MutationObserver(() => { if(!host.innerHTML && !done){ obs.disconnect(); resolve(null); } else if(done) obs.disconnect(); }); obs.observe(host, { childList: true });

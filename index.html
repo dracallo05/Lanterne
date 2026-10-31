@@ -502,6 +502,7 @@ Lines starting with ">" are the player's actions; a quoted line after ">" is som
 - Show, don't tell. Vary sentence rhythm. Avoid clichés, purple prose and repeating phrases from earlier in the story.
 - Write 1 to 3 paragraphs. No meta commentary, no headings, no options lists.
 - Write in the same language as the story.`;
+const POV_RULE = `[Point of view] In the narration, "you" always means the player character; lines starting with ">" are the player character's own actions and words. In dialogue, each character says "I/me/my" about themselves and "you/your" to the person they address: keep track of who said what and who owns what (body, tail, belongings, earlier lines).`;
 const ECHO_RULE = `[Dialogue] Characters should rarely repeat the player's words back (for example answering "You're beautiful" with "Beautiful…?"). Do it only when it is truly natural — shock, disbelief, a striking or outrageous line — and not as a habit; most of the time they react to the meaning, in their own words.`;
 const WORLD_RULE = `[World logic] Respect the player's freedom: plausible actions can succeed, even dark or violent ones; don't block them or moralize. But the world reacts naturally: witnesses respond (fight back, flee, call for help, grieve, get angry), strong characters may step in, and serious acts leave lasting consequences on relationships, reputation and the story. Dead characters stay dead.`;
 const SCRIPT_GLUE = `The user message contains the full story context. Continue the story text from exactly where it ends, without repeating it. If the context contains <SYSTEM> instructions, follow them exactly, including any required output format.`;
@@ -917,12 +918,14 @@ const CHANGELOG = [
       "Roue de chargement : la réponse apparaît d'un coup une fois finie et nettoyée, au lieu d'un texte qui s'écrit puis se modifie ou s'efface. Le texte en direct reste disponible (Réglages → IA)",
       "Plus rapide : nouvelle option « Priorité à la vitesse » (OpenRouter prend le fournisseur le plus rapide), recherche dans les souvenirs plus courte, et en multi la vérification des persos joueurs se fait en même temps que les esprits",
       "Écho : les personnages reçoivent à chaque réplique un rappel de répondre avec leurs mots, la détection est moins pointilleuse sur les longues répliques, et la relance peut se couper (Réglages → IA)",
-      "Correctif : la fiche de perso ne reprend plus des champs que le scénario ne demande pas (la personnalité d'un perso d'une autre aventure ne s'invite plus)"],
+      "Correctif : la fiche de perso ne reprend plus des champs que le scénario ne demande pas (la personnalité d'un perso d'une autre aventure ne s'invite plus)",
+      "Qui parle à qui : tes répliques sont envoyées comme « You say: … » / « Tu dis : … », et le narrateur a une règle claire sur « tu » et « je ». Il confond moins ce qui est à toi et ce qui est au personnage (« ta queue » au lieu de « ma queue »…)"],
     en: [
       "Loading wheel: the reply appears at once, finished and cleaned up, instead of text that streams in and then changes or disappears. Live text is still available (Settings → AI)",
       "Faster: new \"Speed priority\" option (OpenRouter picks the fastest provider), shorter memory lookup, and in multiplayer the player-character check runs alongside the minds",
       "Echo: characters get a reminder on each line to answer in their own words, detection is less picky on long lines, and the retry can be turned off (Settings → AI)",
-      "Fix: the character sheet no longer carries over fields the scenario doesn't ask for (a character's personality from another adventure no longer sneaks in)"] },
+      "Fix: the character sheet no longer carries over fields the scenario doesn't ask for (a character's personality from another adventure no longer sneaks in)",
+      "Who's talking: your lines are sent as \"You say: …\", and the narrator has a clear rule about \"you\" and \"I\". It mixes up less what is yours and what is the character's (\"your tail\" instead of \"my tail\"…)"] },
   { v: "8.1", fr: [
       "Prototype : jouer à plusieurs ! Dans une aventure, onglet « À plusieurs » : tu crées la partie et tu envoies le lien d'invitation à tes amis",
       "Chacun crée son personnage et joue depuis son téléphone. Tout se passe dans la partie de l'hôte, avec sa clé, et il garde tous les droits (Guide, Histoire, Réessayer, Annuler…)",
@@ -1681,15 +1684,25 @@ function editAction(a){
 }
 
 /* ================= Context building ================= */
+/* Langue de l'histoire (pas de l'interface) : on compte les petits mots anglais et français des derniers passages. */
+const EN_W = new Set("the and you your of to is was her his she he it in that with for on at but not are this".split(" "));
+const FR_W = new Set("le la les et tu ton ta tes de des du est était elle il un une que qui dans pour sur pas ce avec".split(" "));
+function storyEN(a = adv){
+  const t = (a?.actions || []).filter(x => x.type === "ai").slice(-3).map(x => x.text).join(" ") || a?.origin?.opening || a?.essentials || "";
+  let en = 0, fr = 0; (t.toLowerCase().match(/[a-zà-ÿ]+/g) || []).forEach(w => { if(EN_W.has(w)) en++; else if(FR_W.has(w)) fr++; });
+  return en + fr < 8 ? isEN() : en > fr;
+}
 function formatPlayer(type, text){
   text = text.trim();
   const who = adv?.multi?.active && mp.actor;
+  const en = storyEN(), q = text.replace(/^["“«]\s*|\s*["”»]$/g, "");
+  // la réplique dit clairement qui parle (« You say ») : sinon le modèle confond parfois qui a dit quoi, et « my » / « your »
   if(who){
     if(type === "auto") return `> ${who} : (laisse l'IA jouer ce tour)`;
-    if(type === "say") return `> ${who} : « ${text.replace(/^["“«]\s*|\s*["”»]$/g, "")} »`;
+    if(type === "say") return en ? `> ${who} says: "${q}"` : `> ${who} dit : « ${q} »`;
     if(type === "do") return `> ${who} : ${text}`;
   }
-  if(type === "say") return `> « ${text.replace(/^["“«]\s*|\s*["”»]$/g, "")} »`;
+  if(type === "say") return en ? `> You say: "${q}"` : `> Tu dis : « ${q} »`;
   if(type === "do") return "> " + text;
   return text;
 }
@@ -1756,7 +1769,7 @@ function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
   if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
-  const system = mpPov(adv, adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n" + ECHO_RULE + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
+  const system = mpPov(adv, adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n" + ECHO_RULE + (adv.multi ? "" : "\n" + POV_RULE) + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
   const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;

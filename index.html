@@ -917,13 +917,13 @@ const CHANGELOG = [
   { v: "8.2", fr: [
       "Roue de chargement : la réponse apparaît d'un coup une fois finie et nettoyée, au lieu d'un texte qui s'écrit puis se modifie ou s'efface. Le texte en direct reste disponible (Réglages → IA)",
       "Plus rapide : nouvelle option « Priorité à la vitesse » (OpenRouter prend le fournisseur le plus rapide), recherche dans les souvenirs plus courte, et en multi la vérification des persos joueurs se fait en même temps que les esprits",
-      "Écho : les personnages reçoivent à chaque réplique un rappel de ne pas reprendre tes mots, même un seul mot ou un surnom (« \"Princess,\" she echoes »). Ces échos courts sont maintenant repérés aussi, un écho n'est toléré qu'une fois tous les 5 tours, et la relance peut se couper (Réglages → IA)",
+      "Écho : les personnages reçoivent à chaque réplique un rappel de ne pas reprendre tes mots, même un seul mot ou un surnom (« \"Princess,\" she echoes »). Ces échos courts sont maintenant repérés aussi, un écho n'est toléré qu'une fois tous les 5 tours, et la relance peut se couper (Réglages → IA). Ça marche aussi quand tu fais Réessayer, où aucun écho n'est toléré",
       "Correctif : la fiche de perso ne reprend plus des champs que le scénario ne demande pas (la personnalité d'un perso d'une autre aventure ne s'invite plus)",
       "Qui parle à qui : tes répliques sont envoyées comme « You say: … » / « Tu dis : … », et le narrateur a une règle claire sur « tu » et « je ». Il confond moins ce qui est à toi et ce qui est au personnage (« ta queue » au lieu de « ma queue »…)"],
     en: [
       "Loading wheel: the reply appears at once, finished and cleaned up, instead of text that streams in and then changes or disappears. Live text is still available (Settings → AI)",
       "Faster: new \"Speed priority\" option (OpenRouter picks the fastest provider), shorter memory lookup, and in multiplayer the player-character check runs alongside the minds",
-      "Echo: characters get a reminder on each line not to repeat your words, not even a single word or nickname (\"Princess,\" she echoes). These short echoes are now caught too, an echo is only tolerated once every 5 turns, and the retry can be turned off (Settings → AI)",
+      "Echo: characters get a reminder on each line not to repeat your words, not even a single word or nickname (\"Princess,\" she echoes). These short echoes are now caught too, an echo is only tolerated once every 5 turns, and the retry can be turned off (Settings → AI). It also works when you press Retry, where no echo is tolerated",
       "Fix: the character sheet no longer carries over fields the scenario doesn't ask for (a character's personality from another adventure no longer sneaks in)",
       "Who's talking: your lines are sent as \"You say: …\", and the narrator has a clear rule about \"you\" and \"I\". It mixes up less what is yours and what is the character's (\"your tail\" instead of \"my tail\"…)"] },
   { v: "8.1", fr: [
@@ -1949,7 +1949,10 @@ async function generate(input, opts = {}){
       if(guide) ph.setStatus("🧭 guidé");
       const view = $("#storyView");
       await prepareRecall(signal, playerText || guide);
-      const saidText0 = input && (input.kind === "say" || (input.kind === "do" && /["«“]/.test(input.raw))) ? input.raw : "";
+      // Réessayer / Continuer n'ont pas d'« input » : on reprend la dernière réplique du joueur si c'est elle qui précède
+      const lp = !input ? adv.actions[adv.actions.length - 1] : null;
+      const saidText0 = input ? (input.kind === "say" || (input.kind === "do" && /["«“]/.test(input.raw)) ? input.raw : "")
+        : lp && lp.type === "player" && !lp.by && /["«“]/.test(lp.text || "") ? lp.text.replace(/^>\s*/, "").replace(/^(you say|tu dis)\s*:\s*/i, "") : "";
       const msgs0 = saidText0 ? withSayNote(buildMessages(guide)) : buildMessages(guide);
       let r, attempt = 0, modRetry = false, safe = false, echoTry = false;
       const saidText = settings.echoRetry !== false ? saidText0 : "";
@@ -1992,7 +1995,7 @@ async function generate(input, opts = {}){
         // un écho de temps en temps, c'est naturel ; on ne refait la réponse que si ça devient une habitude (moins de 4 tours depuis le dernier)
         const aiN = adv.actions.filter(x => x.type === "ai" && !x.hidden).length;
         const echoed = !echoTry && saidText && !signal.aborted && isEcho(extractRpg(r.text).text, saidText);
-        if(echoed && aiN - (adv.lastEcho ?? -99) >= 5){ adv.lastEcho = aiN; }
+        if(echoed && !opts.alts && aiN - (adv.lastEcho ?? -99) >= 5){ adv.lastEcho = aiN; } // sur un Réessayer, aucun écho toléré
         else if(echoed){
           echoTry = true; ph.el.innerHTML = SPIN;
           ph.setStatus(L("Le personnage répétait ta réplique, nouvelle version…", "The character was echoing your line, new version…"));

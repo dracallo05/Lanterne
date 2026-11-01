@@ -503,7 +503,7 @@ Lines starting with ">" are the player's actions; a quoted line after ">" is som
 - Write 1 to 3 paragraphs. No meta commentary, no headings, no options lists.
 - Write in the same language as the story.`;
 const POV_RULE = `[Point of view] In the narration, "you" always means the player character; lines starting with ">" are the player character's own actions and words. In dialogue, each character says "I/me/my" about themselves and "you/your" to the person they address: keep track of who said what and who owns what (body, tail, belongings, earlier lines).`;
-const ECHO_RULE = `[Dialogue] Characters should rarely repeat the player's words back (for example answering "You're beautiful" with "Beautiful…?"). Do it only when it is truly natural — shock, disbelief, a striking or outrageous line — and not as a habit; most of the time they react to the meaning, in their own words.`;
+const ECHO_RULE = `[Dialogue] Avoid the "echo" habit: characters do not repeat or quote the player's words back, not even a single word or nickname. Bad: "Princess," she echoes. / "Beautiful…?" / "Deal?" she repeats. Good: they react to the meaning, in their own words, with their own voice. A rare echo is acceptable only in genuine shock at an outrageous line.`;
 const WORLD_RULE = `[World logic] Respect the player's freedom: plausible actions can succeed, even dark or violent ones; don't block them or moralize. But the world reacts naturally: witnesses respond (fight back, flee, call for help, grieve, get angry), strong characters may step in, and serious acts leave lasting consequences on relationships, reputation and the story. Dead characters stay dead.`;
 const SCRIPT_GLUE = `The user message contains the full story context. Continue the story text from exactly where it ends, without repeating it. If the context contains <SYSTEM> instructions, follow them exactly, including any required output format.`;
 const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »</em>`;
@@ -917,13 +917,13 @@ const CHANGELOG = [
   { v: "8.2", fr: [
       "Roue de chargement : la réponse apparaît d'un coup une fois finie et nettoyée, au lieu d'un texte qui s'écrit puis se modifie ou s'efface. Le texte en direct reste disponible (Réglages → IA)",
       "Plus rapide : nouvelle option « Priorité à la vitesse » (OpenRouter prend le fournisseur le plus rapide), recherche dans les souvenirs plus courte, et en multi la vérification des persos joueurs se fait en même temps que les esprits",
-      "Écho : les personnages reçoivent à chaque réplique un rappel de répondre avec leurs mots, la détection est moins pointilleuse sur les longues répliques, et la relance peut se couper (Réglages → IA)",
+      "Écho : les personnages reçoivent à chaque réplique un rappel de ne pas reprendre tes mots, même un seul mot ou un surnom (« \"Princess,\" she echoes »). Ces échos courts sont maintenant repérés aussi, un écho n'est toléré qu'une fois tous les 5 tours, et la relance peut se couper (Réglages → IA)",
       "Correctif : la fiche de perso ne reprend plus des champs que le scénario ne demande pas (la personnalité d'un perso d'une autre aventure ne s'invite plus)",
       "Qui parle à qui : tes répliques sont envoyées comme « You say: … » / « Tu dis : … », et le narrateur a une règle claire sur « tu » et « je ». Il confond moins ce qui est à toi et ce qui est au personnage (« ta queue » au lieu de « ma queue »…)"],
     en: [
       "Loading wheel: the reply appears at once, finished and cleaned up, instead of text that streams in and then changes or disappears. Live text is still available (Settings → AI)",
       "Faster: new \"Speed priority\" option (OpenRouter picks the fastest provider), shorter memory lookup, and in multiplayer the player-character check runs alongside the minds",
-      "Echo: characters get a reminder on each line to answer in their own words, detection is less picky on long lines, and the retry can be turned off (Settings → AI)",
+      "Echo: characters get a reminder on each line not to repeat your words, not even a single word or nickname (\"Princess,\" she echoes). These short echoes are now caught too, an echo is only tolerated once every 5 turns, and the retry can be turned off (Settings → AI)",
       "Fix: the character sheet no longer carries over fields the scenario doesn't ask for (a character's personality from another adventure no longer sneaks in)",
       "Who's talking: your lines are sent as \"You say: …\", and the narrator has a clear rule about \"you\" and \"I\". It mixes up less what is yours and what is the character's (\"your tail\" instead of \"my tail\"…)"] },
   { v: "8.1", fr: [
@@ -1992,7 +1992,7 @@ async function generate(input, opts = {}){
         // un écho de temps en temps, c'est naturel ; on ne refait la réponse que si ça devient une habitude (moins de 4 tours depuis le dernier)
         const aiN = adv.actions.filter(x => x.type === "ai" && !x.hidden).length;
         const echoed = !echoTry && saidText && !signal.aborted && isEcho(extractRpg(r.text).text, saidText);
-        if(echoed && aiN - (adv.lastEcho ?? -99) >= 3){ adv.lastEcho = aiN; }
+        if(echoed && aiN - (adv.lastEcho ?? -99) >= 5){ adv.lastEcho = aiN; }
         else if(echoed){
           echoTry = true; ph.el.innerHTML = SPIN;
           ph.setStatus(L("Le personnage répétait ta réplique, nouvelle version…", "The character was echoing your line, new version…"));
@@ -2677,6 +2677,27 @@ function isEcho(out, said){
     const g = w.slice(i, i + n); if(g.filter(x => !GLUE.has(x)).length < (n > 3 ? 2 : 1)) continue;
     if(dlg.includes(" " + g.join(" ") + " ")) return true;
   }
+  return echoOpener(out, said);
+}
+/* Écho court : une réplique qui commence par un ou deux mots du joueur repris en question ou exclamation (« "Princess," she echoes », « "Deal?" »),
+   ou le narrateur qui écrit qu'un perso répète (echoes, repeats, répète…). */
+const ECHO_SKIP = new Set("hi hello hey yes yeah no nope ok okay sure thanks thank please sorry good fine right well oh ah salut bonjour bonsoir oui non merci pardon bien bon".split(" "));
+function echoOpener(out, said){
+  const words = t => (String(t || "").toLowerCase().match(/[\p{L}\p{N}']+/gu) || []);
+  const sw = new Set(words(said).filter(x => x.length >= 3 && !GLUE.has(x) && !ECHO_SKIP.has(x)));
+  if(!sw.size) return false;
+  const text = String(out || "");
+  const segs = text.match(/«[^»]*»|“[^”]*”|"[^"]*"/g) || [];
+  for(const seg of segs){
+    const inner = seg.slice(1, -1).trim();
+    const m = inner.match(/^([\p{L}\p{N}']+)(?:\s+([\p{L}\p{N}']+))?\s*([?!,…]|\.\.\.)/u);
+    if(!m) continue;
+    const head = [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase());
+    if(!head.some(x => sw.has(x))) continue;
+    // la réplique est juste l'écho (« Deal? ») ou le narrateur le dit (« she echoes »)
+    const after = text.slice(text.indexOf(seg) + seg.length, text.indexOf(seg) + seg.length + 40).toLowerCase();
+    if(words(inner).length <= 3 || /(?<!\p{L})(echo(es|ed|ing)?|repeat(s|ed|ing)?|parrot(s|ed|ing)?|répète|répéta|reprend)(?!\p{L})/u.test(after)) return true;
+  }
   return false;
 }
 function withEchoNote(msgs){
@@ -2686,7 +2707,7 @@ function withEchoNote(msgs){
 }
 function withSayNote(msgs){
   const m = msgs.map(x => Object.assign({}, x)); const last = m[m.length - 1];
-  last.content += "\n\n[The characters react to what the player just said in their own words; they don't repeat it back.]";
+  last.content += "\n\n[Reply to what the player just said without repeating or quoting any of their words, not even a single word or nickname: react to the meaning, in the characters' own words.]";
   return m;
 }
 function withRepeatNote(msgs){

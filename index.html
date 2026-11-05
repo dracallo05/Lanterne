@@ -253,7 +253,7 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .relb{position:relative;height:6px;border-radius:9px;background:var(--bg3)}
 .relb.c::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line)}
 .relb i{position:absolute;top:0;bottom:0;border-radius:9px}
-.relb i.trust{background:#7fc79a}.relb i.affection{background:#e8957a}.relb i.fear{background:#9fb3cc}.relb i.tension{background:var(--err)}
+.relb i.trust{background:#7fc79a}.relb i.affection{background:#e8957a}.relb i.desire{background:#d77bb0}.relb i.respect{background:#d9b867}.relb i.fear{background:#9fb3cc}.relb i.tension{background:var(--err)}
 .mrel{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--tx3);margin:6px 0 2px}
 .mrel b{color:var(--tx2);font-weight:600}
 .subopts{margin:-4px 0 10px 14px;padding-left:12px;border-left:2px solid var(--line)}
@@ -716,12 +716,15 @@ function migrate(a){
   if(a.style.custom == null) a.style.custom = a.style.theme !== DEFAULT_STYLE.theme || a.style.font !== DEFAULT_STYLE.font || a.style.size !== DEFAULT_STYLE.size;
   a.scripts = Object.assign(SCRIPT_DEF(), a.scripts || {});
   a.pending ||= []; a.scIgnore ||= []; a.arOff ||= []; a.arUser ??= ""; a.minds ||= {};
+  Object.values(a.minds).forEach(migMind);
   if(!a.origin && a.actions.some(x => x.type === "ai")) a.origin = originOf(a); // parties d'avant la 7.4 : on fige le départ tel qu'il est aujourd'hui
 
   a.scriptState ||= {};
   a.cards = a.cards.map(normalizeCard);
   return a;
 }
+/* Texte envoyé à l'IA : le contenu de la carte + ce que les cartes intelligentes ont ajouté (« Récemment »), sans jamais toucher au texte écrit à la main. */
+const cardText = c => String(c.entry || "").trim() + (visible(c.recent || "").trim() ? `\n${(typeof adv !== "undefined" && adv && storyEN(adv)) ? "Recently" : "Récemment"}: ${String(c.recent).trim()}` : "");
 function normalizeCard(c){
   return Object.assign(c, {
     id: c.id || uid(), title: c.title ?? "", keys: c.keys ?? "", entry: c.entry ?? "",
@@ -912,8 +915,20 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.2";
+const APP_VERSION = "8.3";
 const CHANGELOG = [
+  { v: "8.3", fr: [
+      "Mémoire des personnages : chacun garde un carnet de souvenirs marquants avec toi (aveux, promesses, premier baiser, disputes, conversations importantes), 10 au plus, les moins importants s'effacent en premier. Ils peuvent les ressortir au bon moment",
+      "« Entre vous » : surnoms, blagues, habitudes et promesses en cours sont suivis pour chaque personnage, et une étiquette résume votre relation (ex. « servante insolente », « complice »)",
+      "La relation passe à 6 axes : confiance, affection, attirance, respect, peur, tension, sur 10 au lieu de 5, pour ne plus plafonner en quelques scènes. Les parties en cours sont converties automatiquement",
+      "Fournisseur : nouveau choix dans Réglages → IA, équilibré (par défaut), toujours le moins cher ou toujours le plus rapide",
+      "Cartes intelligentes : elles ne réécrivent plus jamais les cartes que tu as écrites ou qui viennent du scénario. Les nouveautés vont dans une section « Récemment » sous ton texte, modifiable ou effaçable dans la carte"],
+    en: [
+      "Character memory: each character keeps a notebook of key moments with you (confessions, promises, first kiss, fights, important talks), up to 10, the least important fading first. They can bring them up at the right time",
+      "\"Between you\": nicknames, running jokes, habits and open promises are tracked per character, and a label sums up your relationship (e.g. \"bratty maid\", \"confidante\")",
+      "Relationships now have 6 axes: trust, affection, attraction, respect, fear, tension, out of 10 instead of 5, so they no longer max out in a few scenes. Ongoing games are converted automatically",
+      "Provider: new choice in Settings → AI, balanced (default), always the cheapest or always the fastest",
+      "Smart cards: they never rewrite cards you wrote or that come from the scenario anymore. New facts go in a \"Recently\" section below your text, which you can edit or clear in the card"] },
   { v: "8.2", fr: [
       "Roue de chargement : la réponse apparaît d'un coup une fois finie et nettoyée, au lieu d'un texte qui s'écrit puis se modifie ou s'efface. Le texte en direct reste disponible (Réglages → IA)",
       "Plus rapide : nouvelle option « Priorité à la vitesse » (OpenRouter prend le fournisseur le plus rapide), recherche dans les souvenirs plus courte, et en multi la vérification des persos joueurs se fait en même temps que les esprits",
@@ -1212,7 +1227,8 @@ async function callModel0(messages, opts = {}){
     const ign = opts._noIgnore ? [] : (settings.providerIgnore ?? ["alibaba"]);
     if(ign.length) body.provider = Object.assign(body.provider || {}, { ignore: ign });
     // priorité à la vitesse : OpenRouter choisit le fournisseur le plus rapide plutôt que le moins cher
-    if(settings.fastProvider) body.provider = Object.assign(body.provider || {}, { sort: "throughput" });
+    const psort = settings.providerSort ?? (settings.fastProvider ? "throughput" : "");
+    if(psort === "price" || psort === "throughput") body.provider = Object.assign(body.provider || {}, { sort: psort });
     if(settings.noReasoning) body.reasoning = { enabled: false, exclude: true };
     // modèles qui réfléchissent même quand on le leur interdit (certains GLM…) : on leur laisse un budget de réflexion en plus
     if(THINKERS[body.model]){ body.reasoning = { max_tokens: 1024, exclude: true }; body.max_tokens = (body.max_tokens || 300) + 1024; }
@@ -1721,7 +1737,7 @@ function triggeredCards(){
   hits.sort((x, y) => x.age - y.age);
   const cap = Math.round(settings.contextTokens * (settings.wiPct || 25) / 100);
   let used = 0; const out = [];
-  for(const { c } of hits){ const t = estTok(c.entry) + 6; if(out.length && used + t > cap) continue; used += t; out.push(c); }
+  for(const { c } of hits){ const t = estTok(cardText(c)) + 6; if(out.length && used + t > cap) continue; used += t; out.push(c); }
   return out;
 }
 /* Un mot-clé doit commencer un mot (« Cana » ne se déclenche pas sur « canaux ») ; les mots-clés courts (moins de 5 lettres) doivent être un mot entier. */
@@ -1757,7 +1773,7 @@ function stickyStart(a, budget, cost, dry){
 function dynBlock(a, startIdx, reserve){
   const cards = triggeredCards();
   return [
-    cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${c.entry.trim()}`).join("\n") : "",
+    cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${cardText(c)}`).join("\n") : "",
     memBlock(a, startIdx, reserve, false), mindBlock(a), rpgBlock(a), arNote(a), mpBlock(a)
   ].filter(Boolean).join("\n\n");
 }
@@ -1804,7 +1820,7 @@ function buildAIDContext(dry){
   const top = [];
   if(adv.essentials.trim()) top.push(adv.essentials.trim());
   const cards = triggeredCards();
-  if(cards.length) top.push("World Lore:\n" + cards.map(c => c.entry.trim()).join("\n\n"));
+  if(cards.length) top.push("World Lore:\n" + cards.map(c => cardText(c)).join("\n\n"));
   if(adv.summary.trim()) top.push("Story Summary:\n" + adv.summary.trim());
   const reserve = memReserve(adv);
   const head = top.join("\n\n");
@@ -1825,7 +1841,7 @@ function buildAIDContext(dry){
 function aidStart(dry, headLen){
   if(headLen == null){
     const cards = triggeredCards();
-    headLen = (adv.essentials || "").length + (adv.summary || "").length + cards.reduce((n, c) => n + c.entry.length + 2, 0) + (adv.authorsNote || "").length + 80 + Math.round(memReserve(adv) * 3.6);
+    headLen = (adv.essentials || "").length + (adv.summary || "").length + cards.reduce((n, c) => n + cardText(c).length + 2, 0) + (adv.authorsNote || "").length + 80 + Math.round(memReserve(adv) * 3.6);
   }
   return stickyStart(adv, ctxCharLimit() - headLen, x => x.text.trim().length + 2, dry);
 }
@@ -2505,7 +2521,10 @@ async function maybeSmartCards(force){
     const lim = settings.cardLimit;
     const story = acts.map(x => visible(x.text)).join("\n\n").slice(-12000);
     // cartes « canon » d'un scénario : protégées, envoyées en version courte (nom + mots-clés) pour économiser
-    const list = userCards(a).map(c => c.canon ? `[canon — never update or merge] ${cardName(c)} | keys: ${c.keys}` : `#${c.id} [${c.type}] ${cardName(c)} | keys: ${c.keys} | ${visible(c.entry).slice(0, 600)}`).join("\n") || "(none)";
+    // cartes écrites à la main (scénario ou joueur) : leur texte n'est jamais réécrit, seules les nouveautés vont dans « recent »
+    const list = userCards(a).map(c => c.canon ? `[canon — never update or merge] ${cardName(c)} | keys: ${c.keys}`
+      : c.auto ? `#${c.id} [${c.type}] ${cardName(c)} | keys: ${c.keys} | ${visible(c.entry).slice(0, 600)}`
+      : `#${c.id} [${c.type}] [author card — never rewrite its entry, only "recent"] ${cardName(c)} | keys: ${c.keys} | ${visible(c.entry).slice(0, 400)}${visible(c.recent || "") ? " | recent: " + visible(c.recent) : ""}`).join("\n") || "(none)";
     const pend = a.pending.map(p => p.title).filter(Boolean);
     const ignored = [...(a.scIgnore || []).slice(-40), ...pend].join(", ");
     const prompt =
@@ -2523,15 +2542,15 @@ ${story}
 
 Tasks:
 1. NEW — create a card only for a named or clearly important character, place, item, faction or concept that has NO card yet and is likely to matter again. Never for the player character ("you"), never for trivial or one-off things. If the "new" name belongs to an entity that already has a card under a description, epithet or placeholder (e.g. "the pink-eyed girl" is revealed to be "Séléna"), do NOT create a card: UPDATE the existing one and give it the real name in "title".
-2. UPDATE — when something meaningful changed for an existing card (new facts revealed, relationship change, injury, betrayal, new location, change of owner, death…), rewrite its FULL entry: keep the important old facts and integrate the new ones. Do not update for trivial details.
-3. MERGE — when two existing cards describe the same entity (nickname, alias, title, or a description used before the real name was known), merge them into one, titled with the real name.
+2. UPDATE — when something meaningful changed for an existing card (new facts revealed, relationship change, injury, betrayal, new location, change of owner, death…), rewrite its FULL entry: keep the important old facts and integrate the new ones. Do not update for trivial details. For an [author card], never rewrite "entry": return only "recent", the FULL updated list of recent developments that the entry doesn't say (max 300 characters, most important first, drop what is outdated).
+3. MERGE — never remove an [author card]. When two existing cards describe the same entity (nickname, alias, title, or a description used before the real name was known), merge them into one, titled with the real name.
 Do not propose anything about: ${ignored || "(nothing)"}
 Entry format by type (as short labelled sentences):
 ${Object.entries(isEN() ? CARD_FORMATS_EN : CARD_FORMATS).map(([k, v]) => "- " + k + ": " + v).join("\n")}
 Rules: factual, third person, present tense, written in the language of the story, each entry STRICTLY under ${Math.round(lim * 0.85)} characters — if there is too much to say, summarize; always end on a complete sentence. keys = comma-separated trigger words (name, nicknames, distinctive words — no common words). At most 4 new, 4 updates. If nothing is worth doing, return empty lists.
 Return ONLY JSON:
 {"new":[{"type":"personnage|lieu|objet|faction|concept|autre","title":"","keys":"","entry":""}],
- "update":[{"id":"card id without #","title":"only if the entity's real name is now known, else empty","entry":"full new entry","keys":"","why":"very short reason, in ${isEN() ? "English" : "French"}"}],
+ "update":[{"id":"card id without #","title":"only if the entity's real name is now known, else empty","entry":"full new entry (empty for an author card)","recent":"author cards only","keys":"","why":"very short reason, in ${isEN() ? "English" : "French"}"}],
  "merge":[{"keep":"card id","remove":["card id"],"title":"","entry":"merged entry","keys":""}]}`;
     const r = parseJSON(await complete(prompt, 3000, true));
     const ops = [];
@@ -2540,22 +2559,28 @@ Return ONLY JSON:
       if(!n || !visible(n.title) || !visible(n.entry)) return;
       if((a.scIgnore || []).some(t => sameName(t, n.title)) || a.pending.some(p => sameName(p.title, n.title))) return;
       const ex = userCards(a).find(c => sameName(cardName(c), n.title) || (c.keys || "").split(",").some(k => sameName(k, n.title)));
-      if(ex && ex.canon) return;
+      if(ex && (ex.canon || !ex.auto)) return; // la carte écrite à la main existe déjà : rien à créer ni à réécrire
       if(ex) ops.push({ op: "update", cardId: ex.id, title: cardName(ex), type: ex.type, entry: n.entry, keys: n.keys, why: "nouvelles informations" });
       else ops.push({ op: "new", title: visible(n.title), type: TYPES.includes(n.type) ? n.type : "autre", entry: n.entry, keys: n.keys || n.title });
     });
     (r.update || []).forEach(u => {
-      const c = u && byId(u.id); if(!c || c.canon || !visible(u.entry) || visible(u.entry) === visible(c.entry)) return;
+      const c = u && byId(u.id); if(!c || c.canon) return;
       const nt = visible(u.title || "").trim();
+      if(!c.auto){
+        const rc = cutClean(visible(u.recent || ""), 320); if(!rc || rc === visible(c.recent || "")) return;
+        ops.push(Object.assign({ op: "update", cardId: c.id, title: nt || cardName(c), type: c.type, recent: rc, keys: u.keys, why: u.why || "" }, nt && !sameName(nt, cardName(c)) ? { rename: nt } : {}));
+        return;
+      }
+      if(!visible(u.entry) || visible(u.entry) === visible(c.entry)) return;
       ops.push(Object.assign({ op: "update", cardId: c.id, title: nt || cardName(c), type: c.type, entry: u.entry, keys: u.keys, why: u.why || "" }, nt && !sameName(nt, cardName(c)) ? { rename: nt } : {}));
     });
     (r.merge || []).forEach(m => {
       const k = m && byId(m.keep); if(!k || k.canon) return;
-      const rm = (m.remove || []).map(byId).filter(c => c && c.id !== k.id && !c.canon);
+      const rm = (m.remove || []).map(byId).filter(c => c && c.id !== k.id && !c.canon && c.auto);
       if(!rm.length) return;
       ops.push({ op: "merge", cardId: k.id, removeIds: rm.map(c => c.id), removeNames: rm.map(cardName), title: visible(m.title) || cardName(k), type: k.type, entry: m.entry || k.entry, keys: m.keys || "" });
     });
-    ops.forEach(o => { o.id = uid(); o.entry = cutClean(visible(o.entry), lim); });
+    ops.forEach(o => { o.id = uid(); if(o.recent == null) o.entry = cutClean(visible(o.entry), lim); });
     a.scFrom = a.actions.length;
     if(a.scripts.scAuto){
       ops.forEach(o => applyCardOp(a, o));
@@ -2591,11 +2616,11 @@ function cutClean(t, lim){
 function applyCardOp(a, p){
   const lim = settings.cardLimit;
   if(p.op === "new") a.cards.push(normalizeCard({ id: uid(), title: p.title, type: p.type, keys: mergeKeys(p.title, p.keys || ""), entry: cutClean(p.entry, lim), auto: true, created: Date.now(), updated: Date.now() }));
-  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ c.entry = cutClean(p.entry, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); if(p.rename){ c.keys = mergeKeys(p.rename, c.keys, cardName(c)); c.title = p.rename; } c.updated = Date.now(); } }
+  else if(p.op === "update"){ const c = a.cards.find(x => x.id === p.cardId); if(c){ if(p.recent != null) c.recent = cutClean(p.recent, 320); else c.entry = cutClean(p.entry, lim); if(p.keys) c.keys = mergeKeys(c.keys, p.keys); if(p.rename){ c.keys = mergeKeys(p.rename, c.keys, cardName(c)); c.title = p.rename; } c.updated = Date.now(); } }
   else if(p.op === "merge"){
     const k = a.cards.find(x => x.id === p.cardId); if(!k) return;
     const rm = a.cards.filter(c => p.removeIds.includes(c.id));
-    k.title = p.title || k.title; k.entry = cutClean(p.entry, lim); k.keys = mergeKeys(k.keys, ...rm.map(c => c.keys), ...rm.map(cardName), p.keys);
+    k.title = p.title || k.title; if(k.auto) k.entry = cutClean(p.entry, lim); k.keys = mergeKeys(k.keys, ...rm.map(c => c.keys), ...rm.map(cardName), p.keys);
     a.cards = a.cards.filter(c => !p.removeIds.includes(c.id));
   }
 }
@@ -2616,7 +2641,8 @@ function openPending(){
       if(p.op === "merge") d.appendChild(el("div", "why", "Regroupe : " + esc([p.title, ...p.removeNames].join(" + "))));
       if(p.op === "update" && p.why) d.appendChild(el("div", "why", esc(p.why)));
       if(p.op === "update"){ const c = adv.cards.find(x => x.id === p.cardId); if(c){ const det = el("details", "", `<summary>Voir l'ancienne version</summary><div class="old">${esc(visible(c.entry))}</div>`); d.appendChild(det); } }
-      field(d, "Contenu", p.entry, v => p.entry = v, { multiline: true, rows: 5 });
+      if(p.recent != null) field(d, L("Récemment (ajouté sous le texte d'origine, qui ne change pas)", "Recently (added below the original text, which stays as is)"), p.recent, v => p.recent = v, { multiline: true, rows: 3 });
+      else field(d, "Contenu", p.entry, v => p.entry = v, { multiline: true, rows: 5 });
       const r = el("div", "row"); d.appendChild(r);
       btn(r, "Accepter", "small", () => { applyCardOp(adv, p); adv.pending = adv.pending.filter(x => x !== p); saveAdv(); render(_, b); }).style.flex = "1";
       btn(r, "Ignorer", "ghost small", () => { if(p.op === "new") adv.scIgnore.push(p.title); adv.pending = adv.pending.filter(x => x !== p); saveAdv(); render(_, b); }).style.flex = "1";
@@ -2788,9 +2814,30 @@ function openRpgSheet(){
 }
 
 /* ---- Esprit des personnages ---- */
-const REL = [["trust", "confiance", "trust", -5, 5], ["affection", "affection", "affection", -5, 5], ["fear", "peur", "fear", 0, 5], ["tension", "tension", "tension", 0, 5]];
+// Relation sur 6 axes, de −10 à +10 (ou 0 à 10) : on ne plafonne plus en quelques scènes. Les parties d'avant (−5…+5) sont converties.
+const REL = [["trust", "confiance", "trust", -10, 10], ["affection", "affection", "affection", -10, 10], ["desire", "attirance", "attraction", 0, 10], ["respect", "respect", "respect", -10, 10], ["fear", "peur", "fear", 0, 10], ["tension", "tension", "tension", 0, 10]];
+const REL0 = () => ({ trust: 0, affection: 0, desire: 0, respect: 0, fear: 0, tension: 0 });
+function migMind(m){
+  if(!m || m.relV === 2) return m;
+  const dbl = R => { if(R) ["trust", "affection", "fear", "tension"].forEach(k => R[k] = (R[k] || 0) * 2); return R; };
+  m.rel = Object.assign(REL0(), dbl(m.rel || {}));
+  if(m.relBy) Object.keys(m.relBy).forEach(pid => m.relBy[pid] = Object.assign(REL0(), dbl(m.relBy[pid])));
+  m.memories ||= []; m.between ||= []; m.label ||= ""; m.relV = 2; return m;
+}
+const MEM_MAX = 10;
+// Carnet plein : on oublie d'abord le souvenir le moins important, puis le plus ancien
+function addMemory(m, t, w, at){
+  m.memories ||= [];
+  if(m.memories.some(x => sameName(x.t, t))) return false;
+  m.memories.push({ t, w, at });
+  while(m.memories.length > MEM_MAX){
+    let k = 0; m.memories.forEach((x, i) => { if(x.w < m.memories[k].w || (x.w === m.memories[k].w && x.at < m.memories[k].at)) k = i; });
+    m.memories.splice(k, 1);
+  }
+  return true;
+}
 const mindKey = n => "m_" + String(n || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const MIND_DEF = name => ({ name, aliases: [], mood: "", rel: { trust: 0, affection: 0, fear: 0, tension: 0 }, goals: { short: "", long: "" }, plan: "", knows: [], secrets: [], voice: "", thought: "", offscreen: "", lastSeen: 0, created: Date.now() });
+const MIND_DEF = name => ({ name, aliases: [], mood: "", rel: REL0(), relV: 2, label: "", memories: [], between: [], goals: { short: "", long: "" }, plan: "", knows: [], secrets: [], voice: "", thought: "", offscreen: "", lastSeen: 0, created: Date.now() });
 function mindCard(a, m){ return userCards(a).find(c => sameName(cardName(c), m.name) || (c.keys || "").split(",").some(k => sameName(k, m.name))); }
 function mindTerms(a, m){
   const c = mindCard(a, m);
@@ -2814,7 +2861,11 @@ function renameMind(a, m, name){
 }
 function mergeMinds(a, keep, rm){
   if(!keep || !rm || keep === rm) return keep;
+  migMind(keep); migMind(rm);
   REL.forEach(([k, , , lo, hi]) => { keep.rel[k] = Math.max(lo, Math.min(hi, (keep.rel[k] || 0) + (rm.rel?.[k] || 0))); });
+  (rm.memories || []).forEach(x => addMemory(keep, x.t, x.w, x.at)); keep.memories.sort((x, y) => x.at - y.at);
+  keep.between = [...new Set([...(keep.between || []), ...(rm.between || [])])].slice(0, 6);
+  if(!keep.label) keep.label = rm.label || "";
   keep.aliases = [...new Set([...(keep.aliases || []), ...(rm.aliases || []), rm.name])].filter(x => !sameName(x, keep.name));
   keep.knows = [...(rm.knows || []), ...(keep.knows || []).filter(x => !(rm.knows || []).some(y => sameName(x, y)))].slice(-14);
   if(!(keep.secrets || []).length) keep.secrets = rm.secrets || [];
@@ -2850,7 +2901,10 @@ function mindLine(a, m){
   const r = m.rel || {};
   const parts = [
     m.mood && "mood: " + m.mood,
-    a.multi?.active ? mpRelLine(a, m) : `toward the player: trust ${signed(r.trust || 0)}, affection ${signed(r.affection || 0)}, fear ${r.fear || 0}, tension ${r.tension || 0}`,
+    m.label && "bond with the player: " + m.label,
+    a.multi?.active ? mpRelLine(a, m) : "toward the player: " + relStr(r),
+    m.between?.length && "between them and the player: " + m.between.join("; "),
+    m.memories?.length && "remembers: " + m.memories.map(x => x.t).join(" / "),
     m.goals?.short && "wants now: " + m.goals.short,
     m.goals?.long && "long-term goal: " + m.goals.long,
     m.plan && "plan: " + m.plan,
@@ -2860,13 +2914,14 @@ function mindLine(a, m){
     m.offscreen && "since the player last saw them: " + m.offscreen,
     m.thought && "private thought: " + m.thought
   ].filter(Boolean);
-  return `${m.name} — ${parts.join(" · ")}`.slice(0, 900);
+  return `${m.name} — ${parts.join(" · ")}`.slice(0, 2000);
 }
+const relStr = r => REL.map(([k, , , lo]) => `${k} ${lo < 0 ? signed(r[k] || 0) : (r[k] || 0)}`).join(", ");
 function mindBlock(a){
   if(!a.scripts.minds || !a.minds) return "";
   const p = presentMinds(a).slice(0, 3);
   if(!p.length) return "";
-  return `[Characters in this scene — private minds (trust/affection −5…+5, fear/tension 0…5). Use them to drive what these characters feel, say and do: their goals, plans, relationship with the player and way of speaking. A character only knows what is listed under "knows" or what they witnessed in the story, and never acts on information they don't have. Never state these notes directly.]
+  return `[Characters in this scene — private minds (trust/affection/respect −10…+10, attraction/fear/tension 0…10). Use them to drive what these characters feel, say and do: their goals, plans, relationship with the player and way of speaking. They remember what is under "remembers" and "between them" (nicknames, jokes, habits, promises) and can bring it up naturally, at the right moment, without forcing it. A character only knows what is listed under "knows" or what they witnessed in the story, and never acts on information they don't have. Never state these notes directly.]
 ${p.map(m => mindLine(a, m)).join("\n")}`;
 }
 let minding = false;
@@ -2886,7 +2941,7 @@ async function maybeMinds(force){
     const present = new Set(presentMinds(a, ctxActs.length + 1).map(m => m.name));
     const known = Object.values(a.minds).filter(m => !m.dead);
     const deadNames = Object.values(a.minds).filter(m => m.dead).map(m => m.name);
-    const full = known.filter(m => present.has(m.name)).map(m => ({ name: m.name, mood: m.mood, rel: a.multi?.active ? Object.fromEntries(Object.entries(m.relBy || {}).map(([pid, R]) => [charOfPid(pid), R])) : m.rel, goals: m.goals, plan: m.plan, knows: m.knows, secrets: m.secrets, voice: m.voice, thought: m.thought }));
+    const full = known.filter(m => present.has(m.name)).map(m => ({ name: m.name, mood: m.mood, label: m.label || "", between: m.between || [], remembers: (m.memories || []).map(x => x.t), rel: a.multi?.active ? Object.fromEntries(Object.entries(m.relBy || {}).map(([pid, R]) => [charOfPid(pid), R])) : m.rel, goals: m.goals, plan: m.plan, knows: m.knows, secrets: m.secrets, voice: m.voice, thought: m.thought }));
     const absent = known.filter(m => !present.has(m.name) && (m.goals?.short || m.goals?.long || m.plan) && a.actions.length - (m.lastSeen || 0) >= 6)
       .sort((x, y) => (x.lastSeen || 0) - (y.lastSeen || 0)).slice(0, 2);
     const cardsHint = userCards(a).filter(c => c.type === "personnage").map(c => `${cardName(c)}: ${visible(c.entry).slice(0, 200)}`).join("\n");
@@ -2912,7 +2967,10 @@ For each important named character who appears or acts in the recent story (not 
 - name: as written in the story — their real name once known
 - was: "" — or, if this character already exists above under ANOTHER name or a description (e.g. "the pink-eyed girl", "the hooded stranger") and is now known by a new name, that old name EXACTLY as listed (never create a second entry for the same person)
 - mood: one short phrase
-${MP ? `- rel: for each player character this character interacted with or witnessed (${MP.here.join(", ")}), how their attitude toward them CHANGED in this passage: {"<player character name>": {"trust":0,"affection":0,"fear":0,"tension":0}} — integers from -2 to +2, omit the ones that did not change` : "- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, fear, tension (0 if unchanged)"}
+${MP ? `- rel: for each player character this character interacted with or witnessed (${MP.here.join(", ")}), how their attitude toward them CHANGED in this passage: {"<player character name>": {"trust":0,"affection":0,"desire":0,"respect":0,"fear":0,"tension":0}} — integers from -2 to +2, omit the ones that did not change` : "- rel: how their attitude toward the player CHANGED in this passage, integers from -2 to +2 for trust, affection, desire (attraction), respect, fear, tension (0 if unchanged)"}. Scales go to 10: most passages change nothing or ±1; ±2 only for strong moments.
+- label: their relationship with the player in a few words (e.g. "wary new maid", "teasing confidante", "secret lover") — keep it unless it truly changed
+- moments: NEW memorable moments with the player in this passage only, one line each, saying what was said or done and how they felt (a confession, a promise, a first kiss, a fight, a gift, a secret shared, a meaningful conversation and its gist): [{"t":"…","w":1-3}] with w = importance (3 = unforgettable). Usually empty; never trivial things, never already in "remembers"${MP ? "; name the player character involved" : ""}
+- between: null if unchanged; otherwise the FULL updated list (max 6 short items) of what exists between them and the player: nicknames, running jokes, habits, open promises or debts — remove promises that were kept or broken
 - goals: {"short": what they want right now, "long": their deeper goal} — keep the previous ones unless they changed
 - plan: what they intend to do next
 - learned: new facts this character now knows because they witnessed them or were told (never things they could not know)
@@ -2923,7 +2981,7 @@ ${MP ? `- rel: for each player character this character interacted with or witne
 ${absent.length ? `Then, for these ABSENT characters, advance their life off-screen, consistent with their goals and plan: ${absent.map(m => `${m.name} (goal: ${m.goals?.short || m.goals?.long || "?"}; plan: ${m.plan || "?"})`).join("; ")}. Return what they did since the player last saw them (1 sentence) and their new plan.` : ""}
 Write every text value in the language of the story (${lang} if unsure). Keep everything concise.
 Return ONLY JSON:
-{"characters":[{"name":"","was":"","mood":"","rel":${MP ? "{}" : `{"trust":0,"affection":0,"fear":0,"tension":0}`},"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
+{"characters":[{"name":"","was":"","mood":"","rel":${MP ? "{}" : `{"trust":0,"affection":0,"desire":0,"respect":0,"fear":0,"tension":0}`},"label":"","moments":[],"between":null,"goals":{"short":"","long":""},"plan":"","learned":[],"knows":null,"secrets":[],"voice":"","thought":""}],
  "offscreen":[{"name":"","offscreen":"","plan":""}],
  "scene":["names of the named characters (not the player) physically present with the player at the very END of the recent story — leave out anyone who left or died"],
  "dead":["names of named characters who clearly DIED in the recent story (not just hurt or unconscious) — usually empty"]${deadNames.length ? `,
@@ -2964,9 +3022,19 @@ Return ONLY JSON:
       });
       if(MP) Object.entries(c.rel && typeof c.rel === "object" ? c.rel : {}).forEach(([nm, src]) => {
         const pid = MP.pidOf(nm); if(!pid || !src || typeof src !== "object") return;
-        m.relBy ||= {}; applyRel(m.relBy[pid] ||= { trust: 0, affection: 0, fear: 0, tension: 0 }, src, MP.charOf(pid));
+        m.relBy ||= {}; applyRel(m.relBy[pid] ||= REL0(), src, MP.charOf(pid));
       });
       else applyRel(m.rel, c.rel, "");
+      migMind(m);
+      if(visible(c.label)) m.label = visible(c.label).slice(0, 60);
+      let nmem = 0;
+      (Array.isArray(c.moments) ? c.moments : []).slice(0, 3).forEach(x => {
+        const t = visible(typeof x === "string" ? x : x?.t || "").slice(0, 220); if(!t) return;
+        const w = Math.max(1, Math.min(3, parseInt(x?.w) || 2));
+        if(addMemory(m, t, w, a.actions.length)) nmem++;
+      });
+      if(nmem) deltas.push({ t: `${m.name} · ${L("s'en souviendra", "will remember this")}`, s: 1 });
+      if(Array.isArray(c.between)) m.between = c.between.map(x => visible(x).slice(0, 120)).filter(Boolean).slice(0, 6);
       if(c.goals){ if(visible(c.goals.short)) m.goals.short = visible(c.goals.short).slice(0, 160); if(visible(c.goals.long)) m.goals.long = visible(c.goals.long).slice(0, 160); }
       if(visible(c.plan)) m.plan = visible(c.plan).slice(0, 200);
       if(Array.isArray(c.knows) && c.knows.length) m.knows = c.knows.map(x => visible(x).slice(0, 160)).filter(Boolean).slice(0, 10);
@@ -3011,6 +3079,14 @@ function openMind(key, back){
     if(adv.multi) adv.multi.players.filter(p => !p.kicked).forEach(p => { sec(b, L("Envers ", "Toward ") + p.char); b.appendChild(bars(relOf(m, p.id))); });
     else b.appendChild(bars(m.rel));
     if(m.offscreen) hint(b, `<b>${L("Hors champ", "Off-screen")} :</b> ${esc(m.offscreen)}`);
+    migMind(m);
+    field(b, L("Votre relation", "Your relationship"), m.label, v => { m.label = v; save(); }, { placeholder: L("Ex. : servante méfiante, complice taquine…", "E.g. wary maid, teasing confidante…") });
+    field(b, L("Souvenirs marquants", "Key memories"), m.memories.map(x => x.t).join("\n"), v => {
+      const lines = v.split("\n").map(x => x.trim()).filter(Boolean);
+      m.memories = lines.map((t, i) => m.memories.find(x => x.t === t) || { t, w: 3, at: adv.actions.length + i });
+      save();
+    }, { multiline: true, rows: 5, hint: L(`Un souvenir par ligne, ajoutés par l'IA quand il se passe quelque chose d'important entre vous. ${MEM_MAX} au plus : quand le carnet est plein, le moins important s'efface. Ceux que tu écris toi-même comptent comme importants.`, `One memory per line, added by the AI when something important happens between you. At most ${MEM_MAX}: when full, the least important fades. The ones you write yourself count as important.`) });
+    field(b, L("Entre vous", "Between you"), (m.between || []).join("\n"), v => { m.between = v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 6); save(); }, { multiline: true, rows: 3, hint: L("Surnoms, blagues, habitudes, promesses en cours. Une par ligne.", "Nicknames, jokes, habits, open promises. One per line.") });
     field(b, L("Ce qu'il veut maintenant", "What they want now"), m.goals.short, v => { m.goals.short = v; save(); });
     field(b, L("Objectif de fond", "Deeper goal"), m.goals.long, v => { m.goals.long = v; save(); });
     field(b, L("Son plan", "Their plan"), m.plan, v => { m.plan = v; save(); }, { multiline: true, rows: 2 });
@@ -3037,7 +3113,8 @@ function openMind(key, back){
 function mindTile(key, m, onClick){
   const r = (adv?.multi ? relOf(m, adv.multi.hostId) : m.rel) || {};
   const d = el("div", "sc mtile" + (m.dead ? " dead" : ""), `<div class="row"><div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${m.dead ? "† " + L("Décès", "Dead") : esc(m.mood || "—")}</span></div>
-    <div class="mrel"><span>${L("Confiance", "Trust")} <b>${signed(r.trust || 0)}</b></span><span>${L("Affection", "Affection")} <b>${signed(r.affection || 0)}</b></span><span>${L("Peur", "Fear")} <b>${r.fear || 0}</b></span><span>${L("Tension", "Tension")} <b>${r.tension || 0}</b></span></div>
+    ${m.label ? `<div class="e" style="margin-top:4px">${esc(m.label)}</div>` : ""}
+    <div class="mrel">${REL.map(([k, fr, en, lo]) => `<span>${L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1))} <b>${lo < 0 ? signed(r[k] || 0) : (r[k] || 0)}</b></span>`).join("")}</div>
     ${m.goals?.short ? `<div class="e">${esc(m.goals.short)}</div>` : ""}`);
   d.onclick = onClick; return d;
 }
@@ -4659,6 +4736,7 @@ function editCard(c, list, ctx, done0, tech){
     const lim = tech ? 100000 : settings.cardLimit;
     const ce = field(body, "Contenu", d.entry, v => { d.entry = v; cnt.textContent = `${v.length} / ${lim}`; cnt.style.color = v.length > lim ? "var(--err)" : ""; }, { multiline: true, rows: 7, placeholder: "Qui ou ce que c'est : apparence, personnalité, motivations, secrets…" });
     const cnt = el("div", "hint"); cnt.style.cssText = "text-align:right;margin:-12px 0 12px"; cnt.textContent = `${d.entry.length} / ${lim}`; if(!tech) ce.parentElement.after(cnt);
+    if(visible(d.recent || "")) field(body, L("Récemment", "Recently"), d.recent, v => d.recent = v, { multiline: true, rows: 3, hint: L("Ajouté par les cartes intelligentes, sous ton texte qu'elles ne modifient jamais. Vide-le pour l'effacer.", "Added by smart cards, below your text, which they never change. Empty it to clear it.") });
     if(tech || d.description) field(body, "Notes", d.description, v => d.description = v, { multiline: true, rows: 5, hint: "Utilisé par les scripts." });
     const gb = btn(body, "✨ Compléter avec l'IA", "ghost small", async () => {
       gb.disabled = true; gb.textContent = "Génération…";
@@ -4938,7 +5016,20 @@ function openSettings(start){
       }
       settingToggle(body, "Désactiver le raisonnement", "Plus rapide et moins cher pour la narration. Désactive si un modèle refuse.", "noReasoning");
       settingToggle(body, "Texte en direct", "Le texte s'affiche pendant que l'IA l'écrit. Désactivé : une roue de chargement, puis la réponse finie et déjà nettoyée d'un coup.", "liveText");
-      if(isOR()) settingToggle(body, "Priorité à la vitesse", "OpenRouter choisit le fournisseur le plus rapide pour ce modèle plutôt que le moins cher. Réponses plus rapides, parfois un peu plus chères.", "fastProvider");
+      if(isOR()){
+        // choix du fournisseur pour un même modèle : équilibré (OpenRouter), toujours le moins cher, ou le plus rapide
+        const PS = [["", L("Équilibré (par défaut)", "Balanced (default)"), L("OpenRouter répartit entre les fournisseurs en favorisant les moins chers.", "OpenRouter spreads requests across providers, favoring cheaper ones.")],
+          ["price", L("Toujours le moins cher", "Always the cheapest"), L("Toujours le fournisseur le moins cher pour ce modèle. Le plus économique, parfois plus lent.", "Always the cheapest provider for this model. The most economical, sometimes slower.")],
+          ["throughput", L("Toujours le plus rapide", "Always the fastest"), L("Toujours le fournisseur le plus rapide. Réponses plus rapides, parfois un peu plus chères.", "Always the fastest provider. Faster replies, sometimes a bit pricier.")]];
+        const cur = settings.providerSort ?? (settings.fastProvider ? "throughput" : "");
+        const tl = el("label", "f", `<span>${L("Fournisseur", "Provider")}</span>`);
+        const sel = document.createElement("select");
+        PS.forEach(([v, t]) => { const o = document.createElement("option"); o.value = v; o.textContent = t; if(cur === v) o.selected = true; sel.appendChild(o); });
+        const ph = el("div", "hint"); ph.style.marginTop = "-8px";
+        const upd = () => ph.textContent = PS.find(x => x[0] === sel.value)[2];
+        sel.onchange = () => { settings.providerSort = sel.value; settings.fastProvider = sel.value === "throughput"; saveSettings(); upd(); };
+        tl.appendChild(sel); body.appendChild(tl); body.appendChild(ph); upd();
+      }
       settingToggle(body, "Relancer si un perso répète ta réplique", "Si un personnage reprend tes mots plusieurs tours de suite, la réponse est refaite. Désactive pour plus de rapidité si ça arrive souvent.", "echoRetry");
       if(isOR()){
         settingToggle(body, "Exiger le support des réglages", "Seuls les fournisseurs qui respectent top K, min P, etc. sont utilisés.", "requireParams");
@@ -5107,7 +5198,7 @@ const mpPlayer = id => M_()?.players.find(p => p.id === id);
 const charOfPid = id => mpPlayer(id)?.char || "?";
 const sceneOfPid = id => Object.values(M_()?.scenes || {}).find(s => !s.archived && s.members.includes(id));
 function mpOnline(id){ const M = M_(); if(!M) return false; if(id === M.hostId) return true; const p = mpPlayer(id); return !!p && !p.kicked && Date.now() - (p.seen || 0) < MP_ONLINE; }
-function relOf(m, pid){ return m.relBy?.[pid] || { trust: 0, affection: 0, fear: 0, tension: 0 }; }
+function relOf(m, pid){ return Object.assign(REL0(), m.relBy?.[pid] || {}); }
 function mpShown(){
   if(!adv) return [];
   const M = adv.multi; if(!M) return adv.actions;
@@ -5201,7 +5292,7 @@ function mpBlock(a){
 }
 function mpRelLine(a, m){
   const S = a.multi.scenes[a.multi.active];
-  return S.members.map(pid => { const r = relOf(m, pid); return `toward ${charOfPid(pid)}: trust ${signed(r.trust || 0)}, affection ${signed(r.affection || 0)}, fear ${r.fear || 0}, tension ${r.tension || 0}`; }).join("; ");
+  return S.members.map(pid => `toward ${charOfPid(pid)}: ${relStr(relOf(m, pid))}`).join("; ");
 }
 function mpMindsCtx(a){
   const M = a.multi; if(!M || !M.active) return null;

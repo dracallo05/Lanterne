@@ -921,12 +921,14 @@ const CHANGELOG = [
       "Mémoire des personnages : chacun garde un carnet de souvenirs marquants avec toi (aveux, promesses, premier baiser, disputes, conversations importantes), 10 au plus, les moins importants s'effacent en premier. Ils peuvent les ressortir au bon moment",
       "« Entre vous » : surnoms, blagues, habitudes et promesses en cours sont suivis pour chaque personnage, et une étiquette résume votre relation (ex. « servante insolente », « complice »)",
       "La relation passe à 6 axes : confiance, affection, attirance, respect, peur, tension, sur 10 au lieu de 5, pour ne plus plafonner en quelques scènes. Les parties en cours sont converties automatiquement",
+      "Plus d'astérisques : le gras et l'italique en Markdown (*mot*) que mettent certains modèles comme GLM sont retirés automatiquement",
       "Fournisseur : nouveau choix dans Réglages → IA, équilibré (par défaut), toujours le moins cher ou toujours le plus rapide",
       "Cartes intelligentes : elles ne réécrivent plus jamais les cartes que tu as écrites ou qui viennent du scénario. Les nouveautés vont dans une section « Récemment » sous ton texte, modifiable ou effaçable dans la carte"],
     en: [
       "Character memory: each character keeps a notebook of key moments with you (confessions, promises, first kiss, fights, important talks), up to 10, the least important fading first. They can bring them up at the right time",
       "\"Between you\": nicknames, running jokes, habits and open promises are tracked per character, and a label sums up your relationship (e.g. \"bratty maid\", \"confidante\")",
       "Relationships now have 6 axes: trust, affection, attraction, respect, fear, tension, out of 10 instead of 5, so they no longer max out in a few scenes. Ongoing games are converted automatically",
+      "No more asterisks: Markdown bold and italics (*word*) that some models like GLM add are removed automatically",
       "Provider: new choice in Settings → AI, balanced (default), always the cheapest or always the fastest",
       "Smart cards: they never rewrite cards you wrote or that come from the scenario anymore. New facts go in a \"Recently\" section below your text, which you can edit or clear in the card"] },
   { v: "8.2", fr: [
@@ -2467,7 +2469,11 @@ function isGibberish(t){
 }
 function gibOf(a){ const h = a.text.length; if(a._gibLen !== h){ a._gibLen = h; a._gib = isGibberish(a.text); } return a._gib; }
 function cleanOutput(t){
-  t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "").replace(/^\s+/, "").replace(/\s+$/, "");
+  t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "");
+  // Lanterne n'affiche ni gras ni italique : on retire le Markdown (*mot*, **mot**, _mot_, séparateurs * * *) que certains modèles comme GLM ajoutent
+  t = t.replace(/^[ \t]*(\*[ \t]*){3,}$/gm, "").replace(/\*+/g, "")
+    .replace(/(^|[\s"“«(—-])_([^_\n]+?)_(?=[\s.,!?;:"”»)…—-]|$)/gm, "$1$2")
+    .replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/^\s+/, "").replace(/\s+$/, "");
   const m = t.match(/^[\s\S]*[.!?…"”»*)\]`]/);
   if(m && m[0].length > t.length * 0.6) t = m[0];
   // guillemet ouvrant resté seul à la fin (réponse coupée juste avant une réplique)

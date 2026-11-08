@@ -480,10 +480,39 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
 "use strict";
 /* ================= Storage ================= */
 const SYNC_RE = /^lan\.(adv|cover|scn)\.|^lan\.(settings|stats)$/;
+/* Stockage. Le navigateur ne donne qu'environ 5 Mo au localStorage : les aventures, scénarios et couvertures vont dans
+   IndexedDB (des centaines de Mo), gardés en mémoire pour rester instantanés. Le reste (réglages, index…) reste en localStorage. */
+const BIG_RE = /^lan\.(adv|cover|scn)\./;
+const BIG = new Map(); let idb = null;
+function idbReq(mode, fn){
+  return new Promise(res => { try{ const tx = idb.transaction("kv", mode); const r = fn(tx.objectStore("kv")); tx.oncomplete = () => res(r && r.result); tx.onerror = tx.onabort = () => { toast(L("Sauvegarde impossible : ", "Save failed: ") + (tx.error?.message || "IndexedDB")); res(undefined); }; }catch(e){ res(undefined); } });
+}
+async function bigInit(){
+  try{
+    idb = await new Promise(res => { const r = indexedDB.open("lanterne", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = r.onblocked = () => res(null); });
+  }catch(e){ idb = null; }
+  if(!idb) return; // pas d'IndexedDB : on reste sur le localStorage comme avant
+  const keys = await idbReq("readonly", st => st.getAllKeys()) || [], vals = await idbReq("readonly", st => st.getAll()) || [];
+  keys.forEach((k, i) => BIG.set(k, vals[i]));
+  // déménagement depuis le localStorage (une seule fois), puis on libère la place
+  const old = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && BIG_RE.test(k)) old.push(k); }
+  if(old.length){
+    const ok = await idbReq("readwrite", st => { old.forEach(k => { const v = localStorage.getItem(k); if(!BIG.has(k)){ BIG.set(k, v); st.put(v, k); } }); return { result: true }; });
+    if(ok) old.forEach(k => localStorage.removeItem(k));
+  }
+  try{ navigator.storage?.persist?.(); }catch(e){}
+}
+const useBig = k => idb && BIG_RE.test(k);
+const KV = {
+  get(k){ return useBig(k) ? (BIG.get(k) ?? null) : localStorage.getItem(k); },
+  set(k, str){ if(useBig(k)){ BIG.set(k, str); idbReq("readwrite", st => st.put(str, k)); } else localStorage.setItem(k, str); },
+  del(k){ if(useBig(k)){ BIG.delete(k); idbReq("readwrite", st => st.delete(k)); } else localStorage.removeItem(k); },
+  keys(){ const out = []; for(let i = 0; i < localStorage.length; i++) out.push(localStorage.key(i)); return idb ? out.concat([...BIG.keys()]) : out; }
+};
 const LS = {
-  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); if(SYNC_RE.test(k)) syncTouch(k); return true; }catch(e){ toast("Sauvegarde impossible : " + e.message); return false; } },
-  del(k){ try{ localStorage.removeItem(k); }catch(e){} if(SYNC_RE.test(k)) syncTouch(k); }
+  get(k, d){ try{ const v = KV.get(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ KV.set(k, JSON.stringify(v)); if(SYNC_RE.test(k)) syncTouch(k); return true; }catch(e){ toast("Sauvegarde impossible : " + e.message); return false; } },
+  del(k){ try{ KV.del(k); }catch(e){} if(SYNC_RE.test(k)) syncTouch(k); }
 };
 function syncTouch(k){
   try{
@@ -921,6 +950,7 @@ const CHANGELOG = [
       "Mémoire des personnages : chacun garde un carnet de souvenirs marquants avec toi (aveux, promesses, premier baiser, disputes, conversations importantes), 10 au plus, les moins importants s'effacent en premier. Ils peuvent les ressortir au bon moment",
       "« Entre vous » : surnoms, blagues, habitudes et promesses en cours sont suivis pour chaque personnage, et une étiquette résume votre relation (ex. « servante insolente », « complice »)",
       "La relation passe à 6 axes : confiance, affection, attirance, respect, peur, tension, sur 10 au lieu de 5, pour ne plus plafonner en quelques scènes. Les parties en cours sont converties automatiquement",
+      "Stockage : les aventures, scénarios et couvertures sont maintenant rangés dans IndexedDB (des centaines de Mo) au lieu du petit localStorage (~5 Mo), déménagés automatiquement au premier lancement. Fini l'erreur « exceeded the quota »",
       "Plus d'astérisques : le gras et l'italique en Markdown (*mot*) que mettent certains modèles comme GLM sont retirés automatiquement",
       "Fournisseur : nouveau choix dans Réglages → IA, équilibré (par défaut), toujours le moins cher ou toujours le plus rapide",
       "Cartes intelligentes : elles ne réécrivent plus jamais les cartes que tu as écrites ou qui viennent du scénario. Les nouveautés vont dans une section « Récemment » sous ton texte, modifiable ou effaçable dans la carte"],
@@ -928,6 +958,7 @@ const CHANGELOG = [
       "Character memory: each character keeps a notebook of key moments with you (confessions, promises, first kiss, fights, important talks), up to 10, the least important fading first. They can bring them up at the right time",
       "\"Between you\": nicknames, running jokes, habits and open promises are tracked per character, and a label sums up your relationship (e.g. \"bratty maid\", \"confidante\")",
       "Relationships now have 6 axes: trust, affection, attraction, respect, fear, tension, out of 10 instead of 5, so they no longer max out in a few scenes. Ongoing games are converted automatically",
+      "Storage: adventures, scenarios and covers now live in IndexedDB (hundreds of MB) instead of the small localStorage (~5 MB), moved automatically on first launch. No more \"exceeded the quota\" error",
       "No more asterisks: Markdown bold and italics (*word*) that some models like GLM add are removed automatically",
       "Provider: new choice in Settings → AI, balanced (default), always the cheapest or always the fastest",
       "Smart cards: they never rewrite cards you wrote or that come from the scenario anymore. New facts go in a \"Recently\" section below your text, which you can edit or clear in the card"] },
@@ -1081,7 +1112,7 @@ function deleteAdventure(id, title){
 }
 function purgeAdventure(id){ LS.del("lan.adv." + id); LS.del("lan.cover." + id); index = index.filter(x => x.id !== id); LS.set("lan.index", index); }
 function restoreAdventure(id){ const a = LS.get("lan.adv." + id, null); if(!a) return; delete a.trashed; LS.set("lan.adv." + id, a); index = index.filter(x => x.id !== id); index.push(indexEntry(a)); LS.set("lan.index", index); }
-function trashedScns(){ const out = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.trashed) out.push(v); } } return out; }
+function trashedScns(){ const out = []; for(const k of KV.keys()){ if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.trashed) out.push(v); } } return out; }
 function purgeOldTrash(){
   const lim = Date.now() - TRASH_DAYS * 864e5;
   index.filter(x => x.trashed && x.trashed < lim).forEach(x => purgeAdventure(x.id));
@@ -1475,7 +1506,7 @@ function charConfigEditor(b, c, onChange){
 const scnKey = id => "lan.scn." + id;
 function scnList(){
   const out = [];
-  for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.id && !v.trashed) out.push(v); } }
+  for(const k of KV.keys()){ if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.id && !v.trashed) out.push(v); } }
   return out.sort((a, b) => (b.updated || 0) - (a.updated || 0));
 }
 function saveScn(t){ t.updated = Date.now(); return LS.set(scnKey(t.id), t); }
@@ -3058,7 +3089,7 @@ Return ONLY JSON:
     });
     const lastAi = [...a.actions].reverse().find(x => x.type === "ai" && !x.hidden);
     if(lastAi && deltas.length) lastAi.mindDelta = [...(lastAi.mindDelta || []), ...deltas].slice(-8);
-    if(snapId) a.mindLog = [...(a.mindLog || []), { id: snapId, prev: before }].slice(-20);
+    if(snapId) a.mindLog = [...(a.mindLog || []), { id: snapId, prev: before }].slice(-10);
     if(MP) (a.multi.pendOps ||= []).push({ sid: a.multi.active, positions: r.positions });
     a.mindFrom = a.actions.length;
     if(adv === a){ saveAdv(); if(!generating) renderStory(false); } else LS.set("lan.adv." + a.id, a);
@@ -4284,8 +4315,8 @@ function deleteAccountSheet(){
   });
 }
 function wipeLocalSynced(){
-  const ks = []; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(SYNC_RE.test(k)) ks.push(k); }
-  ks.forEach(k => localStorage.removeItem(k));
+  const ks = KV.keys().filter(k => SYNC_RE.test(k));
+  ks.forEach(k => KV.del(k));
   ["lan.mtime", "lan.dirty", "lan.index", "lan.sync.last"].forEach(k => localStorage.removeItem(k));
   settings = Object.assign({}, DEFAULT_SETTINGS); index = []; stats = { total: 0, since: Date.now(), turns: 0, words: 0, playerWords: 0, byMonth: {}, byModel: {}, days: {} };
 }
@@ -4295,8 +4326,7 @@ async function firstSync(){
   localStorage.setItem("lan.sync.owner", auth.user.id);
   // stamp existing local data so it can be merged with the account (newest wins)
   const m = LS.get("lan.mtime", {}), d = LS.get("lan.dirty", {});
-  for(let i = 0; i < localStorage.length; i++){
-    const k = localStorage.key(i);
+  for(const k of KV.keys()){
     if(!SYNC_RE.test(k)) continue;
     if(!m[k]){ const v = LS.get(k, null); m[k] = (v && v.updated) || 1; }
     d[k] = 1;
@@ -4312,7 +4342,7 @@ async function syncPush(){
   const snap = {}, rows = [];
   for(const k of keys){
     snap[k] = mt[k] || Date.now();
-    const raw = localStorage.getItem(k);
+    const raw = KV.get(k);
     let data = raw ? JSON.parse(raw) : null;
     if(k === "lan.settings" && data && !settings.syncApiKey){ data = Object.assign({}, data); delete data.apiKey; }
     rows.push({ user_id: auth.user.id, key: k.slice(4), data: raw ? await encData(data) : null, mtime: snap[k], deleted: !raw });
@@ -4338,13 +4368,13 @@ async function syncPull(){
       if(!SYNC_RE.test(k)) continue;
       if(Number(r.mtime) <= (mt[k] || 0)) continue;
       let plain = false;
-      if(r.deleted) localStorage.removeItem(k);
+      if(r.deleted) KV.del(k);
       else{
         let data = r.data;
         if(data && data.e2e){ try{ data = await decData(data); }catch(e){ bad++; continue; } }
         else if(data != null) plain = true; // ancienne copie non chiffrée : on la renverra chiffrée
         if(k === "lan.settings" && data){ const cur = LS.get(k, {}); if(!data.apiKey && cur.apiKey) data = Object.assign({}, data, { apiKey: cur.apiKey }); }
-        localStorage.setItem(k, JSON.stringify(data));
+        KV.set(k, JSON.stringify(data));
       }
       mt[k] = Number(r.mtime); if(plain) dirty[k] = 1; else delete dirty[k]; changed.push(k);
     }
@@ -5988,14 +6018,17 @@ document.querySelectorAll(".mode[data-m]").forEach(b => b.onclick = () => {
   $("#inp").placeholder = tr({ do: "Que fais-tu ?", say: "Que dis-tu ?", story: "Écris la suite de l'histoire...", guide: "Oriente la suite (invisible dans l'histoire)…" }[mode]);
 });
 window.addEventListener("beforeunload", () => saveAdv());
+document.addEventListener("visibilitychange", () => { if(document.hidden && adv && !room) saveAdv(); });
 
 if(isEN()) trNode(document.body);
-updateTools();
-try{ purgeOldTrash(); }catch(e){}
-showLibrary();
-onboarding();
-handleAuthRedirect().finally(() => { syncNow(false); joinFromHash(); });
-loadFx().then(() => { if(!adv && !room && !$("#sheetHost").innerHTML) showLibrary(); });
+bigInit().finally(() => {
+  updateTools();
+  try{ purgeOldTrash(); }catch(e){}
+  showLibrary();
+  onboarding();
+  handleAuthRedirect().finally(() => { syncNow(false); joinFromHash(); });
+  loadFx().then(() => { if(!adv && !room && !$("#sheetHost").innerHTML) showLibrary(); });
+});
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }

@@ -538,7 +538,9 @@ const SCRIPT_GLUE = `The user message contains the full story context. Continue 
 const AN_HINT = `Une consigne courte, glissée juste avant ta dernière action. C'est le réglage le plus influent sur le ton et le rythme. Exemples : <em>« Ton sombre et mélancolique. Rythme lent, beaucoup de dialogues. »</em> ou <em>« Ambiance légère et pleine d'humour. Les personnages parlent de façon familière. »</em>`;
 const KEYS_HINT = "Quand un de ces mots apparaît dans l'histoire, la carte est envoyée à l'IA pour qu'elle s'en souvienne. Sépare-les par des virgules.";
 const TYPES = ["personnage","lieu","objet","faction","concept","autre"];
-const SCRIPT_DEF = () => ({ ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true, minds: false, mindEvery: 2, mindChips: true, mem: true });
+// nouvelle aventure ou nouveau scénario créés à la main : aucun script activé (tu actives ce que tu veux dans Scripts)
+const SCRIPT_OFF = () => Object.assign(SCRIPT_DEF(), { mem: false });
+const SCRIPT_DEF = () => ({ clock: false, ac: false, is: false, names: "", player: "", sc: false, scAuto: false, scEvery: 3, ar: false, arRetry: true, rpg: false, rpgDice: true, minds: false, mindEvery: 2, mindChips: true, mem: true });
 
 const THEMES = {
   braise:    { name: "Braise",    v: { bg:"#1f1e1c", bg2:"#262624", bg3:"#30302e", line:"#3d3c39", tx:"#e8e6dc", tx2:"#b5b3aa", tx3:"#85837b", acc:"#d97757", acc2:"#e8957a", onacc:"#1b1410" } },
@@ -585,7 +587,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", providerIgnore: ["alibaba"], showCosts: false, liveText: false, fastProvider: false, echoRetry: true
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", fallbackModel: "", budgetDay: 0, budgetMonth: 0, providerIgnore: ["alibaba"], showCosts: false, liveText: false, fastProvider: false, echoRetry: true
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -712,10 +714,38 @@ function recordTurn(aiText, playerText){
   if(adv){ adv.turns = (adv.turns || 0) + 1; adv.words = (adv.words || 0) + wordCount(aiText) + wordCount(playerText || ""); }
 }
 function saveSettings(){ LS.set("lan.settings", settings); }
+const dayKey = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+/* Alerte de budget : plafonds par jour et par mois, dans ta devise (0 = pas de plafond).
+   Prévient à 80 %, puis demande confirmation avant chaque tour une fois le plafond atteint (une seule fois par période si tu confirmes). */
+const budgetOk = {};
+function budgetState(){
+  const rate = settings.currency !== "USD" ? fx.rate : 1;
+  const day = ((stats.byDay || {})[dayKey()] || 0) * rate, month = (stats.byMonth[monthKey()] || 0) * rate;
+  return [["day", L("du jour", "for today"), day, Number(settings.budgetDay) || 0], ["month", L("du mois", "for the month"), month, Number(settings.budgetMonth) || 0]].filter(x => x[3] > 0);
+}
+const fmtCur = v => v.toLocaleString(LOC(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (settings.currency !== "USD" ? " €" : " $");
+function budgetGate(){
+  for(const [k, label, spent, cap] of budgetState()){
+    const key = k + (k === "day" ? dayKey() : monthKey());
+    if(spent >= cap && !budgetOk[key]){
+      if(!confirm(L(`Budget ${label} atteint : ${fmtCur(spent)} sur ${fmtCur(cap)}. Continuer quand même ?`, `Budget ${label} reached: ${fmtCur(spent)} of ${fmtCur(cap)}. Continue anyway?`))) return false;
+      budgetOk[key] = 1;
+    }
+  }
+  return true;
+}
+function budgetWarn(){
+  for(const [k, label, spent, cap] of budgetState()){
+    const key = "w" + k + (k === "day" ? dayKey() : monthKey());
+    if(spent >= cap * 0.8 && spent < cap && !budgetOk[key]){ budgetOk[key] = 1; toast(L(`⚠ Tu as utilisé 80 % de ton budget ${label} (${fmtCur(spent)} sur ${fmtCur(cap)})`, `⚠ You've used 80% of your budget ${label} (${fmtCur(spent)} of ${fmtCur(cap)})`)); }
+  }
+}
 function addCost(c, model){
   if(!(c > 0)) return;
   stats.total += c;
   const mk = monthKey(); stats.byMonth[mk] = (stats.byMonth[mk] || 0) + c;
+  const dk = dayKey(); stats.byDay ||= {}; stats.byDay[dk] = (stats.byDay[dk] || 0) + c;
+  const ks = Object.keys(stats.byDay); if(ks.length > 40) ks.sort().slice(0, ks.length - 40).forEach(k => delete stats.byDay[k]);
   const md = (stats.byModel[model || settings.model] ||= { turns: 0, usd: 0 }); md.usd += c;
   LS.set("lan.stats", stats);
   if(adv){ adv.spent = (adv.spent || 0) + c; }
@@ -736,7 +766,7 @@ const liveIndex = () => index.filter(x => !x.trashed);
 function blankAdventure(){
   return { id: uid(), title: "", created: Date.now(), updated: Date.now(), spent: 0,
     instructions: DEFAULT_INSTRUCTIONS, essentials: "", authorsNote: "", summary: "", cards: [], actions: [],
-    style: Object.assign({}, DEFAULT_STYLE, { custom: false }), scripts: SCRIPT_DEF(), scriptState: {}, pending: [], scIgnore: [] };
+    style: Object.assign({}, DEFAULT_STYLE, { custom: false }), scripts: SCRIPT_OFF(), scriptState: {}, pending: [], scIgnore: [] };
 }
 function migrate(a){
   a.spent ||= 0; a.cards ||= []; a.actions ||= [];
@@ -944,8 +974,36 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.4";
+const APP_VERSION = "8.7";
 const CHANGELOG = [
+  { v: "8.7", fr: [
+      "Branches : touche un passage → « Créer une branche ici ». Une copie de l'aventure arrêtée à ce passage apparaît dans ta bibliothèque (ex. « Rosehill Manor — branche 2 ») pour essayer une autre suite ; l'original reste intact. Aucun crédit IA consommé",
+      "Carte toujours envoyée : un interrupteur dans chaque carte pour qu'elle parte à chaque tour, même sans mot-clé. Idéal pour les personnages principaux (leur apparence reste juste avant même qu'on les nomme)",
+      "Horloge du monde (onglet Scripts, désactivée par défaut) : date, moment de la journée, saison et âge des personnages, tenus à jour après chaque tour par une petite requête économique et toujours envoyés à l'IA. Le bouton 🕰 permet de la corriger et de faire passer le temps (« ⏩ un an plus tard… »)"],
+    en: [
+      "Branches: tap a passage → \"Branch from here\". A copy of the adventure stopping at that passage appears in your library (e.g. \"Rosehill Manor — branch 2\") to try another path; the original stays untouched. No AI credits used",
+      "Always-sent card: a switch in each card so it's sent every turn, even without a keyword. Ideal for main characters (their look stays right even before they're named)",
+      "World clock (Scripts tab, off by default): date, time of day, season and characters' ages, kept up to date after each turn by a small cheap request and always sent to the AI. The 🕰 button lets you correct it and skip time (\"⏩ a year later…\")"] },
+  { v: "8.6", fr: [
+      "Une nouvelle aventure ou un nouveau scénario créé à la main démarre sans aucun script activé (mémoire longue comprise) : tu actives ce que tu veux dans l'onglet Scripts. Les scénarios gardent leurs propres réglages",
+      "Alerte de budget (Réglages → IA → Budget) : un plafond par jour et/ou par mois. Lanterne prévient à 80 %, puis demande confirmation avant de continuer une fois le plafond atteint",
+      "Refaire avec un autre modèle : touche la dernière réponse de l'IA → « Refaire avec un autre modèle ». La nouvelle version s'ajoute aux autres, et le nom du modèle s'affiche à côté de « version 2 / 2 » pour comparer",
+      "Modèle de secours (Réglages → IA) : si le modèle principal ne répond pas, Lanterne refait le tour une fois avec celui-ci au lieu d'afficher une erreur",
+      "« Précédemment… » : quand tu rouvres une aventure après plus de 20 h, un petit rappel tiré de la fin du résumé s'affiche (sans appel à l'IA, donc gratuit)"],
+    en: [
+      "A new adventure or scenario made by hand starts with no scripts on (long-term memory included): turn on what you want in the Scripts tab. Scenarios keep their own settings",
+      "Budget alert (Settings → AI → Budget): a cap per day and/or per month. Lanterne warns you at 80%, then asks before continuing once the cap is reached",
+      "Redo with another model: tap the AI's last reply → \"Redo with another model\". The new version is added to the others, and the model's name shows next to \"version 2 / 2\" so you can compare",
+      "Backup model (Settings → AI): if the main model doesn't answer, Lanterne redoes the turn once with it instead of showing an error",
+      "\"Previously…\": when you reopen an adventure after more than 20 hours, a short reminder from the end of the summary shows up (no AI call, so free)"] },
+  { v: "8.5", fr: [
+      "Longues aventures : seuls les 120 derniers passages sont affichés, un bouton en haut montre les précédents. L'écran ne redessine plus des milliers de passages à chaque tour. L'IA, elle, voit toujours la même chose qu'avant",
+      "La recherche retrouve aussi les passages anciens qui ne sont pas affichés",
+      "Synchro plus légère : les données sont compressées avant d'être chiffrées (plusieurs fois moins lourdes), et l'aventure en cours est envoyée au plus toutes les 5 minutes, plus à chaque fois que tu quittes l'appli ou appuies sur Synchroniser, au lieu d'être renvoyée en entier après chaque tour"],
+    en: [
+      "Long adventures: only the last 120 passages are shown, a button at the top shows earlier ones. The screen no longer redraws thousands of passages each turn. The AI still sees exactly the same as before",
+      "Search also finds old passages that aren't shown",
+      "Lighter sync: data is compressed before encryption (several times smaller), and the current adventure is sent at most every 5 minutes, plus whenever you leave the app or tap Sync, instead of being re-sent in full after every turn"] },
   { v: "8.4", fr: [
       "Italique : le texte entre astérisques (*comme ça*) s'affiche en vraie italique au lieu d'être effacé, pratique pour les pensées des personnages. Plus aucune étoile visible",
       "Relances automatiques limitées à 2 par tour (écho, répétition, texte incohérent, fournisseur filtré) : chacune coûte un appel. Quand une réponse a été refaite, « ↻ refait : écho » s'affiche dessous",
@@ -1260,6 +1318,7 @@ async function callModel(messages, opts = {}){
 }
 const THINKERS = LS.get("lan.thinkers", {});
 const ALT_MAX = 10; // versions gardées par passage quand on fait Réessayer (les plus anciennes partent seulement quand tu en ajoutes une)
+const shortModel = id => String(id || "").replace(/^[^/]+\//, "").replace(/[-_]/g, " ");
 const SPIN = `<span class="spin"></span><span class="wstat"></span>`;
 async function callModel0(messages, opts = {}){
   if(!settings.apiKey) throw new Error("Ajoute ta clé API dans les réglages");
@@ -1419,7 +1478,7 @@ function adventureWizard(pre, opts = {}){
   cardSearch = "";
   const mode = scn || opts.mode === "scenario" ? "scenario" : "adventure";
   const d = Object.assign({ title: "", opening: "", essentials: "", authorsNote: "", instructions: DEFAULT_INSTRUCTIONS, cards: [], cover: null,
-    scripts: SCRIPT_DEF(), character: { enabled: false, fields: ["name", "gender", "look", "personality"], questions: [] } }, pre || {});
+    scripts: SCRIPT_OFF(), character: { enabled: false, fields: ["name", "gender", "look", "personality"], questions: [] } }, pre || {});
   d.character = Object.assign({ enabled: false, fields: [], questions: [] }, d.character || {});
   let idea = "", genOpen = false, wish = "", keep = true, dirty = false, tab = opts.tab || "gen";
   let snap = JSON.stringify(d); const changed = () => JSON.stringify(d) !== snap;
@@ -1661,8 +1720,16 @@ function scriptToggles(b, s, onChange, live){
 }
 
 /* ================= Story view ================= */
+function recapTail(sum){
+  const t = visible(sum || "").trim(); if(!t) return "";
+  const sents = t.match(/[^.!?…]+[.!?…]+["»”]?\s*/g) || [t];
+  let out = ""; for(let i = sents.length - 1; i >= 0; i--){ if((sents[i] + out).length > 520 && out) break; out = sents[i] + out; }
+  return out.trim();
+}
 function openAdventure(id){
   const a = LS.get("lan.adv." + id, null);
+  // « Précédemment… » : après plus de 20 h sans jouer, un rappel tiré de la fin du résumé (aucun appel à l'IA)
+  const recap = a && !a.multi && Date.now() - (a.updated || 0) > 20 * 3600e3 && a.actions?.length > 10 ? recapTail(a.summary) : "";
   if(!a){ toast("Aventure introuvable"); index = index.filter(x => x.id !== id); LS.set("lan.index", index); return showLibrary(); }
   adv = migrate(a); redoStack = []; lastCost = null;
   applyStyle(styleOf(adv));
@@ -1674,13 +1741,33 @@ function openAdventure(id){
   renderBanner();
   if(adv.multi){ delete adv.multi._all; adv.multi.active = null; mpUnify(adv); if(adv.multi.loaded !== adv.multi.view) mpSetView(adv.multi.view); mpStartHost().then(() => { if(adv?.multi?.needReset){ delete adv.multi.needReset; saveAdv(); mpSend("reset", {}).then(() => { mpRoster(true); return mpPublish(adv.multi.view); }).catch(() => {}); } }); }
   renderStory(true);
+  if(recap) openSheet(L("Précédemment…", "Previously…"), null, (_, b) => {
+    const p = el("div", "recap"); p.style.cssText = "font-family:var(--serif);font-size:17px;line-height:1.6;margin:4px 0 18px"; setRich(p, recap); b.appendChild(p);
+    btn(b, L("Reprendre l'histoire", "Resume the story"), "wide", () => closeSheet());
+  });
 }
 function renderBanner(){ $("#bannerHost").innerHTML = ""; }
 const scriptsOn = () => !!(adv && (adv.scripts.ac || adv.scripts.is));
+/* Longues aventures : on n'affiche que les derniers passages (redessiner 2 000 passages à chaque tour rame sur téléphone).
+   Le bouton en haut en montre davantage ; tout reste en mémoire et envoyé à l'IA comme avant. */
+const SHOW_STEP = 120;
+let showCount = SHOW_STEP, showAdv = null;
 function renderStory(scroll){
   const s = $("#story"); s.innerHTML = "";
-  const shown = mpShown().filter(a => !a.hidden);
+  if(showAdv !== adv?.id){ showAdv = adv?.id; showCount = SHOW_STEP; }
+  const all = mpShown().filter(a => !a.hidden);
+  const shown = all.length > showCount ? all.slice(-showCount) : all;
   const newest = shown.length > 1 ? [...shown].reverse().find(a => a.type === "ai") : null;
+  if(shown.length < all.length){
+    const more = el("button", "btn ghost small wide", L(`↑ Afficher les passages précédents (${all.length - shown.length} de plus)`, `↑ Show earlier passages (${all.length - shown.length} more)`));
+    more.style.margin = "0 0 14px";
+    more.onclick = () => {
+      const v = $("#storyView"), h0 = v.scrollHeight, t0 = v.scrollTop;
+      showCount += SHOW_STEP * 2; renderStory(false);
+      v.scrollTop = v.scrollHeight - h0 + t0; // on garde la lecture au même endroit
+    };
+    s.appendChild(more);
+  }
   shown.forEach(a => {
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : ""));
     d.dataset.id = a.id;
@@ -1698,11 +1785,11 @@ function renderStory(scroll){
     if(a.mindDelta?.length && adv.scripts.minds && adv.scripts.mindChips !== false) s.appendChild(el("div", "rpgd mind", a.mindDelta.map(x => `<span class="${x.s > 0 ? "pos" : x.s < 0 ? "neg" : ""}">${esc(x.t)}</span>`).join("")));
     if(a.type === "ai" && a.alts?.length > 1){
       const i = a.altIdx ?? a.alts.length - 1;
-      const nav = el("div", "alts", `<button data-d="-1" ${i <= 0 ? "disabled" : ""} aria-label="Précédente">‹</button><span>version ${i + 1} / ${a.alts.length}</span><button data-d="1" ${i >= a.alts.length - 1 ? "disabled" : ""} aria-label="Suivante">›</button>`);
+      const nav = el("div", "alts", `<button data-d="-1" ${i <= 0 ? "disabled" : ""} aria-label="Précédente">‹</button><span>version ${i + 1} / ${a.alts.length}${a.altM?.[i] ? " · " + esc(shortModel(a.altM[i])) : ""}</span><button data-d="1" ${i >= a.alts.length - 1 ? "disabled" : ""} aria-label="Suivante">›</button>`);
       nav.onclick = ev => {
         const b = ev.target.closest("button"); if(!b || generating) return;
         const n = Math.max(0, Math.min(a.alts.length - 1, i + Number(b.dataset.d)));
-        a.altIdx = n; a.text = a.alts[n]; rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); renderStory(false); mpAfterEdit();
+        a.altIdx = n; a.text = a.alts[n]; if(a.altM) a.model = a.altM[n] || undefined; rollbackMindsNear(adv, adv.actions.indexOf(a)); saveAdv(); renderStory(false); mpAfterEdit();
       };
       s.appendChild(nav);
     }
@@ -1714,6 +1801,13 @@ function renderStory(scroll){
   if(adv.multi && mp.liveText[adv.multi.view] && mp.busySid === adv.multi.view && adv.multi.active !== adv.multi.view){ const lv = el("div", "act ai" + (settings.liveText ? " live" : "")); if(settings.liveText) lv.textContent = mp.liveText[adv.multi.view]; else { lv.innerHTML = SPIN; lv.querySelector(".wstat").textContent = L("✍️ écriture…", "✍️ writing…"); } s.insertBefore(lv, m); }
   updateTools(); refreshSmartBar(); mpUI();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
+}
+// rend visible un passage ancien (recherche) en élargissant la fenêtre d'affichage
+function revealPassage(id){
+  if(document.querySelector(`.act[data-id="${id}"]`)) return;
+  const all = mpShown().filter(a => !a.hidden), i = all.findIndex(a => a.id === id);
+  if(i < 0) return;
+  showCount = Math.max(showCount, all.length - i + 10); renderStory(false);
 }
 function updateTools(){
   if(room) return;
@@ -1736,7 +1830,8 @@ function actionMenu(a, ev){
   document.querySelectorAll(".act.sel").forEach(m => m.classList.remove("sel"));
   const e = ev.currentTarget; e.classList.add("sel");
   if(adv.multi && adv.multi._all) return;
-  const m = el("div", "menu", `<button data-a="edit">Modifier</button><button data-a="tts">Écouter</button><button data-a="del">Supprimer</button><button data-a="cut">Supprimer à partir d'ici</button>`);
+  const lastAi = [...adv.actions].reverse().find(x => !x.hidden && x.type === "ai");
+  const m = el("div", "menu", `${!adv.multi ? `<button data-a="branch">${esc(L("Créer une branche ici", "Branch from here"))}</button>` : ""}${a === lastAi && !adv.multi ? `<button data-a="other">${esc(L("Refaire avec un autre modèle", "Redo with another model"))}</button>` : ""}<button data-a="edit">Modifier</button><button data-a="tts">Écouter</button><button data-a="del">Supprimer</button><button data-a="cut">Supprimer à partir d'ici</button>`);
   document.body.appendChild(m);
   const r = e.getBoundingClientRect();
   m.style.left = Math.min(ev.clientX, innerWidth - 190) + "px";
@@ -1746,11 +1841,40 @@ function actionMenu(a, ev){
   setTimeout(() => document.addEventListener("pointerdown", outside, true), 0);
   m.onclick = x => {
     const act = x.target.dataset.a; if(!act) return; close();
+    if(act === "other") openModelPicker(() => closeSheet(), "__retry");
+    if(act === "branch") createBranch(a);
     if(act === "edit") editAction(a);
     if(act === "tts") speak(a.text);
     if(act === "del"){ const i = adv.actions.findIndex(y => y.id === a.id); adv.actions = adv.actions.filter(y => y.id !== a.id); redoStack = []; rollbackMindsNear(adv, i); saveAdv(); renderStory(); mpAfterEdit(); }
     if(act === "cut"){ const i = adv.actions.findIndex(y => y.id === a.id); if(confirm("Supprimer ce passage et tout ce qui suit ?")){ adv.actions = adv.multi ? adv.actions.filter((y, j) => j < i || y.sc !== a.sc) : adv.actions.slice(0, i); redoStack = []; rollbackMinds(adv, i); saveAdv(); renderStory(); mpAfterEdit(); } }
   };
+}
+/* Branche : une copie de l'aventure arrêtée à ce passage, pour essayer une autre suite. L'original n'est pas touché.
+   Aucun appel à l'IA : seulement de la place sur le téléphone. */
+function createBranch(a){
+  const i = adv.actions.findIndex(x => x.id === a.id); if(i < 0) return;
+  if(!confirm(L("Créer une branche à partir de ce passage ? Une copie de l'aventure arrêtée ici apparaîtra dans ta bibliothèque, l'original reste intact.", "Branch from this passage? A copy of the adventure stopping here will appear in your library; the original stays untouched."))) return;
+  saveAdv();
+  const src = adv, b = clone(src), root = src.branchOf?.title || src.title;
+  b.id = uid(); b.created = b.updated = Date.now(); b.spent = 0;
+  const n = index.filter(x => !x.trashed && (x.title === root || x.title.startsWith(root + " — "))).length + 1;
+  b.title = `${root} — ${L("branche", "branch")} ${n}`;
+  b.branchOf = { id: src.branchOf?.id || src.id, title: root, at: a.id };
+  b.actions = b.actions.slice(0, i + 1);
+  // l'état de ce moment-là : esprits revenus en arrière (exacts pour les passages récents), souvenirs du futur retirés
+  rollbackMinds(b, b.actions.length);
+  const keep = new Set(b.actions.map(x => x.id));
+  if(b.mem?.items) b.mem.items = b.mem.items.filter(it => keep.has(it.b) || keep.has(it.a));
+  if(b.mindLog) b.mindLog = b.mindLog.filter(e => keep.has(e.id));
+  let resum = false;
+  if((b.summarizedUpTo || 0) > b.actions.length){ b.summary = ""; b.summarizedUpTo = 0; resum = true; } // le résumé racontait la suite : on le refait
+  ["mindFrom", "scFrom"].forEach(k => { if(b[k] > b.actions.length) b[k] = b.actions.length; });
+  delete b.ctxAnchor; delete b.multi; b.pending = []; b.lastEcho = undefined;
+  if(src.hasCover){ const c = getCover(src.id); b.hasCover = !!(c && LS.set("lan.cover." + b.id, c)); }
+  LS.set("lan.adv." + b.id, b); index.unshift(indexEntry(b)); LS.set("lan.index", index);
+  openAdventure(b.id);
+  toast(L(`Branche créée : « ${b.title} »`, `Branch created: “${b.title}”`));
+  if(resum && memItems(b).length >= 4) summaryFromMemories(b).catch(() => {});
 }
 function editAction(a){
   const lead = (a.text.match(/^[\s​-‍]*/) || [""])[0];
@@ -1792,6 +1916,7 @@ function triggeredCards(){
   const hits = [];
   adv.cards.forEach(c => {
     if(c.enabled === false || isSystem(c) || isBrain(c) || !visible(c.entry)) return;
+    if(c.always){ hits.push({ c, age: -1 }); return; } // carte « toujours envoyée » : passe avant les autres, même sans mot-clé
     const keys = (c.keys || "").split(",").map(k => k.trim().toLowerCase()).filter(Boolean);
     if(!keys.length) return;
     const age = recent.findIndex(t => keys.some(k => keyHit(t, k)));
@@ -1837,7 +1962,7 @@ function dynBlock(a, startIdx, reserve){
   const cards = triggeredCards();
   return [
     cards.length ? "[World info]\n" + cards.map(c => `- ${cardName(c)}: ${cardText(c)}`).join("\n") : "",
-    memBlock(a, startIdx, reserve, false), mindBlock(a), rpgBlock(a), arNote(a), mpBlock(a)
+    memBlock(a, startIdx, reserve, false), clockBlock(a), mindBlock(a), rpgBlock(a), arNote(a), mpBlock(a)
   ].filter(Boolean).join("\n\n");
 }
 function histBudget(a, dyn){
@@ -1917,7 +2042,7 @@ function aidHistory(){
   }));
 }
 function scriptMessages(ctxText){
-  const extra = [mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
+  const extra = [clockBlock(adv), mindBlock(adv), rpgBlock(adv), arNote(adv)].filter(Boolean).join("\n\n");
   return [{ role: "system", content: (adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n\n" + SCRIPT_GLUE + (extra ? "\n\n" + extra : "") }, { role: "user", content: ctxText }];
 }
 
@@ -2017,6 +2142,11 @@ function placeholder(){
 }
 async function generate(input, opts = {}){
   if(!settings.apiKey){ toast("Ajoute ta clé API dans les réglages"); openSettings(); return; }
+  if(!adv?.multi && !budgetGate()){
+    if(input && input.raw && !$("#inp").value.trim()){ $("#inp").value = input.raw; autosize(); }
+    if(opts.alts?.length && opts.restore){ adv.actions.push(opts.restore); saveAdv(); renderStory(false); }
+    return { final: null, finalAction: null, errMsg: L("budget atteint", "budget reached"), bg: Promise.resolve() };
+  }
   hideIdeas(); stopSpeaking();
   generating = new AbortController(); updateTools();
   const signal = generating.signal;
@@ -2038,6 +2168,9 @@ async function generate(input, opts = {}){
         : lp && lp.type === "player" && !lp.by && /["«“]/.test(lp.text || "") ? lp.text.replace(/^>\s*/, "").replace(/^(you say|tu dis)\s*:\s*/i, "") : "";
       const msgs0 = saidText0 ? withSayNote(buildMessages(guide)) : buildMessages(guide);
       let r, attempt = 0, modRetry = false, safe = false, echoTry = false, retries = 0; const why = [];
+      // modèle imposé pour ce tour (« Refaire avec un autre modèle »), sinon le modèle de secours si le principal plante
+      let useModel = opts.model || null, fbUsed = false;
+      const fb = (settings.fallbackModel || "").trim();
       const RETRY_MAX = 2; // relances automatiques par tour au plus : chacune coûte un appel
       const saidText = settings.echoRetry !== false ? saidText0 : "";
       lastCost = 0; lastCache = null;
@@ -2045,7 +2178,7 @@ async function generate(input, opts = {}){
         let started = false, cut = false, partial = "", wc = 0;
         try{
           const m0 = echoTry ? withEchoNote(msgs0) : msgs0;
-          r = await callModel(attempt ? withRepeatNote(m0) : m0, { signal, ...(safe ? { temperature: Math.min(0.75, settings.temperature), top_p: 0.9, plain: true } : {}), onThink: () => { if(!started) ph.setStatus(L("🧠 le modèle réfléchit…", "🧠 the model is thinking…")); }, onDelta: delta => {
+          r = await callModel(attempt ? withRepeatNote(m0) : m0, { signal, ...(useModel ? { model: useModel } : {}), ...(safe ? { temperature: Math.min(0.75, settings.temperature), top_p: 0.9, plain: true } : {}), onThink: () => { if(!started) ph.setStatus(L("🧠 le modèle réfléchit…", "🧠 the model is thinking…")); }, onDelta: delta => {
             partial += delta;
             if(mpLiveTap) mpLiveTap(partial);
             if(cut) return;
@@ -2065,6 +2198,12 @@ async function generate(input, opts = {}){
           } });
         }catch(e){
           if(e.name === "AbortError") r = { text: partial, cost: 0 };
+          else if(!e.mod && fb && !fbUsed && fb !== (useModel || settings.model || "").trim() && !partial.trim()){
+            // le modèle principal a planté (fournisseur en panne, réponse vide…) : on bascule une fois sur le modèle de secours au lieu d'afficher une erreur
+            fbUsed = true; useModel = fb; why.push(L("modèle de secours", "backup model") + " : " + shortModel(fb)); ph.el.innerHTML = SPIN;
+            ph.setStatus(L("Le modèle ne répond pas, passage au modèle de secours…", "The model isn't answering, switching to the backup model…"));
+            continue;
+          }
           else if(e.mod && !modRetry && retries < RETRY_MAX){ modRetry = true; retries++; why.push(L("fournisseur filtré", "filtered provider")); ph.el.innerHTML = SPIN; ph.setStatus(L("Fournisseur trop filtré, changement…", "Provider too filtered, switching…")); continue; }
           else throw e;
         }
@@ -2096,7 +2235,7 @@ async function generate(input, opts = {}){
       final = cleanOutput(ex.text);
       // réponse bien plus longue que demandé (modèle avec budget de réflexion, ou fournisseur qui ignore la limite) : on recoupe à une fin de phrase
       if(final && estTok(final) > settings.max_tokens * (THINKERS[(settings.model || "").trim()] ? 1.2 : 1.4)) final = cutClean(final, Math.round(settings.max_tokens * 4.2));
-      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(why.length) finalAction.redo = why; if(recall.id === adv.id && recall.used.length) finalAction.recalled = recall.used.slice(0, 30); if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
+      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(why.length) finalAction.redo = why; if(useModel) finalAction.model = useModel; if(recall.id === adv.id && recall.used.length) finalAction.recalled = recall.used.slice(0, 30); if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
     } else {
       if(input){
         const ri = await runHook("input", formatPlayer(input.kind, input.raw));
@@ -2135,12 +2274,17 @@ async function generate(input, opts = {}){
   }
   if(finalAction){
     if(guide) finalAction.guide = guide;
-    if(opts.alts?.length){ finalAction.alts = [...opts.alts, final].slice(-ALT_MAX); finalAction.altIdx = finalAction.alts.length - 1; }
+    if(opts.alts?.length){
+      // le modèle de chaque version est gardé à côté, pour savoir laquelle vient de quel modèle
+      const prevM = opts.restore?.altM || opts.alts.map((_, i) => i === opts.alts.length - 1 ? (opts.restore?.model || "") : "");
+      finalAction.alts = [...opts.alts, final].slice(-ALT_MAX); finalAction.altM = [...prevM, finalAction.model || ""].slice(-ALT_MAX); finalAction.altIdx = finalAction.alts.length - 1;
+    }
     recordTurn(final, playerText);
   } else if(opts.alts?.length && opts.restore){ adv.actions.push(opts.restore); if(opts.restore.rpgAfter) adv.rpg = clone(opts.restore.rpgAfter); }
   generating = null;
   saveAdv();
   renderStory(false);
+  if(final && !adv.multi) budgetWarn();
   if(final && (scriptsOn() || !settings.liveText)){
     const last = [...$("#story").querySelectorAll(".act.ai")].pop();
     if(last) last.classList.add("fi");
@@ -2149,7 +2293,7 @@ async function generate(input, opts = {}){
   else if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
   const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
   if(final && settings.ttsAuto) speak(final);
-  const bg = errMsg ? Promise.resolve() : Promise.allSettled([maybeSummarize(), maybeSmartCards(), maybeMinds(), maybeMemorize()]);
+  const bg = errMsg ? Promise.resolve() : Promise.allSettled([maybeSummarize(), maybeSmartCards(), maybeMinds(), maybeMemorize(), maybeClock()]);
   return { final, finalAction, errMsg, bg };
 }
 const wantsRoll = input => !!(adv.scripts.rpg && adv.scripts.rpgDice !== false && input && input.kind === "do");
@@ -3273,6 +3417,67 @@ function seedMindsFromBrains(a){
 }
 
 /* ---- Barre d'état (au-dessus de la saisie) ---- */
+/* ================= Horloge du monde ================= */
+const clockOn = a => !!(a && a.scripts && a.scripts.clock);
+function clockLine(c){ return [c.date, c.time, c.season].filter(Boolean).join(" · "); }
+function clockBlock(a){
+  if(!clockOn(a) || !a.clock) return "";
+  const c = a.clock, ages = Object.entries(c.ages || {}).map(([n, v]) => `${n} ${v}`).join(", ");
+  return `[World clock — the current in-story date and ages. Keep time consistent: describe people at their current age, respect day/night and seasons, and never jump in time unless the player asks.]\n${clockLine(c)}${ages ? "\nAges: " + ages : ""}${c.note ? "\n" + c.note : ""}`;
+}
+let clocking = false;
+async function maybeClock(force){
+  const a = adv; if(!clockOn(a) || clocking || (a.multi && !a.multi._all)) return;
+  const vis = a.actions.filter(x => !x.hidden); if(!vis.length) return;
+  clocking = true;
+  try{
+    const recent = vis.slice(-3).map(x => visible(x.text)).join("\n\n").slice(-4000);
+    const prompt = `You keep the world clock of an interactive story (second person, "you" is the player${a.scripts.player ? ", named " + a.scripts.player : ""}).
+Current clock (may be empty at the start):
+${JSON.stringify(a.clock || {})}
+Story essentials (for names and ages):
+"""
+${visible(a.essentials || "").slice(0, 1500)}
+"""
+Latest passages:
+"""
+${recent}
+"""
+Update the clock: how much time passed in these passages (minutes, hours, days, a time skip like "a year later"…). If the clock is empty, infer the starting date and time from the story, or invent a plausible one that fits the setting (fantasy worlds can use their own calendar, e.g. "Year 1 after the Founding, 3rd day of Spring"). Ages: the main characters with a known or inferable age, updated when years pass (include the player if their age is known). Keep everything short.
+Return ONLY JSON: {"date":"…","time":"morning / afternoon / evening / night or an hour","season":"…","ages":{"Name":"age"},"note":"optional, very short, e.g. 'pregnant, due in 2 months'"}`;
+    const j = parseJSON(await complete(prompt, 300, true));
+    if(j && (j.date || j.time) && adv === a){
+      a.clock = { date: visible(String(j.date || "")).slice(0, 80), time: visible(String(j.time || "")).slice(0, 40), season: visible(String(j.season || "")).slice(0, 30),
+        ages: Object.fromEntries(Object.entries(j.ages && typeof j.ages === "object" ? j.ages : {}).slice(0, 12).map(([k, v]) => [visible(k).slice(0, 40), visible(String(v)).slice(0, 20)])),
+        note: visible(String(j.note || "")).slice(0, 160) };
+      saveAdv(); refreshSmartBar();
+    }
+  }catch(e){ console.warn("clock", e); if(force) toast(L("Horloge : ", "Clock: ") + e.message); }
+  clocking = false;
+}
+function openClock(){
+  const a = adv; a.clock ||= {};
+  openSheet(L("Horloge du monde", "World clock"), null, (_, b) => {
+    hint(b, L("Tenue à jour toute seule après chaque tour. Tu peux la corriger ici.", "Updated on its own after each turn. You can correct it here."));
+    const c = a.clock;
+    field(b, L("Date", "Date"), c.date, v => { c.date = v; saveAdv(); });
+    field(b, L("Moment de la journée", "Time of day"), c.time, v => { c.time = v; saveAdv(); });
+    field(b, L("Saison", "Season"), c.season, v => { c.season = v; saveAdv(); });
+    field(b, L("Âges (un par ligne : Nom = âge)", "Ages (one per line: Name = age)"), Object.entries(c.ages || {}).map(([n, v]) => `${n} = ${v}`).join("\n"), v => {
+      c.ages = Object.fromEntries(v.split("\n").map(x => x.split("=")).filter(x => x.length >= 2 && x[0].trim()).map(x => [x[0].trim(), x.slice(1).join("=").trim()])); saveAdv();
+    }, { multiline: true, rows: 4 });
+    field(b, L("Note", "Note"), c.note, v => { c.note = v; saveAdv(); });
+    sec(b, L("Faire passer le temps", "Skip time"));
+    let dur = "";
+    field(b, L("Combien de temps ?", "How long?"), "", v => dur = v, { placeholder: L("Ex. : trois jours, un mois, un an", "E.g. three days, a month, a year") });
+    btn(b, L("⏩ Plus tard…", "⏩ Later…"), "wide", () => {
+      const d = dur.trim(); if(!d) return toast(L("Écris une durée", "Write a duration"));
+      closeSheet();
+      const en = storyEN(a);
+      generate({ kind: "story", raw: en ? `⏩ ${d} later…` : `⏩ ${d} plus tard…` }, { guide: `Time skip: ${d} pass now. In a few sentences, summarize what happened during that time (routine, changes, notable events) without deciding anything big for the player, then resume with a new scene at the new date. Everyone has aged accordingly.` });
+    });
+  });
+}
 function refreshSmartBar(){
   const s = $("#sbar"); if(!s) return;
   s.innerHTML = "";
@@ -3283,6 +3488,7 @@ function refreshSmartBar(){
     p.onclick = openRpgSheet; s.appendChild(p);
   }
   if(adv.multi) mpBar(s);
+  if(clockOn(adv)){ const p = el("button", "pill", `<span>🕰 ${esc(adv.clock ? (adv.clock.date || adv.clock.time || "…") : L("Horloge…", "Clock…"))}</span>`); p.onclick = openClock; s.appendChild(p); }
   if(adv.scripts.minds && adv.minds && Object.keys(adv.minds).length){
     const pres = presentNow();
     const now = pres.map(m => m.name), was = sceneShown.id === adv.id ? sceneShown.names : now;
@@ -3334,6 +3540,7 @@ function smartToggles(b, s, onChange, live){
   toggle(mSub, "Afficher les changements de relation", "Petites étiquettes sous les réponses, ex. « Ashlyn · confiance +1 ».", () => s.mindChips !== false, v => { s.mindChips = v; onChange(); });
   slider(mSub, "Mise à jour tous les … tours", "mindEvery", 1, 6, 1, "Une petite requête en plus à chaque mise à jour.", s, onChange);
   toggle(b, "Mode RPG", "Points de vie, or, inventaire et états, tenus à jour par l'IA. Jet de d20 sur tes actions « Faire ».", () => s.rpg, v => { s.rpg = v; onChange(); });
+  toggle(b, L("Horloge du monde", "World clock"), L("Date, moment de la journée, saison et âge des personnages, tenus à jour par une petite requête économique après chaque tour et toujours envoyés à l'IA. Pour les longues histoires où le temps passe. Un bouton 🕰 permet de faire passer le temps (« un an plus tard »).", "Date, time of day, season and characters' ages, kept up to date by a small cheap request after each turn and always sent to the AI. For long stories where time passes. A 🕰 button lets you skip time (\"a year later\")."), () => !!s.clock, v => { s.clock = v; onChange(); });
 }
 
 /* ================= Ideas ================= */
@@ -3505,7 +3712,7 @@ function openSearch(){
         const snip = (s0 ? "…" : "") + esc(t.slice(s0, pos)) + "<mark>" + esc(t.slice(pos, pos + term.length)) + "</mark>" + esc(t.slice(pos + term.length, s1)) + (s1 < t.length ? "…" : "");
         const r = el("button", "res", `<div class="rk">Passage ${i + 1} sur ${acts.length}${acts[i].type !== "ai" ? " · ton action" : ""}</div>${snip}`);
         const id = acts[i].id;
-        r.onclick = () => { closeSheet(); const d = document.querySelector(`.act[data-id="${id}"]`); if(d){ d.scrollIntoView({ block: "center", behavior: "smooth" }); d.classList.remove("flash"); void d.offsetWidth; d.classList.add("flash"); } };
+        r.onclick = () => { closeSheet(); revealPassage(id); const d = document.querySelector(`.act[data-id="${id}"]`); if(d){ d.scrollIntoView({ block: "center", behavior: "smooth" }); d.classList.remove("flash"); void d.offsetWidth; d.classList.add("flash"); } };
         res.appendChild(r);
       }
       if(!n) hint(res, "Aucun résultat.");
@@ -4193,8 +4400,19 @@ async function dek(){
   const r = localStorage.getItem("lan.ekey"); if(!r) throw new Error("synchro verrouillée");
   return dekObj = await crypto.subtle.importKey("raw", unb64(r), "AES-GCM", false, ["encrypt", "decrypt"]);
 }
-async function encData(obj){ return Object.assign({ e2e: 1 }, await seal(TE.encode(JSON.stringify(obj)), await dek())); }
-async function decData(d){ return JSON.parse(TD.decode(await unseal(d, await dek()))); }
+// compression gzip avant chiffrement : une aventure fait 4 à 5 fois moins lourd à envoyer (data mobile, base Supabase)
+const canZip = typeof CompressionStream === "function" && typeof DecompressionStream === "function";
+async function zipBytes(u8, de){ return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(de ? new DecompressionStream("gzip") : new CompressionStream("gzip"))).arrayBuffer()); }
+async function encData(obj){
+  let bytes = TE.encode(JSON.stringify(obj)), z = 0;
+  if(canZip && bytes.length > 2048){ try{ bytes = await zipBytes(bytes); z = 1; }catch(e){} }
+  return Object.assign({ e2e: 1 }, z ? { z: 1 } : {}, await seal(bytes, await dek()));
+}
+async function decData(d){
+  let bytes = await unseal(d, await dek());
+  if(d.z){ if(!canZip) throw new Error("navigateur trop ancien pour lire cette sauvegarde"); bytes = await zipBytes(bytes, true); }
+  return JSON.parse(TD.decode(bytes));
+}
 async function getVault(){ const rows = await sbFetch(`/rest/v1/lanterne_docs?select=data&user_id=eq.${auth.user.id}&key=eq._vault`); return rows?.[0]?.data || null; }
 async function putVault(v){
   await sbFetch("/rest/v1/lanterne_docs?on_conflict=user_id,key", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -4407,9 +4625,12 @@ async function firstSync(){
   localStorage.removeItem("lan.sync.last");
   await syncNow(true);
 }
-async function syncPush(){
+const pushedAt = {}; // dernier envoi de chaque aventure pendant cette session
+const ADV_PUSH_EVERY = 5 * 60000;
+async function syncPush(flush){
   const dirty = LS.get("lan.dirty", {}), mt = LS.get("lan.mtime", {});
-  const keys = Object.keys(dirty);
+  // l'aventure qu'on joue change à chaque tour : on l'envoie au plus toutes les 5 min, et toujours quand l'appli passe en arrière-plan ou sur « Synchroniser »
+  const keys = Object.keys(dirty).filter(k => flush || !/^lan\.adv\./.test(k) || Date.now() - (pushedAt[k] || 0) >= ADV_PUSH_EVERY);
   if(!keys.length) return;
   const snap = {}, rows = [];
   for(const k of keys){
@@ -4418,6 +4639,7 @@ async function syncPush(){
     let data = raw ? JSON.parse(raw) : null;
     if(k === "lan.settings" && data && !settings.syncApiKey){ data = Object.assign({}, data); delete data.apiKey; }
     rows.push({ user_id: auth.user.id, key: k.slice(4), data: raw ? await encData(data) : null, mtime: snap[k], deleted: !raw });
+    pushedAt[k] = Date.now();
   }
   for(let i = 0; i < rows.length; i += 15){
     await sbFetch("/rest/v1/lanterne_docs?on_conflict=user_id,key", { method: "POST",
@@ -4488,7 +4710,7 @@ async function syncNow(manual){
   if(syncState.busy){ if(manual) toast("Synchronisation déjà en cours"); return; }
   syncState.busy = true; refreshSyncLine();
   try{
-    await syncPush(); await syncPull(); await syncPush();
+    await syncPush(manual); await syncPull(); await syncPush(manual);
     syncState.err = ""; syncState.last = Date.now(); LS.set("lan.sync.when", syncState.last);
     if(manual) toast("Synchronisé ✓");
   }catch(e){
@@ -4498,7 +4720,7 @@ async function syncNow(manual){
   syncState.busy = false; refreshSyncLine();
 }
 setInterval(() => { if(document.visibilityState === "visible") syncNow(false); }, 25000);
-document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") syncNow(false); else if(auth && hasKey()) syncPush().catch(() => {}); });
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") syncNow(false); else if(auth && hasKey()) syncPush(true).catch(() => {}); });
 window.addEventListener("online", () => syncNow(false));
 
 function renderSyncTab(body){
@@ -4856,6 +5078,7 @@ function editCard(c, list, ctx, done0, tech){
     });
     gb.style.marginBottom = "16px";
     toggle(body, "Activée", "Désactive sans supprimer.", () => d.enabled !== false, v => d.enabled = v);
+    toggle(body, L("Toujours envoyée", "Always sent"), L("Envoyée à l'IA à chaque tour, même si aucun mot-clé n'apparaît. Pour les personnages principaux (leur apparence reste juste même avant qu'on les nomme) ou le décor central. Chaque carte ainsi coûte quelques tokens par tour.", "Sent to the AI every turn, even if no keyword appears. For main characters (their look stays right even before they're named) or the central setting. Each such card costs a few tokens per turn."), () => !!d.always, v => { if(v) d.always = true; else delete d.always; });
     if(adv && !isNew && adv.minds){ const mm = Object.keys(adv.minds).find(k => mindCard(adv, adv.minds[k]) === c); if(mm) btn(body, L("Esprit de ", "Mind of ") + adv.minds[mm].name, "ghost small", () => openMind(mm, () => openAdventureSheet("cards"))).style.marginBottom = "14px"; }
     const r = el("div", "row"); body.appendChild(r);
     btn(r, "Enregistrer", "", () => {
@@ -4964,7 +5187,7 @@ function modelRow(m, desc, onPick, pop, tags){
 }
 function openModelPicker(back, key = "model"){
   openSheet("Choisir un modèle", [["rec","Recommandés"],["all","Tous les modèles"]], async (k, body) => {
-    const pick = m => { settings[key] = m.id; if(key === "bgModel") bgResolved = null; saveSettings(); toast("Modèle : " + (m.name || m.id).replace(/^[^:]+:\s*/, "")); back(); };
+    const pick = m => { if(key === "__retry"){ closeSheet(); retryLast(m.id); return; } settings[key] = m.id; if(key === "bgModel") bgResolved = null; saveSettings(); toast("Modèle : " + (m.name || m.id).replace(/^[^:]+:\s*/, "")); back(); };
     body.innerHTML = `<div class="hint">Chargement des modèles et des prix…</div>`;
     let all = [];
     try{ all = await loadModels(); }catch(e){ body.innerHTML = `<div class="hint">Impossible de charger la liste (hors ligne ?).</div>`; }
@@ -5113,6 +5336,17 @@ function openSettings(start){
         body.appendChild(bsel);
         if(bv && bv !== "auto" && bv !== "same") hint(body, esc(bv)).style.marginTop = "6px";
         bsel.style.marginBottom = "22px";
+        sec(body, L("Modèle de secours", "Backup model"));
+        hint(body, L("Si le modèle principal ne répond pas (fournisseur en panne, réponse vide…), Lanterne refait le tour une fois avec celui-ci au lieu d'afficher une erreur. « ↻ refait : modèle de secours » s'affiche alors sous la réponse.", "If the main model doesn't answer (provider down, empty reply…), Lanterne redoes the turn once with this one instead of showing an error. \"↻ redone: backup model\" then shows below the reply."));
+        const fbr = el("div", "row"); fbr.style.cssText = "flex-wrap:wrap;gap:8px;margin-bottom:22px"; body.appendChild(fbr);
+        btn(fbr, settings.fallbackModel ? shortModel(settings.fallbackModel) : L("Aucun — choisir…", "None — choose…"), "ghost small", () => openModelPicker(() => openSettings("model"), "fallbackModel"));
+        if(settings.fallbackModel) btn(fbr, L("Retirer", "Remove"), "ghost small", () => { settings.fallbackModel = ""; saveSettings(); openSettings("model"); });
+        sec(body, L("Budget", "Budget"));
+        const cur = settings.currency !== "USD" ? "€" : "$";
+        hint(body, L(`Plafonds de dépense, en ${cur} (0 = aucun). Lanterne te prévient à 80 %, puis demande confirmation avant de continuer une fois le plafond atteint. Dépensé aujourd'hui : <b>${money((stats.byDay || {})[dayKey()] || 0)}</b> · ce mois-ci : <b>${money(stats.byMonth[monthKey()] || 0)}</b>.`, `Spending caps, in ${cur} (0 = none). Lanterne warns you at 80%, then asks before continuing once the cap is reached. Spent today: <b>${money((stats.byDay || {})[dayKey()] || 0)}</b> · this month: <b>${money(stats.byMonth[monthKey()] || 0)}</b>.`));
+        const bgr = el("div", "row"); bgr.style.cssText = "gap:10px;margin-bottom:22px"; body.appendChild(bgr);
+        const bf = (k, lab) => { const w = el("div"); w.style.flex = "1"; bgr.appendChild(w); const e = field(w, lab, settings[k] || "", v => { settings[k] = Math.max(0, parseFloat(String(v).replace(",", ".")) || 0); saveSettings(); }, { type: "text", placeholder: "0" }); e.inputMode = "decimal"; };
+        bf("budgetDay", L("Par jour", "Per day")); bf("budgetMonth", L("Par mois", "Per month"));
         sec(body, L("Fournisseurs évités", "Avoided providers"));
         hint(body, L("Certains hébergeurs filtrent le contenu adulte ou sombre. Quand l'un d'eux bloque une réponse, Lanterne l'ajoute ici tout seul et passe par un autre. Touche un nom pour le retirer.", "Some hosts filter adult or dark content. When one blocks a reply, Lanterne adds it here on its own and goes through another. Tap a name to remove it."));
         const pv = el("div", "chips"); pv.style.marginBottom = "22px"; body.appendChild(pv);
@@ -6066,7 +6300,7 @@ $("#advBtn").onclick = () => openAdventureSheet();
 $("#sendBtn").onclick = submit;
 $("#contBtn").onclick = () => { if(adv?.multi) return mpHostJob("cont"); if(!generating){ redoStack = []; generate(null); } };
 $("#retryBtn").onclick = () => { if(adv?.multi) return mpHostJob("retry"); if(!generating) retryLast(); };
-function retryLast(){
+function retryLast(model){
   popTrailingHidden();
   const last = adv.actions[adv.actions.length - 1];
   let alts = null, restore = null, guide = "";
@@ -6079,7 +6313,7 @@ function retryLast(){
   }
   else if(!last || last.type === "ai") return toast("Rien à réessayer");
   popTrailingHidden();
-  redoStack = []; saveAdv(); return generate(null, { alts, restore, guide });
+  redoStack = []; saveAdv(); return generate(null, Object.assign({ alts, restore, guide }, model ? { model } : {}));
 }
 $("#undoBtn").onclick = () => { if(adv?.multi) return mpHostJob("undo"); if(!generating) undoLast(); };
 function undoLast(){

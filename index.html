@@ -944,8 +944,22 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.3";
+const APP_VERSION = "8.4";
 const CHANGELOG = [
+  { v: "8.4", fr: [
+      "Italique : le texte entre astérisques (*comme ça*) s'affiche en vraie italique au lieu d'être effacé, pratique pour les pensées des personnages. Plus aucune étoile visible",
+      "Relances automatiques limitées à 2 par tour (écho, répétition, texte incohérent, fournisseur filtré) : chacune coûte un appel. Quand une réponse a été refaite, « ↻ refait : écho » s'affiche dessous",
+      "Réessayer : 10 versions gardées au plus par passage. Les plus anciennes ne partent que quand tu en ajoutes une nouvelle ; les passages qui en ont déjà plus ne sont pas touchés tant que tu ne refais pas Réessayer dessus",
+      "« Tout exporter » sauvegarde aussi tes scénarios et tes réglages (jamais ta clé API). À l'import, les scénarios déjà présents ne sont pas écrasés et Lanterne demande avant de remplacer les réglages",
+      "Sécurité : le code caché dans une carte (« Live Script Interface » des scripts AI Dungeon) ne peut plus jamais s'exécuter ; les nouveaux mots de passe font 10 caractères minimum (ta connexion actuelle n'est pas touchée)",
+      "Les erreurs inattendues s'affichent au lieu de passer inaperçues, et le mode hors ligne ne garde plus de pages d'erreur"],
+    en: [
+      "Italics: text between asterisks (*like this*) is shown in real italics instead of being removed, handy for characters' thoughts. No more visible stars",
+      "Automatic retries capped at 2 per turn (echo, repetition, garbled text, filtered provider): each one costs a call. When a reply was redone, \"↻ redone: echo\" shows below it",
+      "Retry: at most 10 versions kept per passage. The oldest only go when you add a new one; passages that already have more are untouched until you retry them again",
+      "\"Export everything\" now also saves your scenarios and settings (never your API key). On import, existing scenarios aren't overwritten and Lanterne asks before replacing settings",
+      "Security: code hidden in a card (the AI Dungeon scripts' \"Live Script Interface\") can never run anymore; new passwords need at least 10 characters (your current login isn't affected)",
+      "Unexpected errors are now shown instead of going unnoticed, and offline mode no longer keeps error pages"] },
   { v: "8.3", fr: [
       "Mémoire des personnages : chacun garde un carnet de souvenirs marquants avec toi (aveux, promesses, premier baiser, disputes, conversations importantes), 10 au plus, les moins importants s'effacent en premier. Ils peuvent les ressortir au bon moment",
       "« Entre vous » : surnoms, blagues, habitudes et promesses en cours sont suivis pour chaque personnage, et une étiquette résume votre relation (ex. « servante insolente », « complice »)",
@@ -1245,6 +1259,7 @@ async function callModel(messages, opts = {}){
   }
 }
 const THINKERS = LS.get("lan.thinkers", {});
+const ALT_MAX = 10; // versions gardées par passage quand on fait Réessayer (les plus anciennes partent seulement quand tu en ajoutes une)
 const SPIN = `<span class="spin"></span><span class="wstat"></span>`;
 async function callModel0(messages, opts = {}){
   if(!settings.apiKey) throw new Error("Ajoute ta clé API dans les réglages");
@@ -1669,11 +1684,12 @@ function renderStory(scroll){
   shown.forEach(a => {
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : ""));
     d.dataset.id = a.id;
-    d.textContent = visible(a.text);
+    setRich(d, visible(a.text));
     if(a.roll && a.type !== "ai"){ const n = a.roll; d.appendChild(el("span", "roll" + (n >= 20 ? " crit" : n <= 1 ? " fumble" : n <= 7 ? " fail" : ""), `d20 · ${n} · ${rollLabel(n)}`)); }
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
     if(a.rpgDelta?.length && adv.scripts.rpg) s.appendChild(el("div", "rpgd", a.rpgDelta.map(x => `<span class="${x.s > 0 ? "pos" : "neg"}">${esc(x.t)}</span>`).join("")));
+    if(a.redo?.length) s.appendChild(el("div", "rpgd mind", `<span title="${esc(L("Lanterne a refait cette réponse automatiquement (chaque relance coûte un appel)", "Lanterne redid this reply automatically (each retry costs a call)"))}">↻ ${esc(L("refait", "redone"))} : ${esc(a.redo.join(", "))}</span>`));
     if(a.recalled?.length && memOn(adv) && adv.scripts.mindChips !== false){
       // « ce dont l'IA s'est souvenue » pour écrire ce passage : touche pour voir les souvenirs
       const its = a.recalled.map(id => memItems(adv).find(it => it.id === id)).filter(Boolean);
@@ -1908,6 +1924,8 @@ function scriptMessages(ctxText){
 /* ================= Scripts engine (AI Dungeon scripting emulation) ================= */
 const WORKER_SRC = `
 importScripts(%LIB%);
+// Lanterne bloque la « Live Script Interface » d'Auto-Cards : du code écrit dans une carte ne doit jamais s'exécuter (un scénario importé pourrait en contenir)
+self.isolateLSIv2 = function(code, log, text, stop){ return [new Error("Live Script Interface disabled in Lanterne"), text, stop]; };
 self.onmessage = (e) => {
   const d = e.data; const logs = [];
   try{
@@ -2019,7 +2037,8 @@ async function generate(input, opts = {}){
       const saidText0 = input ? (input.kind === "say" || (input.kind === "do" && /["«“]/.test(input.raw)) ? input.raw : "")
         : lp && lp.type === "player" && !lp.by && /["«“]/.test(lp.text || "") ? lp.text.replace(/^>\s*/, "").replace(/^(you say|tu dis)\s*:\s*/i, "") : "";
       const msgs0 = saidText0 ? withSayNote(buildMessages(guide)) : buildMessages(guide);
-      let r, attempt = 0, modRetry = false, safe = false, echoTry = false;
+      let r, attempt = 0, modRetry = false, safe = false, echoTry = false, retries = 0; const why = [];
+      const RETRY_MAX = 2; // relances automatiques par tour au plus : chacune coûte un appel
       const saidText = settings.echoRetry !== false ? saidText0 : "";
       lastCost = 0; lastCache = null;
       while(true){
@@ -2046,13 +2065,13 @@ async function generate(input, opts = {}){
           } });
         }catch(e){
           if(e.name === "AbortError") r = { text: partial, cost: 0 };
-          else if(e.mod && !modRetry){ modRetry = true; ph.el.innerHTML = SPIN; ph.setStatus(L("Fournisseur trop filtré, changement…", "Provider too filtered, switching…")); continue; }
+          else if(e.mod && !modRetry && retries < RETRY_MAX){ modRetry = true; retries++; why.push(L("fournisseur filtré", "filtered provider")); ph.el.innerHTML = SPIN; ph.setStatus(L("Fournisseur trop filtré, changement…", "Provider too filtered, switching…")); continue; }
           else throw e;
         }
         lastCost += r.cost || 0;
-        if(!safe && !signal.aborted && isGibberish(r.text)){
+        if(!safe && retries < RETRY_MAX && !signal.aborted && isGibberish(r.text)){
           // texte incohérent (mots tronqués, plus aucun petit mot) : réglages trop poussés ou fournisseur défaillant → on refait en mode sage
-          safe = true; ph.el.innerHTML = SPIN;
+          safe = true; retries++; why.push(L("texte incohérent", "garbled text")); ph.el.innerHTML = SPIN;
           ph.setStatus(L("Texte incohérent, nouvelle version plus sage…", "Garbled text, trying a calmer version…"));
           toast(L("Le modèle a produit un texte incohérent : nouvelle version avec des réglages plus sages", "The model produced garbled text: retrying with calmer settings"));
           continue;
@@ -2061,23 +2080,23 @@ async function generate(input, opts = {}){
         const aiN = adv.actions.filter(x => x.type === "ai" && !x.hidden).length;
         const echoed = !echoTry && saidText && !signal.aborted && isEcho(extractRpg(r.text).text, saidText);
         if(echoed && !opts.alts && aiN - (adv.lastEcho ?? -99) >= 5){ adv.lastEcho = aiN; } // sur un Réessayer, aucun écho toléré
-        else if(echoed){
-          echoTry = true; ph.el.innerHTML = SPIN;
+        else if(echoed && retries < RETRY_MAX){
+          echoTry = true; retries++; why.push(L("écho", "echo")); ph.el.innerHTML = SPIN;
           ph.setStatus(L("Le personnage répétait ta réplique, nouvelle version…", "The character was echoing your line, new version…"));
           continue;
         }
-        if(!attempt && adv.scripts.ar && adv.scripts.arRetry !== false && !signal.aborted && isRepeat(extractRpg(r.text).text)){
-          attempt = 1; ph.el.innerHTML = SPIN; ph.setStatus("Répétition détectée, nouvelle version…");
+        if(!attempt && retries < RETRY_MAX && adv.scripts.ar && adv.scripts.arRetry !== false && !signal.aborted && isRepeat(extractRpg(r.text).text)){
+          attempt = 1; retries++; why.push(L("répétition", "repetition")); ph.el.innerHTML = SPIN; ph.setStatus("Répétition détectée, nouvelle version…");
           continue;
         }
         break;
       }
-      if(safe && isGibberish(r.text)) throw new Error(L("le modèle déraille encore (soupe de mots). Remets les réglages avancés par défaut (Réglages → IA), ou change de modèle.", "the model is still garbling (word soup). Reset the advanced settings to default (Settings → AI), or switch models."));
+      if((safe || retries >= RETRY_MAX) && !signal.aborted && isGibberish(r.text)) throw new Error(L("le modèle déraille encore (soupe de mots). Remets les réglages avancés par défaut (Réglages → IA), ou change de modèle.", "the model is still garbling (word soup). Reset the advanced settings to default (Settings → AI), or switch models."));
       const ex = extractRpg(r.text);
       final = cleanOutput(ex.text);
       // réponse bien plus longue que demandé (modèle avec budget de réflexion, ou fournisseur qui ignore la limite) : on recoupe à une fin de phrase
       if(final && estTok(final) > settings.max_tokens * (THINKERS[(settings.model || "").trim()] ? 1.2 : 1.4)) final = cutClean(final, Math.round(settings.max_tokens * 4.2));
-      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(recall.id === adv.id && recall.used.length) finalAction.recalled = recall.used.slice(0, 30); if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
+      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(why.length) finalAction.redo = why; if(recall.id === adv.id && recall.used.length) finalAction.recalled = recall.used.slice(0, 30); if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
     } else {
       if(input){
         const ri = await runHook("input", formatPlayer(input.kind, input.raw));
@@ -2116,7 +2135,7 @@ async function generate(input, opts = {}){
   }
   if(finalAction){
     if(guide) finalAction.guide = guide;
-    if(opts.alts?.length){ finalAction.alts = [...opts.alts, final]; finalAction.altIdx = finalAction.alts.length - 1; }
+    if(opts.alts?.length){ finalAction.alts = [...opts.alts, final].slice(-ALT_MAX); finalAction.altIdx = finalAction.alts.length - 1; }
     recordTurn(final, playerText);
   } else if(opts.alts?.length && opts.restore){ adv.actions.push(opts.restore); if(opts.restore.rpgAfter) adv.rpg = clone(opts.restore.rpgAfter); }
   generating = null;
@@ -2540,11 +2559,23 @@ function isGibberish(t){
   return glue < 0.08 || (glue < 0.18 && avg > 5.8);
 }
 function gibOf(a){ const h = a.text.length; if(a._gibLen !== h){ a._gibLen = h; a._gib = isGibberish(a.text); } return a._gib; }
+/* *mot* → italique à l'affichage. Le texte n'est jamais interprété comme du HTML : chaque morceau est posé avec createTextNode. */
+function setRich(node, text){
+  node.textContent = ""; text = String(text || "");
+  const re = /\*(?=[^\s*])([^*\n]*?[^\s*])\*/g; let i = 0, m;
+  while((m = re.exec(text))){
+    if(m.index > i) node.appendChild(document.createTextNode(text.slice(i, m.index)));
+    const em = document.createElement("em"); em.textContent = m[1]; node.appendChild(em); i = re.lastIndex;
+  }
+  if(i < text.length) node.appendChild(document.createTextNode(text.slice(i)));
+}
 function cleanOutput(t){
   t = (t || "").replace(/<think>[\s\S]*?<\/think>/g, "");
   // Lanterne n'affiche ni gras ni italique : on retire le Markdown (*mot*, **mot**, _mot_, séparateurs * * *) que certains modèles comme GLM ajoutent
-  t = t.replace(/^[ \t]*(\*[ \t]*){3,}$/gm, "").replace(/\*+/g, "")
-    .replace(/(^|[\s"“«(—-])_([^_\n]+?)_(?=[\s.,!?;:"”»)…—-]|$)/gm, "$1$2")
+  t = t.replace(/^[ \t]*(\*[ \t]*){3,}$/gm, "")
+    .replace(/\*{2,}([^*\n]+?)\*{2,}/g, "*$1*")
+    .replace(/(^|[\s"“«(—-])_([^_\n]+?)_(?=[\s.,!?;:"”»)…—-]|$)/gm, "$1*$2*")
+    .replace(/\*(?=[^\s*])([^*\n]*?[^\s*])\*|\*+/g, (m, g) => g != null ? `*${g}*` : "")
     .replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").replace(/^\s+/, "").replace(/\s+$/, "");
   const m = t.match(/^[\s\S]*[.!?…"”»*)\]`]/);
   if(m && m[0].length > t.length * 0.6) t = m[0];
@@ -4088,7 +4119,7 @@ function importAny(opts = {}){
         else { closeSheet(); startFromScenario(j); }
         return;
       }
-      if(j.lanterne && (j.adventures || j.actions)) return importBackup(j);
+      if(j.lanterne && (j.adventures || j.actions || j.scenarios)) return importBackup(j);
       importExternalJSON(j);
     }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
   });
@@ -4307,10 +4338,10 @@ function newPasswordSheet(){
   let p1 = "", p2 = "";
   openSheet("Nouveau mot de passe", null, (_, b) => {
     hint(b, "Choisis un nouveau mot de passe pour " + esc(auth.user.email) + ".");
-    field(b, "Nouveau mot de passe", "", v => p1 = v, { type: "password", placeholder: "6 caractères minimum" });
+    field(b, "Nouveau mot de passe", "", v => p1 = v, { type: "password", placeholder: L("10 caractères minimum", "At least 10 characters") });
     field(b, "Confirme-le", "", v => p2 = v, { type: "password" });
     const go = btn(b, "Enregistrer", "wide", async () => {
-      if(p1.length < 6) return toast("6 caractères minimum");
+      if(p1.length < 10) return toast(L("10 caractères minimum", "At least 10 characters"));
       if(p1 !== p2) return toast("Les deux mots de passe sont différents");
       go.disabled = true;
       try{
@@ -4480,7 +4511,7 @@ function renderSyncTab(body){
   } else if(!auth){
     let email = "", pw = "";
     field(body, "E-mail", "", v => email = v.trim(), { type: "email", placeholder: "toi@exemple.com" });
-    field(body, "Mot de passe", "", v => pw = v, { type: "password", placeholder: "6 caractères minimum" });
+    field(body, "Mot de passe", "", v => pw = v, { type: "password", placeholder: L("Ton mot de passe (10 caractères min. pour un nouveau compte)", "Your password (10+ characters for a new account)") });
     const r = el("div", "row"); body.appendChild(r);
     const go = (fn, label) => ev => busyBtn(ev.currentTarget, async () => {
       if(!email || !pw) throw new Error("Remplis l'e-mail et le mot de passe");
@@ -4488,7 +4519,7 @@ function renderSyncTab(body){
       openSettings("sync");
     });
     btn(r, "Se connecter", "", go(signIn, "Connecté ✓")).style.flex = "1";
-    btn(r, "Créer un compte", "ghost", go(signUp, "Compte créé ✓")).style.flex = "1";
+    btn(r, "Créer un compte", "ghost", go((e, p) => { if(p.length < 10) throw new Error(L("10 caractères minimum pour un nouveau mot de passe", "At least 10 characters for a new password")); return signUp(e, p); }, "Compte créé ✓")).style.flex = "1";
     const fp = btn(body, "Mot de passe oublié ?", "ghost small", ev => busyBtn(ev.currentTarget, async () => {
       if(!email) throw new Error("Écris d'abord ton e-mail dans le champ du dessus");
       await sendPasswordReset(email);
@@ -4530,10 +4561,10 @@ function renderSyncTab(body){
     const sec1 = el("details", "fold", `<summary>Mot de passe et code de secours</summary><div class="in"></div>`); body.appendChild(sec1); sec1.style.marginTop = "14px";
     const s1 = sec1.querySelector(".in");
     let p1 = "", p2 = "";
-    field(s1, "Nouveau mot de passe", "", v => p1 = v, { type: "password", placeholder: "6 caractères minimum" });
+    field(s1, "Nouveau mot de passe", "", v => p1 = v, { type: "password", placeholder: L("10 caractères minimum", "At least 10 characters") });
     field(s1, "Confirme-le", "", v => p2 = v, { type: "password" });
     btn(s1, "Changer le mot de passe", "small", ev => busyBtn(ev.currentTarget, async () => {
-      if(p1.length < 6) throw new Error("6 caractères minimum");
+      if(p1.length < 10) throw new Error(L("10 caractères minimum", "At least 10 characters"));
       if(p1 !== p2) throw new Error("Les deux mots de passe sont différents");
       await changePassword(p1); toast("Mot de passe changé ✓"); openSettings("sync");
     }));
@@ -5154,7 +5185,10 @@ function openSettings(start){
       const r = el("div", "row"); r.style.flexWrap = "wrap"; body.appendChild(r);
       btn(r, L("↑ Tout exporter", "↑ Export everything"), "ghost", () => {
         const all = liveIndex().map(x => { const a = LS.get("lan.adv." + x.id, null); if(a && a.hasCover) a.cover = getCover(a.id); return a; }).filter(Boolean);
-        download(`lanterne-sauvegarde-${new Date().toISOString().slice(0,10)}.json`, { lanterne: 1, adventures: all });
+        // scénarios (avec leur couverture) et réglages aussi ; jamais la clé API dans un fichier
+        const scns = scnList().map(sc => { const c = getCover(sc.id); return c ? Object.assign({}, sc, { cover: c }) : sc; });
+        const st = Object.assign({}, settings); delete st.apiKey;
+        download(`lanterne-sauvegarde-${new Date().toISOString().slice(0,10)}.json`, { lanterne: 1, adventures: all, scenarios: scns, settings: st });
       });
       btn(r, L("↓ Importer", "↓ Import"), "ghost", importAIDMenu);
       const nTrash = index.filter(x => x.trashed).length + trashedScns().length;
@@ -5185,7 +5219,15 @@ function importFile(){ importAny(); }
 function importBackup(j){
     try{
       const list = j.adventures || (j.actions ? [j] : []);
-      if(!list.length) throw new Error("aucune aventure trouvée");
+      const scns = Array.isArray(j.scenarios) ? j.scenarios : [];
+      if(!list.length && !scns.length) throw new Error("aucune aventure trouvée");
+      // scénarios : ceux qui existent déjà ne sont pas écrasés
+      let ns = 0;
+      scns.forEach(sc => { if(!sc || !sc.id || LS.get(scnKey(sc.id), null)) return; const cover = sc.cover; delete sc.cover; if(cover) LS.set("lan.cover." + sc.id, cover); LS.set(scnKey(sc.id), sc); ns++; });
+      if(j.settings && confirm(L("Cette sauvegarde contient aussi des réglages. Les restaurer ? (ta clé API actuelle est gardée)", "This backup also has settings. Restore them? (your current API key is kept)"))){
+        settings = Object.assign({}, DEFAULT_SETTINGS, j.settings, { apiKey: settings.apiKey }); saveSettings();
+      }
+      if(ns) toast(L(`${ns} scénario(s) importé(s)`, `${ns} scenario(s) imported`));
       list.forEach(a => {
         if(index.some(x => x.id === a.id)) a.id = uid();
         const cover = a.cover; delete a.cover;
@@ -5193,7 +5235,7 @@ function importBackup(j){
         a.hasCover = !!(cover && LS.set("lan.cover." + a.id, cover));
         adv = a; saveAdv();
       });
-      adv = null; toast(`${list.length} aventure(s) importée(s)`); closeSheet(); showLibrary();
+      adv = null; if(list.length) toast(`${list.length} aventure(s) importée(s)`); closeSheet(); showLibrary();
     }catch(e){ toast("Import impossible : " + e.message); }
 }
 
@@ -5959,7 +6001,7 @@ function renderRoom(scroll){
   const s = $("#story"); s.innerHTML = "";
   const list = roomShown();
   const newest = list.length > 1 && room.busy !== room.view ? [...list].reverse().find(a => a.type === "ai") : null;
-  list.forEach(a => { const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : "")); d.textContent = a.text; s.appendChild(d); });
+  list.forEach(a => { const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : "")); setRich(d, a.text); s.appendChild(d); });
   const live = room.live[room.view];
   if(room.busy === room.view){ const d = el("div", "act ai" + (live && settings.liveText ? " live" : "")); if(live && settings.liveText) d.textContent = live; else { d.innerHTML = SPIN; d.querySelector(".wstat").textContent = live ? L("✍️ écriture…", "✍️ writing…") : ""; } s.appendChild(d); }
   if(!list.length && room.busy !== room.view) s.appendChild(el("div", "empty", `<span style="font-family:var(--sans)">${room.players.some(p => p.id === room.me) ? L("La partie commence…", "The game is starting…") : L("Connexion à la partie…", "Connecting to the game…")}</span>`));
@@ -6059,6 +6101,15 @@ document.querySelectorAll(".mode[data-m]").forEach(b => b.onclick = () => {
   $("#inp").placeholder = tr({ do: "Que fais-tu ?", say: "Que dis-tu ?", story: "Écris la suite de l'histoire...", guide: "Oriente la suite (invisible dans l'histoire)…" }[mode]);
 });
 window.addEventListener("beforeunload", () => saveAdv());
+// une erreur inattendue s'affiche au lieu de rester invisible sur téléphone (une fois toutes les 5 s au plus)
+let lastErrToast = 0;
+function showUnexpected(msg){
+  msg = String(msg || ""); if(!msg || /AbortError|aborted|ResizeObserver|Script error\.?$/i.test(msg)) return;
+  if(Date.now() - lastErrToast < 5000) return; lastErrToast = Date.now();
+  console.error(msg); toast(L("Erreur inattendue : ", "Unexpected error: ") + msg.slice(0, 160));
+}
+window.addEventListener("error", e => showUnexpected(e.error?.message || e.message));
+window.addEventListener("unhandledrejection", e => showUnexpected(e.reason?.message || e.reason));
 document.addEventListener("visibilitychange", () => { if(document.hidden && adv && !room) saveAdv(); });
 
 if(isEN()) trNode(document.body);

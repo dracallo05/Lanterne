@@ -950,6 +950,9 @@ const CHANGELOG = [
       "Mémoire des personnages : chacun garde un carnet de souvenirs marquants avec toi (aveux, promesses, premier baiser, disputes, conversations importantes), 10 au plus, les moins importants s'effacent en premier. Ils peuvent les ressortir au bon moment",
       "« Entre vous » : surnoms, blagues, habitudes et promesses en cours sont suivis pour chaque personnage, et une étiquette résume votre relation (ex. « servante insolente », « complice »)",
       "La relation passe à 6 axes : confiance, affection, attirance, respect, peur, tension, sur 10 au lieu de 5, pour ne plus plafonner en quelques scènes. Les parties en cours sont converties automatiquement",
+      "Mémoire : le résumé ne perd plus les vieux détails. Quand il devient trop long, sa partie la plus ancienne devient un « chapitre » rangé dans la mémoire longue, que l'IA peut retrouver plus tard",
+      "Mémoire : sous chaque passage, « 🧠 3 souvenirs rappelés » montre ce que l'IA a retrouvé dans sa mémoire pour l'écrire. Touche pour voir, modifier ou épingler ces souvenirs",
+      "Moins cher : chaque aventure reste sur le même fournisseur d'un tour à l'autre, pour que son cache serve vraiment (le contexte déjà vu coûte environ 5 à 10 fois moins cher), et le résumé est passé en fin de prompt pour ne plus vider le cache quand il change. Avec « Afficher les coûts », le % de cache s'affiche à chaque tour",
       "Stockage : les aventures, scénarios et couvertures sont maintenant rangés dans IndexedDB (des centaines de Mo) au lieu du petit localStorage (~5 Mo), déménagés automatiquement au premier lancement. Fini l'erreur « exceeded the quota »",
       "Plus d'astérisques : le gras et l'italique en Markdown (*mot*) que mettent certains modèles comme GLM sont retirés automatiquement",
       "Fournisseur : nouveau choix dans Réglages → IA, équilibré (par défaut), toujours le moins cher ou toujours le plus rapide",
@@ -958,6 +961,9 @@ const CHANGELOG = [
       "Character memory: each character keeps a notebook of key moments with you (confessions, promises, first kiss, fights, important talks), up to 10, the least important fading first. They can bring them up at the right time",
       "\"Between you\": nicknames, running jokes, habits and open promises are tracked per character, and a label sums up your relationship (e.g. \"bratty maid\", \"confidante\")",
       "Relationships now have 6 axes: trust, affection, attraction, respect, fear, tension, out of 10 instead of 5, so they no longer max out in a few scenes. Ongoing games are converted automatically",
+      "Memory: the summary no longer loses old details. When it gets too long, its oldest part becomes a \"chapter\" stored in long-term memory, which the AI can recall later",
+      "Memory: under each passage, \"🧠 3 memories recalled\" shows what the AI pulled from its memory to write it. Tap to see, edit or pin them",
+      "Cheaper: each adventure now sticks to the same provider from turn to turn so its cache actually works (context it already saw costs about 5 to 10 times less), and the summary moved to the end of the prompt so updating it no longer empties the cache. With \"Show costs\", the cache % is shown each turn",
       "Storage: adventures, scenarios and covers now live in IndexedDB (hundreds of MB) instead of the small localStorage (~5 MB), moved automatically on first launch. No more \"exceeded the quota\" error",
       "No more asterisks: Markdown bold and italics (*word*) that some models like GLM add are removed automatically",
       "Provider: new choice in Settings → AI, balanced (default), always the cheapest or always the fastest",
@@ -1251,6 +1257,9 @@ async function callModel0(messages, opts = {}){
   }
   if(or){
     body.usage = { include: true };
+    // même aventure = même fournisseur d'un tour à l'autre (« sticky routing ») : son cache reste chaud et le contexte déjà vu est facturé ~5 à 10 fois moins cher
+    const sid = opts.session ?? (typeof adv !== "undefined" && adv && adv.id ? adv.id + (body.model !== (settings.model || "").trim() ? ":bg" : "") : "");
+    if(sid) body.session_id = String(sid).slice(0, 256);
     if(!opts.plain){
       if(settings.top_k > 0) body.top_k = settings.top_k;
       if(settings.min_p > 0) body.min_p = settings.min_p;
@@ -1665,6 +1674,11 @@ function renderStory(scroll){
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
     if(a.rpgDelta?.length && adv.scripts.rpg) s.appendChild(el("div", "rpgd", a.rpgDelta.map(x => `<span class="${x.s > 0 ? "pos" : "neg"}">${esc(x.t)}</span>`).join("")));
+    if(a.recalled?.length && memOn(adv) && adv.scripts.mindChips !== false){
+      // « ce dont l'IA s'est souvenue » pour écrire ce passage : touche pour voir les souvenirs
+      const its = a.recalled.map(id => memItems(adv).find(it => it.id === id)).filter(Boolean);
+      if(its.length){ const r = el("div", "rpgd mind memd", `<span>🧠 ${its.length} ${its.length > 1 ? L("souvenirs rappelés", "memories recalled") : L("souvenir rappelé", "memory recalled")}</span>`); r.style.cursor = "pointer"; r.onclick = ev => { ev.stopPropagation(); openRecalled(its); }; s.appendChild(r); }
+    }
     if(a.mindDelta?.length && adv.scripts.minds && adv.scripts.mindChips !== false) s.appendChild(el("div", "rpgd mind", a.mindDelta.map(x => `<span class="${x.s > 0 ? "pos" : x.s < 0 ? "neg" : ""}">${esc(x.t)}</span>`).join("")));
     if(a.type === "ai" && a.alts?.length > 1){
       const i = a.altIdx ?? a.alts.length - 1;
@@ -1817,7 +1831,6 @@ function histBudget(a, dyn){
 function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
-  if(adv.summary.trim()) parts.push("[Story summary so far]\n" + adv.summary.trim());
   const system = mpPov(adv, adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n" + ECHO_RULE + (adv.multi ? "" : "\n" + POV_RULE) + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
@@ -1835,7 +1848,10 @@ function buildMessages(guide, dry){
   hist.forEach(a => push(a.type === "ai" ? "assistant" : "user", visible(a.text) + (a === ra ? "\n" + rollNote(a.roll) : "")));
   if(!msgs.length || msgs[msgs.length - 1].role === "assistant") push("user", "(Continue the story.)");
   if(msgs[0].role === "assistant") msgs.unshift({ role: "user", content: "(Begin.)" });
-  const head = [dyn ? "[Notes for the narrator — background to use when relevant; never mention or quote them]\n" + dyn : "", an].filter(Boolean).join("\n\n");
+  // le résumé est ici, en fin de prompt, et plus dans le message système : quand il change, le cache de toute l'histoire reste valable
+  const sum = adv.summary.trim() ? "[Story summary — what happened before the passages above]\n" + adv.summary.trim() : "";
+  const notes = [sum, dyn].filter(Boolean).join("\n\n");
+  const head = [notes ? "[Notes for the narrator — background to use when relevant; never mention or quote them]\n" + notes : "", an].filter(Boolean).join("\n\n");
   if(head){ const last = msgs[msgs.length - 1]; last.content = head + "\n\n" + last.content; }
   if(guide){ const last = msgs[msgs.length - 1]; last.content += "\n\n" + guideNote(guide); }
   return [{ role: "system", content: system }, ...msgs];
@@ -2061,7 +2077,7 @@ async function generate(input, opts = {}){
       final = cleanOutput(ex.text);
       // réponse bien plus longue que demandé (modèle avec budget de réflexion, ou fournisseur qui ignore la limite) : on recoupe à une fin de phrase
       if(final && estTok(final) > settings.max_tokens * (THINKERS[(settings.model || "").trim()] ? 1.2 : 1.4)) final = cutClean(final, Math.round(settings.max_tokens * 4.2));
-      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
+      if(final){ finalAction = { id: uid(), type: "ai", text: final }; if(recall.id === adv.id && recall.used.length) finalAction.recalled = recall.used.slice(0, 30); if(adv.scripts.rpg) applyRpgTo(adv, finalAction, ex.ops); adv.actions.push(finalAction); }
     } else {
       if(input){
         const ri = await runHook("input", formatPlayer(input.kind, input.raw));
@@ -2085,7 +2101,7 @@ async function generate(input, opts = {}){
         lastCost += r.cost || 0;
         const ex = extractRpg(r.text);
         const o = await runHook("output", cleanOutput(ex.text));
-        const out = { id: uid(), type: "ai", text: o.text || "" };
+        const out = { id: uid(), type: "ai", text: o.text || "" }; if(recall.id === adv.id && recall.used.length) out.recalled = recall.used.slice(0, 30);
         if(/>>>[\s\S]*please select[\s\S]*<<</i.test(out.text)){
           out.hidden = true; adv.actions.push(out); saveAdv();
           ph.setStatus(L("✨ Création d'une carte…", "✨ Creating a card…"));
@@ -2145,10 +2161,28 @@ New events that just left the AI's short-term memory:
 """
 ${chunk}
 """
-Rewrite the summary so it includes the new events. Keep important facts: what happened, decisions, relationships, promises, secrets, injuries, items, places. Drop trivial details. Chronological, concise, under 1500 characters. Write in the language of the story. Return ONLY the summary.`;
-    const out = await complete(prompt, 700, true);
-    if(out && adv === a){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; saveAdv(); }
-    else if(out){ a.summary = out.trim().slice(0, 2500); a.summarizedUpTo = start; LS.set("lan.adv." + a.id, a); }
+Rewrite the summary so it includes the new events. Keep important facts: what happened, decisions, relationships, promises, secrets, injuries, items, places. Drop trivial details. Chronological, concise, under 1500 characters. Write in the language of the story.
+${(a.summary || "").length > 1300 ? `The summary is getting long. Instead of squeezing old details out, move the OLDEST part of the story into "chapter": a self-contained recap of that earlier part (400-700 characters, names instead of pronouns: what happened, relationships, promises, secrets, what changed). Then keep in "summary" only a one-sentence reminder of that chapter followed by the more recent events.` : `Leave "chapter" empty.`}
+Return ONLY JSON: {"summary":"...","chapter":""}`;
+    const out = await complete(prompt, 1000, true);
+    if(out){
+      // résumé en chapitres : au lieu d'écraser les vieux détails, la partie la plus ancienne devient un « chapitre » rangé dans la mémoire longue, retrouvable plus tard
+      let j = null; try{ j = parseJSON(out); }catch(e){}
+      const sum = visible(j && typeof j.summary === "string" ? j.summary : out).trim();
+      const ch = j && typeof j.chapter === "string" ? visible(j.chapter).trim() : "";
+      if(sum){
+        if(ch.length > 80){
+          const mem = ensureMem(a), n = mem.items.filter(it => it.ch).length + 1;
+          const last = a.actions[Math.max(0, Math.min(start, a.actions.length) - 1)], first = a.actions.find(x => !x.hidden);
+          mem.items.push({ id: uid(), a: first?.id, b: last?.id, t: (storyEN(a) ? `Chapter ${n} recap: ` : `Récap du chapitre ${n} : `) + ch.slice(0, 800), k: "chapter, recap, earlier, story so far, past", imp: 3, ch: n, e: null });
+          const order = new Map(a.actions.map((x, i) => [x.id, i]));
+          mem.items.sort((x, y) => (order.get(x.b) ?? 1e9) - (order.get(y.b) ?? 1e9));
+          embedMissing(a, 8).then(k => k && persistAdv(a)).catch(() => {});
+        }
+        a.summary = sum.slice(0, 2500); a.summarizedUpTo = start;
+        if(adv === a) saveAdv(); else LS.set("lan.adv." + a.id, a);
+      }
+    }
   }catch(e){ console.warn("summary failed", e); }
   summarizing = false;
 }
@@ -2386,6 +2420,13 @@ function memTile(a, it, used){
   const tn = memTurnOf(a, it);
   const d = el("div", "sc mem", `<div class="row"><div class="k" style="flex:1">${tn ? L("Tour ", "Turn ") + tn : L("passage supprimé", "deleted passage")}</div>${it.pin ? `<span class="chip acc">${L("épinglé", "pinned")}</span>` : ""}${used ? `<span class="chip acc">${L("utilisé", "used")}</span>` : ""}<span class="imp">${"★".repeat(it.imp || 2)}</span></div><div class="e noi18n">${esc(it.t)}</div>${it.k ? `<div class="k noi18n">${esc(it.k)}</div>` : ""}`);
   return d;
+}
+function openRecalled(its){
+  openSheet(L("Souvenirs rappelés", "Recalled memories"), null, (_, b) => {
+    hint(b, L("Ce que l'IA a retrouvé dans sa mémoire longue pour écrire ce passage, parce que ça ressemblait à la scène ou à ce que tu as écrit. Touche un souvenir pour le modifier ou l'épingler.", "What the AI found in its long-term memory to write this passage, because it resembled the scene or what you wrote. Tap one to edit or pin it."));
+    its.forEach(it => { const d = memTile(adv, it, true); d.onclick = () => editMemory(it, () => openRecalled(its)); b.appendChild(d); });
+    btn(b, L("Tous les souvenirs", "All memories"), "ghost small", () => openMemories()).style.marginTop = "10px";
+  });
 }
 function openMemories(back){
   let q = "";

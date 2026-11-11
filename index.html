@@ -5092,7 +5092,7 @@ function openSettings(start){
         field(body, "Modèle", settings.model, v => { settings.model = v; saveSettings(); }, { placeholder: "deepseek-chat", hint: "L'identifiant du modèle chez ce fournisseur." });
       }
       settingToggle(body, "Désactiver le raisonnement", "Plus rapide et moins cher pour la narration. Désactive si un modèle refuse.", "noReasoning");
-      settingToggle(body, "Texte en direct", "Le texte s'affiche pendant que l'IA l'écrit. Désactivé : une roue de chargement, puis la réponse finie et déjà nettoyée d'un coup.", "liveText");
+      settingToggle(body, L("Texte en direct", "Live text"), L("Le texte s'affiche pendant que l'IA l'écrit. Désactivé : une roue de chargement, puis la réponse finie et déjà nettoyée d'un coup.", "Text appears while the AI writes it. Off: a loading wheel, then the finished, cleaned-up reply all at once."), "liveText");
       if(isOR()){
         // choix du fournisseur pour un même modèle : équilibré (OpenRouter), toujours le moins cher, ou le plus rapide
         const PS = [["", L("Équilibré (par défaut)", "Balanced (default)"), L("OpenRouter répartit entre les fournisseurs en favorisant les moins chers.", "OpenRouter spreads requests across providers, favoring cheaper ones.")],
@@ -5107,7 +5107,7 @@ function openSettings(start){
         sel.onchange = () => { settings.providerSort = sel.value; settings.fastProvider = sel.value === "throughput"; saveSettings(); upd(); };
         tl.appendChild(sel); body.appendChild(tl); body.appendChild(ph); upd();
       }
-      settingToggle(body, "Relancer si un perso répète ta réplique", "Si un personnage reprend tes mots plusieurs tours de suite, la réponse est refaite. Désactive pour plus de rapidité si ça arrive souvent.", "echoRetry");
+      settingToggle(body, L("Relancer si un perso répète ta réplique", "Retry if a character echoes your line"), L("Si un personnage reprend tes mots plusieurs tours de suite, la réponse est refaite. Désactive pour plus de rapidité si ça arrive souvent.", "If a character repeats your words several turns in a row, the reply is redone. Turn off for speed if it happens often."), "echoRetry");
       if(isOR()){
         settingToggle(body, "Exiger le support des réglages", "Seuls les fournisseurs qui respectent top K, min P, etc. sont utilisés.", "requireParams");
         btn(body, "Tester la connexion", "ghost", testKey);
@@ -5127,7 +5127,7 @@ function openSettings(start){
     if(k === "ctx"){
       slider(body, "Taille de la mémoire", "contextTokens", 2000, 128000, 1000, "Combien de tokens d'histoire l'IA voit à chaque tour. Plus = meilleure mémoire, mais chaque tour coûte plus.");
       slider(body, "Profondeur des Story Cards", "cardScanDepth", 1, 20, 1, "Combien de passages récents l'app relit pour chercher les mots-clés des cartes. À 4, une carte reste active tant que son mot-clé est apparu dans les 4 derniers passages.");
-      slider(body, "Taille max d'une Story Card", "cardLimit", 300, 2000, 100, "En caractères. 1000 conseillé : au-delà, l'IA retient moins bien les détails.");
+      slider(body, "Taille max d'une Story Card", "cardLimit", 300, 2000, 100, L("En caractères. 1000 conseillé : au-delà, l'IA retient moins bien les détails.", "In characters. 1000 recommended: beyond that, the AI retains details less well."));
       settingToggle(body, "Résumé automatique", "Quand des passages sortent de la mémoire de l'IA, ils sont résumés tout seuls dans le résumé de l'histoire.", "autoSummary");
     }
     if(k === "data"){

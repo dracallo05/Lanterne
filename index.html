@@ -531,6 +531,7 @@ Lines starting with ">" are the player's actions; a quoted line after ">" is som
 - Show, don't tell. Vary sentence rhythm. Avoid clichés, purple prose and repeating phrases from earlier in the story.
 - Write 1 to 3 paragraphs. No meta commentary, no headings, no options lists.
 - Write in the same language as the story.`;
+const FLOW_RULE = `[Continuity] The latest passages are what is happening right now: continue exactly from the last one, keeping positions, clothing, who is where, who is touching whom and who said what consistent with it. Background notes never override the current scene.`;
 const POV_RULE = `[Point of view] In the narration, "you" always means the player character; lines starting with ">" are the player character's own actions and words. In dialogue, each character says "I/me/my" about themselves and "you/your" to the person they address: keep track of who said what and who owns what (body, tail, belongings, earlier lines).`;
 const ECHO_RULE = `[Dialogue] Avoid the "echo" habit: characters do not repeat or quote the player's words back, not even a single word or nickname. Bad: "Princess," she echoes. / "Beautiful…?" / "Deal?" she repeats. Good: they react to the meaning, in their own words, with their own voice. A rare echo is acceptable only in genuine shock at an outrageous line.`;
 const WORLD_RULE = `[World logic] Respect the player's freedom: plausible actions can succeed, even dark or violent ones; don't block them or moralize. But the world reacts naturally: witnesses respond (fight back, flee, call for help, grieve, get angry), strong characters may step in, and serious acts leave lasting consequences on relationships, reputation and the story. Dead characters stay dead.`;
@@ -974,8 +975,14 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.7";
+const APP_VERSION = "8.8";
 const CHANGELOG = [
+  { v: "8.8", fr: [
+      "L'IA suit mieux la scène en cours : les notes de fond (résumé, souvenirs rappelés, cartes, esprits) sont maintenant placées avant le dernier passage, au lieu de s'intercaler entre lui et ton action. Le dernier passage et ce que tu viens d'écrire se suivent directement",
+      "Nouvelle règle de continuité pour le narrateur : partir exactement du dernier passage, et garder positions, vêtements, qui est où, qui touche qui et qui a dit quoi"],
+    en: [
+      "The AI follows the current scene better: background notes (summary, recalled memories, cards, minds) are now placed before the last passage instead of between it and your action. The last passage and what you just wrote now come right after each other",
+      "New continuity rule for the narrator: continue exactly from the last passage, keeping positions, clothing, who is where, who is touching whom and who said what"] },
   { v: "8.7", fr: [
       "Branches : touche un passage → « Créer une branche ici ». Une copie de l'aventure arrêtée à ce passage apparaît dans ta bibliothèque (ex. « Rosehill Manor — branche 2 ») pour essayer une autre suite ; l'original reste intact. Aucun crédit IA consommé",
       "Carte toujours envoyée : un interrupteur dans chaque carte pour qu'elle parte à chaque tour, même sans mot-clé. Idéal pour les personnages principaux (leur apparence reste juste avant même qu'on les nomme)",
@@ -1972,7 +1979,7 @@ function histBudget(a, dyn){
 function buildMessages(guide, dry){
   const parts = [];
   if(adv.essentials.trim()) parts.push("[Plot essentials]\n" + adv.essentials.trim());
-  const system = mpPov(adv, adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n" + ECHO_RULE + (adv.multi ? "" : "\n" + POV_RULE) + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
+  const system = mpPov(adv, adv.instructions.trim() || DEFAULT_INSTRUCTIONS) + "\n\n" + WORLD_RULE + "\n" + ECHO_RULE + "\n" + FLOW_RULE + (adv.multi ? "" : "\n" + POV_RULE) + mpSystem(adv) + (parts.length ? "\n\n" + parts.join("\n\n") : "");
   const an = adv.authorsNote.trim() ? `[Author's note: ${adv.authorsNote.trim()}]` : "";
   const reserve = memReserve(adv);
   const dynEst = estTok(dynBlock(adv, 0, 0)) + reserve;
@@ -1993,7 +2000,12 @@ function buildMessages(guide, dry){
   const sum = adv.summary.trim() ? "[Story summary — what happened before the passages above]\n" + adv.summary.trim() : "";
   const notes = [sum, dyn].filter(Boolean).join("\n\n");
   const head = [notes ? "[Notes for the narrator — background to use when relevant; never mention or quote them]\n" + notes : "", an].filter(Boolean).join("\n\n");
-  if(head){ const last = msgs[msgs.length - 1]; last.content = head + "\n\n" + last.content; }
+  // Les notes (résumé, souvenirs, cartes, esprits) vont AVANT le dernier passage de l'IA, pas entre lui et ton action :
+  // sinon un gros bloc d'infos anciennes sépare la scène en cours de ce que tu viens de faire, et le modèle perd le fil.
+  if(head){
+    const n = msgs.length, at = n >= 3 && msgs[n - 2].role === "assistant" && msgs[n - 3].role === "user" ? n - 3 : n - 1;
+    msgs[at] = Object.assign({}, msgs[at], { content: head + "\n\n" + msgs[at].content });
+  }
   if(guide){ const last = msgs[msgs.length - 1]; last.content += "\n\n" + guideNote(guide); }
   return [{ role: "system", content: system }, ...msgs];
 }

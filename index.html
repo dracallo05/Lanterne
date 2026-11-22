@@ -975,8 +975,12 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.8";
+const APP_VERSION = "8.9";
 const CHANGELOG = [
+  { v: "8.9", fr: [
+      "Importer des cartes (.json) dans une aventure en cours ne crée plus de doublons : une carte qui a le même titre qu'une carte existante est mise à jour, les nouvelles sont ajoutées. Ce que les cartes intelligentes avaient noté est gardé"],
+    en: [
+      "Importing cards (.json) into an ongoing adventure no longer creates duplicates: a card with the same title as an existing one is updated, new ones are added. What smart cards had noted is kept"] },
   { v: "8.8", fr: [
       "L'IA suit mieux la scène en cours : les notes de fond (résumé, souvenirs rappelés, cartes, esprits) sont maintenant placées avant le dernier passage, au lieu de s'intercaler entre lui et ton action. Le dernier passage et ce que tu viens d'écrire se suivent directement",
       "Nouvelle règle de continuité pour le narrateur : partir exactement du dernier passage, et garder positions, vêtements, qui est où, qui touche qui et qui a dit quoi"],
@@ -4349,7 +4353,16 @@ function importCardsFile(){
       const j = JSON.parse(await f.text());
       let c = Array.isArray(j) ? aidCards(j) : Array.isArray(j.cards) ? j.cards.map(x => normalizeCard({ title: x.title, type: x.type, keys: x.keys, entry: x.entry || x.value || "" })) : parseAID(j).cards;
       if(!c.length) throw new Error(L("aucune carte trouvée", "no cards found"));
-      adv.cards.push(...c); saveAdv(); toast(L(`${c.length} cartes importées`, `${c.length} cards imported`)); openAdventureSheet("cards");
+      // Une carte qui a le même titre qu'une carte existante la met à jour (texte, mots-clés) au lieu de faire un doublon ;
+      // ce que les cartes intelligentes avaient ajouté (« Récemment ») est gardé.
+      const norm = t => String(t || "").trim().toLowerCase();
+      let added = 0, updated = 0;
+      for(const x of c){
+        const old = norm(x.title) && adv.cards.find(o => norm(o.title) === norm(x.title));
+        if(old){ if(old.entry !== x.entry || old.keys !== x.keys){ old.entry = x.entry; old.keys = x.keys; if(x.type) old.type = x.type; updated++; } }
+        else { adv.cards.push(x); added++; }
+      }
+      saveAdv(); toast(L(`${added} cartes ajoutées, ${updated} mises à jour`, `${added} cards added, ${updated} updated`)); openAdventureSheet("cards");
     }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
   });
 }

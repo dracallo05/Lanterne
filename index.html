@@ -975,8 +975,12 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "9.0";
+const APP_VERSION = "9.1";
 const CHANGELOG = [
+  { v: "9.1", fr: [
+      "Nouveau bouton « ↑ Exporter les cartes » dans Story Cards : enregistre toutes les cartes de l'aventure dans un fichier .json, réimportable dans n'importe quelle autre aventure (avec ce que les cartes intelligentes avaient noté et le réglage « toujours envoyée »)"],
+    en: [
+      "New “↑ Export cards” button in Story Cards: saves all the adventure's cards to a .json file you can import into any other adventure (including what smart cards had noted and the “always sent” setting)"] },
   { v: "9.0", fr: [
       "Nouveau bouton « 🧹 Supprimer les doublons » dans Story Cards : il apparaît quand plusieurs cartes ont le même titre, garde une seule carte avec le texte le plus récent, et conserve ce que les cartes intelligentes avaient noté"],
     en: [
@@ -4367,11 +4371,19 @@ function dedupeCards(a){
   }
   a.cards = out; return n;
 }
+// Exporte les Story Cards de l'aventure dans un fichier réimportable (même format que l'import).
+function exportCardsFile(){
+  const cards = adv.cards.map(c => { const o = { title: c.title, type: c.type, keys: c.keys, entry: c.entry };
+    if(visible(c.recent || "").trim()) o.recent = c.recent; if(c.always) o.always = true; if(c.enabled === false) o.enabled = false; return o; });
+  const name = (adv.title || "aventure").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) || "aventure";
+  download(`cartes-${name}.json`, { cards });
+  toast(L(`${cards.length} cartes exportées`, `${cards.length} cards exported`));
+}
 function importCardsFile(){
   pickFile("application/json,.json", async f => {
     try{
       const j = JSON.parse(await f.text());
-      let c = Array.isArray(j) ? aidCards(j) : Array.isArray(j.cards) ? j.cards.map(x => normalizeCard({ title: x.title, type: x.type, keys: x.keys, entry: x.entry || x.value || "" })) : parseAID(j).cards;
+      let c = Array.isArray(j) ? aidCards(j) : Array.isArray(j.cards) ? j.cards.map(x => normalizeCard(Object.assign({ title: x.title, type: x.type, keys: x.keys, entry: x.entry || x.value || "" }, x.recent ? { recent: x.recent } : {}, x.always ? { always: true } : {}, x.enabled === false ? { enabled: false } : {}))) : parseAID(j).cards;
       if(!c.length) throw new Error(L("aucune carte trouvée", "no cards found"));
       // Une carte qui a le même titre qu'une carte existante la met à jour (texte, mots-clés) au lieu de faire un doublon ;
       // ce que les cartes intelligentes avaient ajouté (« Récemment ») est gardé.
@@ -4990,7 +5002,9 @@ function renderCardsTab(body){
   const reopen = () => { saveAdv(); openAdventureSheet("cards"); };
   hint(body, `Une carte est envoyée à l'IA quand un de ses mots-clés apparaît dans les ${settings.cardScanDepth} derniers passages.`);
   btn(body, "+ Nouvelle carte", "wide", () => editCard(null, adv.cards, advCtx(), reopen)).style.marginBottom = "8px";
-  btn(body, L("↓ Importer des cartes (.json)", "↓ Import cards (.json)"), "ghost small", importCardsFile).style.marginBottom = "14px";
+  const io = el("div", "row"); io.style.cssText = "flex-wrap:wrap;gap:6px;margin-bottom:14px"; body.appendChild(io);
+  btn(io, L("↓ Importer des cartes (.json)", "↓ Import cards (.json)"), "ghost small", importCardsFile);
+  if(adv.cards.length) btn(io, L(`↑ Exporter les cartes (${adv.cards.length})`, `↑ Export cards (${adv.cards.length})`), "ghost small", exportCardsFile);
   const dups = countCardDups(adv.cards);
   if(dups) btn(body, L(`🧹 Supprimer les doublons (${dups})`, `🧹 Remove duplicates (${dups})`), "small", () => {
     const n = dedupeCards(adv); saveAdv(); toast(L(`${n} doublons supprimés`, `${n} duplicates removed`)); openAdventureSheet("cards");

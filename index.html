@@ -975,8 +975,12 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "8.9";
+const APP_VERSION = "9.0";
 const CHANGELOG = [
+  { v: "9.0", fr: [
+      "Nouveau bouton « 🧹 Supprimer les doublons » dans Story Cards : il apparaît quand plusieurs cartes ont le même titre, garde une seule carte avec le texte le plus récent, et conserve ce que les cartes intelligentes avaient noté"],
+    en: [
+      "New “🧹 Remove duplicates” button in Story Cards: it shows up when several cards share a title, keeps a single card with the newest text, and keeps what smart cards had noted"] },
   { v: "8.9", fr: [
       "Importer des cartes (.json) dans une aventure en cours ne crée plus de doublons : une carte qui a le même titre qu'une carte existante est mise à jour, les nouvelles sont ajoutées. Ce que les cartes intelligentes avaient noté est gardé"],
     en: [
@@ -4347,6 +4351,22 @@ function importAny(opts = {}){
     }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
   });
 }
+// Doublons = cartes au même titre. On garde la plus ancienne (celle que la partie connaît), on lui donne le texte
+// et les mots-clés de la plus récente (la version importée), et on garde ce que les cartes intelligentes avaient noté.
+const cardNorm = t => String(t || "").trim().toLowerCase();
+function countCardDups(cards){ const seen = new Set(); let n = 0; for(const c of cards || []){ const k = cardNorm(c.title); if(!k) continue; if(seen.has(k)) n++; else seen.add(k); } return n; }
+function dedupeCards(a){
+  const first = new Map(), out = []; let n = 0;
+  for(const c of a.cards || []){
+    const k = cardNorm(c.title);
+    if(!k || !first.has(k)){ if(k) first.set(k, c); out.push(c); continue; }
+    const keep = first.get(k); n++;
+    if(c.entry) keep.entry = c.entry; if(c.keys) keep.keys = c.keys; if(c.type) keep.type = c.type;
+    if(!keep.recent && c.recent) keep.recent = c.recent;
+    if(c.always) keep.always = true;
+  }
+  a.cards = out; return n;
+}
 function importCardsFile(){
   pickFile("application/json,.json", async f => {
     try{
@@ -4971,6 +4991,10 @@ function renderCardsTab(body){
   hint(body, `Une carte est envoyée à l'IA quand un de ses mots-clés apparaît dans les ${settings.cardScanDepth} derniers passages.`);
   btn(body, "+ Nouvelle carte", "wide", () => editCard(null, adv.cards, advCtx(), reopen)).style.marginBottom = "8px";
   btn(body, L("↓ Importer des cartes (.json)", "↓ Import cards (.json)"), "ghost small", importCardsFile).style.marginBottom = "14px";
+  const dups = countCardDups(adv.cards);
+  if(dups) btn(body, L(`🧹 Supprimer les doublons (${dups})`, `🧹 Remove duplicates (${dups})`), "small", () => {
+    const n = dedupeCards(adv); saveAdv(); toast(L(`${n} doublons supprimés`, `${n} duplicates removed`)); openAdventureSheet("cards");
+  }).style.margin = "-8px 0 14px";
   if(adv.scripts.sc){
     const r = el("div", "row"); r.style.cssText = "flex-wrap:wrap;margin:-4px 0 14px"; body.appendChild(r);
     const ab = btn(r, carding ? "Analyse en cours…" : "✨ Analyser l'histoire", "ghost small", async () => { ab.disabled = true; ab.textContent = "Analyse en cours…"; await maybeSmartCards(true); if($("#sheetHost").innerHTML) openAdventureSheet("cards"); });

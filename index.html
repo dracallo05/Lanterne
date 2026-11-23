@@ -236,6 +236,18 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .roll.fail{color:var(--tx3)}
 .roll.fumble{color:var(--err);border-color:color-mix(in srgb,var(--err) 45%,var(--line))}
 .rpgd{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 16px;font-family:var(--sans);line-height:1.4}
+.avs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+.av{width:42px;height:42px;border-radius:50%;overflow:hidden;padding:0;border:2px solid var(--line);background:var(--bg3);cursor:pointer;flex:none}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av.big{width:64px;height:64px}
+.avview{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
+.avview img{max-width:100%;max-height:86vh;object-fit:contain;border-radius:10px}
+.avname{color:#fff;font-family:var(--sans);font-size:1.1em}
+.cropov{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
+.cropbox{position:relative;overflow:hidden;touch-action:none;border-radius:8px;background:#111}
+.cropbox img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;user-select:none;pointer-events:none}
+.cropmask{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);outline:2px solid #fff;pointer-events:none}
+.cropzoom{width:min(300px,calc(100vw - 60px))}
 .rpgd span{font-size:11.5px;padding:2px 9px;border-radius:999px;background:var(--bg2);border:1px solid var(--line)}
 .rpgd .neg{color:var(--err)}
 .rpgd .pos{color:#7fc79a}
@@ -482,7 +494,7 @@ mark{background:color-mix(in srgb,var(--acc) 35%,transparent);color:inherit;bord
 const SYNC_RE = /^lan\.(adv|cover|scn)\.|^lan\.(settings|stats)$/;
 /* Stockage. Le navigateur ne donne qu'environ 5 Mo au localStorage : les aventures, scénarios et couvertures vont dans
    IndexedDB (des centaines de Mo), gardés en mémoire pour rester instantanés. Le reste (réglages, index…) reste en localStorage. */
-const BIG_RE = /^lan\.(adv|cover|scn)\./;
+const BIG_RE = /^lan\.(adv|cover|scn|img)\./;
 const BIG = new Map(); let idb = null;
 function idbReq(mode, fn){
   return new Promise(res => { try{ const tx = idb.transaction("kv", mode); const r = fn(tx.objectStore("kv")); tx.oncomplete = () => res(r && r.result); tx.onerror = tx.onabort = () => { toast(L("Sauvegarde impossible : ", "Save failed: ") + (tx.error?.message || "IndexedDB")); res(undefined); }; }catch(e){ res(undefined); } });
@@ -588,7 +600,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", fallbackModel: "", budgetDay: 0, budgetMonth: 0, providerIgnore: ["alibaba"], showCosts: false, liveText: false, fastProvider: false, echoRetry: true
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", fallbackModel: "", budgetDay: 0, budgetMonth: 0, providerIgnore: ["alibaba"], showCosts: false, liveText: false, avatars: true, fastProvider: false, echoRetry: true
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -808,6 +820,12 @@ const getCover = id => LS.get("lan.cover." + id, null);
 const SYSTEM_TITLES = ["Debug Data","Console Log","State Display","Shared Library","Input Modifier","Context Modifier","Output Modifier","LSIv2 Guide"];
 const isBrain = c => c.type === "Brain" || /"agent"/.test(c.keys || "");
 const isSystem = c => /configure|edit to enable/i.test(visible(c.title).replace(/\s+/g, " ")) || SYSTEM_TITLES.includes(visible(c.title));
+/* ===== Bulles des personnages : une image par personnage, gardée sur l'appareil (jamais synchronisée, jamais envoyée à l'IA).
+   Clé = aventure d'origine (les branches partagent les images) + nom du perso sans « — Appearance » / « (…) » : les deux cartes d'un même perso partagent l'image. */
+const charBase = c => cardName(c).replace(/\s+[—–-]\s+.*$/, "").replace(/\s*\(.*\)\s*$/, "").trim().toLowerCase();
+const imgOwner = a => a.branchOf?.id || a.id;
+const imgKey = (a, base) => "lan.img." + imgOwner(a) + "." + base;
+const getCharImg = (a, c) => (a && charBase(c)) ? LS.get(imgKey(a, charBase(c)), null) : null;
 const cardName = c => String(c.title || "").replace(/^[^​]*​/, "").replace(ZW, "").replace(/\s+/g, " ").trim() || L("(sans titre)", "(untitled)");
 
 /* ================= Style ================= */
@@ -988,12 +1006,18 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "9.2";
+const APP_VERSION = "9.3";
 const CHANGELOG = [
-  { v: "9.2", fr: [
-      "Nouvelle balise {{characters}} pour les cartes : écrite dans le texte d'une carte, elle est remplacée à chaque tour par la liste de tous les personnages qui ont une carte dans l'aventure, y compris ceux que tu ajoutes en cours de partie. Les cartes qui commencent par « MINOR » ne sont pas listées. Idéal pour un perso qui connaît tout le monde (une déesse, un narrateur…)"],
+  { v: "9.3", fr: [
+      "Bulles des personnages : dans la carte d'un perso, « Ajouter une image », puis cadre-la (glisse pour déplacer, pince ou barre pour zoomer : pratique pour garder juste la tête d'une image en pied). En jeu, une petite bulle ronde apparaît sous chaque passage où ce perso est nommé ; touche-la pour voir l'image entière en grand",
+      "Les cartes d'un même perso (par exemple « Lucy — Apparence » et « Lucy — Caractère ») partagent la même image, et les branches d'une aventure aussi",
+      "Les images restent sur ton appareil : jamais synchronisées, jamais envoyées à l'IA, donc aucun coût. Elles sont incluses dans « ↑ Exporter les cartes » et reprises à l'import",
+      "Option dans Réglages → Apparence → « Bulles des personnages » pour les afficher ou non"],
     en: [
-      "New {{characters}} tag for cards: written in a card's text, it is replaced every turn by the list of every character that has a card in the adventure, including those you add during the game. Cards starting with “MINOR” are not listed. Great for a character who knows everyone (a goddess, a narrator…)"] },
+      "Character bubbles: in a character's card, “Add a picture”, then frame it (drag to move, pinch or slider to zoom: handy to keep just the head from a full-body picture). In game, a small round bubble appears under each passage where that character is named; tap it to see the whole picture large",
+      "Cards of the same character (for example “Lucy — Appearance” and “Lucy — Personality”) share one picture, and so do an adventure's branches",
+      "Pictures stay on your device: never synced, never sent to the AI, so no cost. They are included in “↑ Export cards” and restored on import",
+      "Option in Settings → Appearance → “Character bubbles” to show them or not"] },
   { v: "9.1", fr: [
       "Nouveau bouton « ↑ Exporter les cartes » dans Story Cards : enregistre toutes les cartes de l'aventure dans un fichier .json, réimportable dans n'importe quelle autre aventure (avec ce que les cartes intelligentes avaient noté et le réglage « toujours envoyée »)"],
     en: [
@@ -1224,7 +1248,7 @@ function deleteAdventure(id, title){
   if(adv && adv.id === id){ adv = null; closeSheet(); }
   showLibrary(); toast(L("Aventure mise à la corbeille", "Adventure moved to the trash"));
 }
-function purgeAdventure(id){ LS.del("lan.adv." + id); LS.del("lan.cover." + id); index = index.filter(x => x.id !== id); LS.set("lan.index", index); }
+function purgeAdventure(id){ LS.del("lan.adv." + id); LS.del("lan.cover." + id); if(!index.some(x => x.id !== id && LS.get("lan.adv." + x.id, null)?.branchOf?.id === id)) KV.keys().filter(k => k && k.startsWith("lan.img." + id + ".")).forEach(k => KV.del(k)); index = index.filter(x => x.id !== id); LS.set("lan.index", index); }
 function restoreAdventure(id){ const a = LS.get("lan.adv." + id, null); if(!a) return; delete a.trashed; LS.set("lan.adv." + id, a); index = index.filter(x => x.id !== id); index.push(indexEntry(a)); LS.set("lan.index", index); }
 function trashedScns(){ const out = []; for(const k of KV.keys()){ if(k && k.startsWith("lan.scn.")){ const v = LS.get(k, null); if(v && v.trashed) out.push(v); } } return out; }
 function purgeOldTrash(){
@@ -1804,6 +1828,7 @@ function renderStory(scroll){
     };
     s.appendChild(more);
   }
+  const avs = avatarList();
   shown.forEach(a => {
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : ""));
     d.dataset.id = a.id;
@@ -1811,6 +1836,14 @@ function renderStory(scroll){
     if(a.roll && a.type !== "ai"){ const n = a.roll; d.appendChild(el("span", "roll" + (n >= 20 ? " crit" : n <= 1 ? " fumble" : n <= 7 ? " fail" : ""), `d20 · ${n} · ${rollLabel(n)}`)); }
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
+    if(avs.length && a.type === "ai"){
+      const txt = visible(a.text), hit = avs.filter(v => v.keys.some(k => keyHit(txt, k))).slice(0, 10);
+      if(hit.length){
+        const row = el("div", "avs");
+        hit.forEach(v => { const b = el("button", "av"); b.title = v.name; b.innerHTML = `<img alt="" src="${v.img.thumb}">`; b.onclick = ev => { ev.stopPropagation(); showCharImage(v.name, v.img.full); }; row.appendChild(b); });
+        s.appendChild(row);
+      }
+    }
     if(a.rpgDelta?.length && adv.scripts.rpg) s.appendChild(el("div", "rpgd", a.rpgDelta.map(x => `<span class="${x.s > 0 ? "pos" : "neg"}">${esc(x.t)}</span>`).join("")));
     if(a.redo?.length) s.appendChild(el("div", "rpgd mind", `<span title="${esc(L("Lanterne a refait cette réponse automatiquement (chaque relance coûte un appel)", "Lanterne redid this reply automatically (each retry costs a call)"))}">↻ ${esc(L("refait", "redone"))} : ${esc(a.redo.join(", "))}</span>`));
     if(a.recalled?.length && memOn(adv) && adv.scripts.mindChips !== false){
@@ -1837,6 +1870,72 @@ function renderStory(scroll){
   if(adv.multi && mp.liveText[adv.multi.view] && mp.busySid === adv.multi.view && adv.multi.active !== adv.multi.view){ const lv = el("div", "act ai" + (settings.liveText ? " live" : "")); if(settings.liveText) lv.textContent = mp.liveText[adv.multi.view]; else { lv.innerHTML = SPIN; lv.querySelector(".wstat").textContent = L("✍️ écriture…", "✍️ writing…"); } s.insertBefore(lv, m); }
   updateTools(); refreshSmartBar(); mpUI();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
+}
+// persos de l'aventure qui ont une image : [{ name, keys, img }], un par personnage (cartes regroupées par nom)
+function avatarList(){
+  if(!adv || settings.avatars === false || !idb) return [];
+  const by = new Map();
+  for(const c of adv.cards || []){
+    if(c.enabled === false || c.type !== "personnage") continue;
+    const base = charBase(c); if(!base) continue;
+    let v = by.get(base);
+    if(!v){ const img = LS.get(imgKey(adv, base), null); if(!img) { by.set(base, null); continue; } v = { name: cardName(c).replace(/\s+[—–-]\s+.*$/, ""), keys: [], img }; by.set(base, v); }
+    if(v) String(c.keys || c.title || "").split(",").map(k => k.trim()).filter(k => k.length > 1).forEach(k => v.keys.includes(k) || v.keys.push(k));
+  }
+  return [...by.values()].filter(Boolean);
+}
+function showCharImage(name, src){
+  const o = el("div", "avview", `<img alt="" src="${src}"><div class="avname">${esc(name)}</div>`);
+  o.onclick = () => o.remove();
+  document.body.appendChild(o);
+}
+// recadrage : l'image entière est gardée (réduite), et une vignette ronde est taillée dans la zone choisie
+function loadImageFile(f){
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error(L("image illisible", "unreadable image"))); im.src = r.result; }; r.onerror = () => rej(r.error); r.readAsDataURL(f); });
+}
+function shrinkImage(im, max, q){
+  const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement("canvas");
+  cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k);
+  cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); return cv.toDataURL("image/jpeg", q);
+}
+function cropImage(src, crop0, done){
+  const im = new Image();
+  im.onload = () => {
+    const W = im.naturalWidth, H = im.naturalHeight, V = Math.min(300, innerWidth - 60);
+    const minS = V / Math.min(W, H);
+    let s = crop0?.s ? crop0.s * minS : minS, x = crop0 ? crop0.x : W / 2, y = crop0 ? crop0.y : Math.min(H / 2, W / 2); // x, y = centre de la zone, en pixels de l'image ; par défaut : en haut (la tête)
+    const o = el("div", "cropov", `<div class="cropbox" style="width:${V}px;height:${V}px"><img alt="" src="${src}" draggable="false"><div class="cropmask"></div></div>
+      <input type="range" min="1" max="6" step="0.01" class="cropzoom"><div class="hint" style="text-align:center;color:#ddd">${esc(L("Glisse pour déplacer, pince ou utilise la barre pour zoomer", "Drag to move, pinch or use the slider to zoom"))}</div>
+      <div class="row" style="width:${V}px"><button class="btn ghost" data-a="no">${esc(L("Annuler", "Cancel"))}</button><button class="btn" data-a="ok" style="flex:1">${esc(L("Valider", "Done"))}</button></div>`);
+    document.body.appendChild(o);
+    const box = o.querySelector(".cropbox"), pic = box.querySelector("img"), zoom = o.querySelector(".cropzoom");
+    const clamp = () => { s = Math.max(minS, Math.min(minS * 6, s)); const h = V / 2 / s; x = Math.max(h, Math.min(W - h, x)); y = Math.max(h, Math.min(H - h, y)); };
+    const draw = () => { clamp(); pic.style.width = W * s + "px"; pic.style.height = H * s + "px"; pic.style.transform = `translate(${V / 2 - x * s}px, ${V / 2 - y * s}px)`; zoom.value = s / minS; };
+    draw();
+    zoom.oninput = () => { s = minS * Number(zoom.value); draw(); };
+    const pts = new Map(); let last = null;
+    box.addEventListener("pointerdown", e => { box.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); last = null; });
+    box.addEventListener("pointermove", e => {
+      if(!pts.has(e.pointerId)) return;
+      const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if(pts.size === 1){ x -= (e.clientX - prev.x) / s; y -= (e.clientY - prev.y) / s; }
+      else { const [a, b] = [...pts.values()], dist = Math.hypot(a.x - b.x, a.y - b.y); if(last) s *= dist / last; last = dist; }
+      draw();
+    });
+    const up = e => { pts.delete(e.pointerId); last = null; };
+    box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+    box.addEventListener("wheel", e => { e.preventDefault(); s *= e.deltaY < 0 ? 1.1 : 0.9; draw(); }, { passive: false });
+    o.onclick = e => {
+      const a = e.target.dataset?.a; if(!a) return;
+      if(a === "ok"){
+        const cv = document.createElement("canvas"), T = 192, h = V / 2 / s; cv.width = cv.height = T;
+        cv.getContext("2d").drawImage(im, x - h, y - h, 2 * h, 2 * h, 0, 0, T, T);
+        done({ thumb: cv.toDataURL("image/jpeg", 0.85), crop: { x, y, s: s / minS } });
+      }
+      o.remove();
+    };
+  };
+  im.src = src;
 }
 // rend visible un passage ancien (recherche) en élargissant la fenêtre d'affichage
 function revealPassage(id){
@@ -4393,7 +4492,9 @@ function exportCardsFile(){
   const cards = adv.cards.map(c => { const o = { title: c.title, type: c.type, keys: c.keys, entry: c.entry };
     if(visible(c.recent || "").trim()) o.recent = c.recent; if(c.always) o.always = true; if(c.enabled === false) o.enabled = false; return o; });
   const name = (adv.title || "aventure").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 40) || "aventure";
-  download(`cartes-${name}.json`, { cards });
+  const images = {};
+  adv.cards.forEach(c => { const b = charBase(c), im = b && !images[b] && getCharImg(adv, c); if(im) images[b] = im; });
+  download(`cartes-${name}.json`, Object.keys(images).length ? { cards, images } : { cards });
   toast(L(`${cards.length} cartes exportées`, `${cards.length} cards exported`));
 }
 function importCardsFile(){
@@ -4411,7 +4512,9 @@ function importCardsFile(){
         if(old){ if(old.entry !== x.entry || old.keys !== x.keys){ old.entry = x.entry; old.keys = x.keys; if(x.type) old.type = x.type; updated++; } }
         else { adv.cards.push(x); added++; }
       }
-      saveAdv(); toast(L(`${added} cartes ajoutées, ${updated} mises à jour`, `${added} cards added, ${updated} updated`)); openAdventureSheet("cards");
+      let pics = 0;
+      if(j && typeof j.images === "object" && !Array.isArray(j) && idb) for(const [b, v] of Object.entries(j.images)){ if(v && v.full && v.thumb){ LS.set(imgKey(adv, b), v); pics++; } }
+      saveAdv(); toast(L(`${added} cartes ajoutées, ${updated} mises à jour`, `${added} cards added, ${updated} updated`) + (pics ? L(`, ${pics} images`, `, ${pics} pictures`) : "")); openAdventureSheet("cards"); renderStory(false);
     }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
   });
 }
@@ -5157,6 +5260,27 @@ function editCard(c, list, ctx, done0, tech){
       }catch(e){ toast("Échec : " + e.message); gb.disabled = false; gb.textContent = "✨ Compléter avec l'IA"; }
     });
     gb.style.marginBottom = "16px";
+    if(adv && list === adv.cards && d.type === "personnage" && idb){
+      // image du perso (bulle en jeu) : partagée par toutes les cartes du même perso, gardée seulement sur cet appareil
+      const box = el("div", "f"); box.innerHTML = `<span>${esc(L("Image du personnage", "Character picture"))}</span>`; body.appendChild(box);
+      const line = el("div", "row"); line.style.alignItems = "center"; box.appendChild(line);
+      const img = getCharImg(adv, d);
+      if(img){ const t = el("button", "av big"); t.innerHTML = `<img alt="" src="${img.thumb}">`; t.onclick = () => showCharImage(cardName(d), img.full); line.appendChild(t); }
+      const need = () => { if(!charBase(d)) { toast(L("Donne d'abord un nom à la carte", "Name the card first")); return false; } return true; };
+      const put = v => { LS.set(imgKey(adv, charBase(d)), v); render(body); };
+      btn(line, img ? L("Changer", "Change") : L("Ajouter une image", "Add a picture"), "ghost small", () => {
+        if(!need()) return;
+        pickFile("image/*", async f => {
+          try{ const im = await loadImageFile(f), full = shrinkImage(im, 1280, 0.85); cropImage(full, null, r => put({ full, thumb: r.thumb, crop: r.crop })); }
+          catch(e){ toast(L("Image impossible : ", "Picture failed: ") + e.message); }
+        });
+      });
+      if(img){
+        btn(line, L("Recadrer", "Reframe"), "ghost small", () => cropImage(img.full, img.crop, r => put(Object.assign({}, img, r))));
+        btn(line, L("Retirer", "Remove"), "ghost small", () => { LS.del(imgKey(adv, charBase(d))); render(body); });
+      }
+      box.appendChild(el("div", "hint", esc(L("Affichée en petite bulle sous les passages où ce perso apparaît (touche-la pour la voir en grand). Gardée seulement sur cet appareil, jamais envoyée à l'IA.", "Shown as a small bubble under passages where this character appears (tap it to see it large). Kept on this device only, never sent to the AI."))));
+    }
     toggle(body, "Activée", "Désactive sans supprimer.", () => d.enabled !== false, v => d.enabled = v);
     toggle(body, L("Toujours envoyée", "Always sent"), L("Envoyée à l'IA à chaque tour, même si aucun mot-clé n'apparaît. Pour les personnages principaux (leur apparence reste juste même avant qu'on les nomme) ou le décor central. Chaque carte ainsi coûte quelques tokens par tour.", "Sent to the AI every turn, even if no keyword appears. For main characters (their look stays right even before they're named) or the central setting. Each such card costs a few tokens per turn."), () => !!d.always, v => { if(v) d.always = true; else delete d.always; });
     if(adv && !isNew && adv.minds){ const mm = Object.keys(adv.minds).find(k => mindCard(adv, adv.minds[k]) === c); if(mm) btn(body, L("Esprit de ", "Mind of ") + adv.minds[mm].name, "ghost small", () => openMind(mm, () => openAdventureSheet("cards"))).style.marginBottom = "14px"; }
@@ -5387,6 +5511,7 @@ function openSettings(start){
       hint(body, L("S'applique au menu et à toutes tes histoires. Une aventure peut avoir la sienne (dans l'aventure → Apparence).", "Applies to the menu and all your stories. An adventure can have its own (in the adventure → Appearance)."));
       const st = globalStyle();
       styleEditor(body, st, () => { settings.style = { theme: st.theme, font: st.font, size: st.size }; saveSettings(); applyStyle(adv ? styleOf(adv) : globalStyle()); }, () => openSettings("look"));
+      settingToggle(body, L("Bulles des personnages", "Character bubbles"), L("Sous chaque passage, une petite bulle avec l'image des persos qui y apparaissent (ajoute une image dans la carte du perso). Touche une bulle pour voir l'image en grand.", "Under each passage, small bubbles with the pictures of the characters in it (add a picture in the character's card). Tap a bubble to see it large."), "avatars");
     }
     if(k === "voice") renderVoiceTab(body);
     if(k === "model"){

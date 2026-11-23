@@ -784,7 +784,20 @@ function migrate(a){
   return a;
 }
 /* Texte envoyé à l'IA : le contenu de la carte + ce que les cartes intelligentes ont ajouté (« Récemment »), sans jamais toucher au texte écrit à la main. */
-const cardText = c => String(c.entry || "").trim() + (visible(c.recent || "").trim() ? `\n${(typeof adv !== "undefined" && adv && storyEN(adv)) ? "Recently" : "Récemment"}: ${String(c.recent).trim()}` : "");
+// {{characters}} dans le texte d'une carte = la liste des personnages qui ont une carte dans l'aventure, recalculée à chaque tour
+// (les cartes qui commencent par « MINOR » n'y sont pas). Sert par exemple à un perso qui « connaît tout le monde ».
+const rosterText = () => {
+  const a = typeof adv !== "undefined" && adv; if(!a) return "";
+  const seen = new Set(), out = [];
+  for(const x of a.cards || []){
+    if(x.enabled === false || x.type !== "personnage" || /^\s*MINOR\b/i.test(x.entry || "") || /\{\{characters\}\}/i.test(x.entry || "")) continue;
+    const n = cardName(x).replace(/\s+[—–-]\s+.*$/, "").replace(/\s*\(.*\)\s*$/, "").trim();
+    if(n && !seen.has(n.toLowerCase())){ seen.add(n.toLowerCase()); out.push(n); }
+  }
+  return out.join(", ");
+};
+const cardEntry = c => { const e = String(c.entry || "").trim(); return /\{\{characters\}\}/i.test(e) ? e.replace(/\{\{characters\}\}/gi, rosterText()) : e; };
+const cardText = c => cardEntry(c) + (visible(c.recent || "").trim() ? `\n${(typeof adv !== "undefined" && adv && storyEN(adv)) ? "Recently" : "Récemment"}: ${String(c.recent).trim()}` : "");
 function normalizeCard(c){
   return Object.assign(c, {
     id: c.id || uid(), title: c.title ?? "", keys: c.keys ?? "", entry: c.entry ?? "",
@@ -975,8 +988,12 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "9.1";
+const APP_VERSION = "9.2";
 const CHANGELOG = [
+  { v: "9.2", fr: [
+      "Nouvelle balise {{characters}} pour les cartes : écrite dans le texte d'une carte, elle est remplacée à chaque tour par la liste de tous les personnages qui ont une carte dans l'aventure, y compris ceux que tu ajoutes en cours de partie. Les cartes qui commencent par « MINOR » ne sont pas listées. Idéal pour un perso qui connaît tout le monde (une déesse, un narrateur…)"],
+    en: [
+      "New {{characters}} tag for cards: written in a card's text, it is replaced every turn by the list of every character that has a card in the adventure, including those you add during the game. Cards starting with “MINOR” are not listed. Great for a character who knows everyone (a goddess, a narrator…)"] },
   { v: "9.1", fr: [
       "Nouveau bouton « ↑ Exporter les cartes » dans Story Cards : enregistre toutes les cartes de l'aventure dans un fichier .json, réimportable dans n'importe quelle autre aventure (avec ce que les cartes intelligentes avaient noté et le réglage « toujours envoyée »)"],
     en: [

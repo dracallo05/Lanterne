@@ -240,6 +240,9 @@ main{flex:1;overflow-y:auto;overscroll-behavior:contain}
 .av{width:42px;height:42px;border-radius:50%;overflow:hidden;padding:0;border:2px solid var(--line);background:var(--bg3);cursor:pointer;flex:none}
 .av img{width:100%;height:100%;object-fit:cover;display:block}
 .av.big{width:64px;height:64px}
+.av.sm{width:30px;height:30px;margin-right:10px;display:inline-block;cursor:inherit}
+.mav.img{background:var(--bg3);overflow:hidden;padding:0}
+.mav.img img{width:100%;height:100%;object-fit:cover;display:block}
 .avview{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
 .avview img{max-width:100%;max-height:86vh;object-fit:contain;border-radius:10px}
 .avname{color:#fff;font-family:var(--sans);font-size:1.1em}
@@ -825,7 +828,10 @@ const isSystem = c => /configure|edit to enable/i.test(visible(c.title).replace(
 const charBase = c => cardName(c).replace(/\s+[—–-]\s+.*$/, "").replace(/\s*\(.*\)\s*$/, "").trim().toLowerCase();
 const imgOwner = a => a.branchOf?.id || a.id;
 const imgKey = (a, base) => "lan.img." + imgOwner(a) + "." + base;
-const getCharImg = (a, c) => (a && charBase(c)) ? LS.get(imgKey(a, charBase(c)), null) : null;
+const imgCache = new Map();
+const charImg = (a, base) => { const k = imgKey(a, base); if(!imgCache.has(k)) imgCache.set(k, LS.get(k, null)); return imgCache.get(k); };
+const setCharImg = (a, base, v) => { const k = imgKey(a, base); imgCache.delete(k); if(v) LS.set(k, v); else LS.del(k); };
+const getCharImg = (a, c) => (a && idb && settings.avatars !== false && charBase(c)) ? charImg(a, charBase(c)) : null;
 const cardName = c => String(c.title || "").replace(/^[^​]*​/, "").replace(ZW, "").replace(/\s+/g, " ").trim() || L("(sans titre)", "(untitled)");
 
 /* ================= Style ================= */
@@ -1009,15 +1015,19 @@ function setHeaderTitle(text, withLogo){
 const APP_VERSION = "9.3";
 const CHANGELOG = [
   { v: "9.3", fr: [
-      "Bulles des personnages : dans la carte d'un perso, « Ajouter une image », puis cadre-la (glisse pour déplacer, pince ou barre pour zoomer : pratique pour garder juste la tête d'une image en pied). En jeu, une petite bulle ronde apparaît sous chaque passage où ce perso est nommé ; touche-la pour voir l'image entière en grand",
-      "Les cartes d'un même perso (par exemple « Lucy — Apparence » et « Lucy — Caractère ») partagent la même image, et les branches d'une aventure aussi",
+      "Bulles des personnages : dans la carte d'un perso, « Ajouter une image », puis cadre-la (glisse pour déplacer, pince ou barre pour zoomer : pratique pour garder juste la tête d'une image en pied). En jeu, une petite bulle ronde apparaît sous le dernier passage pour chaque perso qui y est nommé ; touche-la pour voir l'image entière en grand. L'image apparaît aussi dans la liste des Story Cards, dans la barre « en scène » et dans la liste des personnages",
+      "Si un perso a plusieurs cartes (par exemple une pour l'apparence et une pour le caractère), elles partagent la même image, et les branches d'une aventure aussi",
       "Les images restent sur ton appareil : jamais synchronisées, jamais envoyées à l'IA, donc aucun coût. Elles sont incluses dans « ↑ Exporter les cartes » et reprises à l'import",
       "Option dans Réglages → Apparence → « Bulles des personnages » pour les afficher ou non"],
     en: [
-      "Character bubbles: in a character's card, “Add a picture”, then frame it (drag to move, pinch or slider to zoom: handy to keep just the head from a full-body picture). In game, a small round bubble appears under each passage where that character is named; tap it to see the whole picture large",
-      "Cards of the same character (for example “Lucy — Appearance” and “Lucy — Personality”) share one picture, and so do an adventure's branches",
+      "Character bubbles: in a character's card, “Add a picture”, then frame it (drag to move, pinch or slider to zoom: handy to keep just the head from a full-body picture). In game, a small round bubble appears under the latest passage for each character named in it; tap it to see the whole picture large. The picture also shows in the Story Cards list, the “in scene” bar and the character list",
+      "If a character has several cards (for example one for looks and one for personality), they share one picture, and so do an adventure's branches",
       "Pictures stay on your device: never synced, never sent to the AI, so no cost. They are included in “↑ Export cards” and restored on import",
       "Option in Settings → Appearance → “Character bubbles” to show them or not"] },
+  { v: "9.2", fr: [
+      "Nouvelle balise {{characters}} pour les Story Cards : écrite dans le texte d'une carte, elle est remplacée à chaque tour par la liste des personnages qui ont une carte dans l'aventure, y compris ceux ajoutés en cours de partie. Pratique pour un personnage qui connaît tout le monde (un narrateur, un dieu, un chef de guilde…)"],
+    en: [
+      "New {{characters}} tag for Story Cards: written in a card's text, it is replaced every turn by the list of characters that have a card in the adventure, including those added during the game. Handy for a character who knows everyone (a narrator, a god, a guild master…)"] },
   { v: "9.1", fr: [
       "Nouveau bouton « ↑ Exporter les cartes » dans Story Cards : enregistre toutes les cartes de l'aventure dans un fichier .json, réimportable dans n'importe quelle autre aventure (avec ce que les cartes intelligentes avaient noté et le réglage « toujours envoyée »)"],
     en: [
@@ -1828,7 +1838,7 @@ function renderStory(scroll){
     };
     s.appendChild(more);
   }
-  const avs = avatarList();
+  const avs = avatarList(), lastAiShown = [...shown].reverse().find(x => x.type === "ai");
   shown.forEach(a => {
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : ""));
     d.dataset.id = a.id;
@@ -1836,7 +1846,7 @@ function renderStory(scroll){
     if(a.roll && a.type !== "ai"){ const n = a.roll; d.appendChild(el("span", "roll" + (n >= 20 ? " crit" : n <= 1 ? " fumble" : n <= 7 ? " fail" : ""), `d20 · ${n} · ${rollLabel(n)}`)); }
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
-    if(avs.length && a.type === "ai"){
+    if(avs.length && a === lastAiShown){
       const txt = visible(a.text), hit = avs.filter(v => v.keys.some(k => keyHit(txt, k))).slice(0, 10);
       if(hit.length){
         const row = el("div", "avs");
@@ -1879,7 +1889,7 @@ function avatarList(){
     if(c.enabled === false || c.type !== "personnage") continue;
     const base = charBase(c); if(!base) continue;
     let v = by.get(base);
-    if(!v){ const img = LS.get(imgKey(adv, base), null); if(!img) { by.set(base, null); continue; } v = { name: cardName(c).replace(/\s+[—–-]\s+.*$/, ""), keys: [], img }; by.set(base, v); }
+    if(!v){ const img = charImg(adv, base); if(!img) { by.set(base, null); continue; } v = { name: cardName(c).replace(/\s+[—–-]\s+.*$/, ""), keys: [], img }; by.set(base, v); }
     if(v) String(c.keys || c.title || "").split(",").map(k => k.trim()).filter(k => k.length > 1).forEach(k => v.keys.includes(k) || v.keys.push(k));
   }
   return [...by.values()].filter(Boolean);
@@ -3505,7 +3515,8 @@ function openMind(key, back){
 }
 function mindTile(key, m, onClick){
   const r = (adv?.multi ? relOf(m, adv.multi.hostId) : m.rel) || {};
-  const d = el("div", "sc mtile" + (m.dead ? " dead" : ""), `<div class="row"><div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${m.dead ? "† " + L("Décès", "Dead") : esc(m.mood || "—")}</span></div>
+  const mc = adv && mindCard(adv, m), mim = mc && getCharImg(adv, mc);
+  const d = el("div", "sc mtile" + (m.dead ? " dead" : ""), `<div class="row">${mim ? `<span class="av sm"><img alt="" src="${mim.thumb}"></span>` : ""}<div class="t" style="flex:1">${esc(m.name)}</div><span class="chip">${m.dead ? "† " + L("Décès", "Dead") : esc(m.mood || "—")}</span></div>
     ${m.label ? `<div class="e" style="margin-top:4px">${esc(m.label)}</div>` : ""}
     <div class="mrel">${REL.map(([k, fr, en, lo]) => `<span>${L(fr[0].toUpperCase() + fr.slice(1), en[0].toUpperCase() + en.slice(1))} <b>${lo < 0 ? signed(r[k] || 0) : (r[k] || 0)}</b></span>`).join("")}</div>
     ${m.goals?.short ? `<div class="e">${esc(m.goals.short)}</div>` : ""}`);
@@ -3634,7 +3645,8 @@ function refreshSmartBar(){
     const now = pres.map(m => m.name), was = sceneShown.id === adv.id ? sceneShown.names : now;
     const gone = was.filter(n => !now.includes(n)).slice(0, 3);
     sceneShown = { id: adv.id, names: now };
-    const av = (n, cls) => `<span class="mav ${cls}" style="background:hsl(${hueOf(n)} 38% 36%)" title="${esc(n)}">${esc(n.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span>`;
+    const av = (n, cls) => { const c = mindCard(adv, { name: n }), im = c && getCharImg(adv, c);
+      return im ? `<span class="mav img ${cls}" title="${esc(n)}"><img alt="" src="${im.thumb}"></span>` : `<span class="mav ${cls}" style="background:hsl(${hueOf(n)} 38% 36%)" title="${esc(n)}">${esc(n.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase())}</span>`; };
     const names = pres.length ? `<span class="mavs">${pres.slice(0, 4).map(m => av(m.name, was.includes(m.name) ? "" : "pop")).join("")}${gone.map(n => av(n, "out")).join("")}</span>${pres.length > 4 ? `<span>+${pres.length - 4}</span>` : ""}<span>${L(`${pres.length} en scène`, `${pres.length} in scene`)}</span>` : "";
     const p = el("button", "pill chars", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/></svg><span class="noi18n">${names || L("Personnages", "Characters")}</span>${minding ? `<span class="dot"></span>` : ""}`);
     p.onclick = () => openMindList(!!pres.length); s.appendChild(p);
@@ -4513,7 +4525,7 @@ function importCardsFile(){
         else { adv.cards.push(x); added++; }
       }
       let pics = 0;
-      if(j && typeof j.images === "object" && !Array.isArray(j) && idb) for(const [b, v] of Object.entries(j.images)){ if(v && v.full && v.thumb){ LS.set(imgKey(adv, b), v); pics++; } }
+      if(j && typeof j.images === "object" && !Array.isArray(j) && idb) for(const [b, v] of Object.entries(j.images)){ if(v && v.full && v.thumb){ setCharImg(adv, b, v); pics++; } }
       saveAdv(); toast(L(`${added} cartes ajoutées, ${updated} mises à jour`, `${added} cards added, ${updated} updated`) + (pics ? L(`, ${pics} images`, `, ${pics} pictures`) : "")); openAdventureSheet("cards"); renderStory(false);
     }catch(e){ toast(L("Import impossible : ", "Import failed: ") + e.message); }
   });
@@ -5215,7 +5227,8 @@ function cardGroupsList(host, cards, makeTile){
 function advCtx(){ return [adv.title, adv.essentials, adv.actions.slice(-3).map(a => visible(a.text)).join("\n")].filter(Boolean).join("\n\n").slice(0, 3000); }
 function typeLabel(t){ return t === "auto" || t === "class" ? L("carte auto", "auto card") : t; }
 function cardTile(c, onClick, active){
-  const d = el("div", "sc", `<div class="row"><div class="t" style="flex:1">${esc(cardName(c))}</div>${active ? `<span class="chip acc">active</span>` : ""}${c.enabled === false ? `<span class="chip">off</span>` : ""}<span class="chip">${esc(typeLabel(c.type || ""))}</span></div><div class="k">${esc(c.keys)}</div><div class="e">${esc(c.entry)}</div>`);
+  const im = adv && c.type === "personnage" && (adv.cards || []).includes(c) ? getCharImg(adv, c) : null;
+  const d = el("div", "sc", `<div class="row">${im ? `<span class="av sm"><img alt="" src="${im.thumb}"></span>` : ""}<div class="t" style="flex:1">${esc(cardName(c))}</div>${active ? `<span class="chip acc">active</span>` : ""}${c.enabled === false ? `<span class="chip">off</span>` : ""}<span class="chip">${esc(typeLabel(c.type || ""))}</span></div><div class="k">${esc(c.keys)}</div><div class="e">${esc(c.entry)}</div>`);
   d.onclick = onClick;
   return d;
 }
@@ -5263,11 +5276,11 @@ function editCard(c, list, ctx, done0, tech){
     if(adv && list === adv.cards && d.type === "personnage" && idb){
       // image du perso (bulle en jeu) : partagée par toutes les cartes du même perso, gardée seulement sur cet appareil
       const box = el("div", "f"); box.innerHTML = `<span>${esc(L("Image du personnage", "Character picture"))}</span>`; body.appendChild(box);
-      const line = el("div", "row"); line.style.alignItems = "center"; box.appendChild(line);
-      const img = getCharImg(adv, d);
+      const line = el("div", "row"); line.style.cssText = "align-items:center;margin-top:10px"; box.appendChild(line);
+      const img = charBase(d) ? charImg(adv, charBase(d)) : null;
       if(img){ const t = el("button", "av big"); t.innerHTML = `<img alt="" src="${img.thumb}">`; t.onclick = () => showCharImage(cardName(d), img.full); line.appendChild(t); }
       const need = () => { if(!charBase(d)) { toast(L("Donne d'abord un nom à la carte", "Name the card first")); return false; } return true; };
-      const put = v => { LS.set(imgKey(adv, charBase(d)), v); render(body); };
+      const put = v => { setCharImg(adv, charBase(d), v); render(body); };
       btn(line, img ? L("Changer", "Change") : L("Ajouter une image", "Add a picture"), "ghost small", () => {
         if(!need()) return;
         pickFile("image/*", async f => {
@@ -5277,7 +5290,7 @@ function editCard(c, list, ctx, done0, tech){
       });
       if(img){
         btn(line, L("Recadrer", "Reframe"), "ghost small", () => cropImage(img.full, img.crop, r => put(Object.assign({}, img, r))));
-        btn(line, L("Retirer", "Remove"), "ghost small", () => { LS.del(imgKey(adv, charBase(d))); render(body); });
+        btn(line, L("Retirer", "Remove"), "ghost small", () => { setCharImg(adv, charBase(d), null); render(body); });
       }
       box.appendChild(el("div", "hint", esc(L("Affichée en petite bulle sous les passages où ce perso apparaît (touche-la pour la voir en grand). Gardée seulement sur cet appareil, jamais envoyée à l'IA.", "Shown as a small bubble under passages where this character appears (tap it to see it large). Kept on this device only, never sent to the AI."))));
     }

@@ -603,7 +603,7 @@ const DEFAULT_SETTINGS = {
   max_tokens: 300, temperature: 0.8, top_p: 0.95, top_k: 0, min_p: 0,
   repetition_penalty: 1, presence_penalty: 0, frequency_penalty: 0,
   contextTokens: 16000, cardScanDepth: 4, cardLimit: 1000, autoSummary: true, voiceURI: "", ttsRate: 1, ttsPitch: 1, ttsAuto: false, ttsEngine: "mai", ttsVoices: {}, requireParams: false, noReasoning: true, syncApiKey: true,
-  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", fallbackModel: "", budgetDay: 0, budgetMonth: 0, providerIgnore: ["alibaba"], showCosts: false, liveText: false, avatars: true, fastProvider: false, echoRetry: true
+  currency: "EUR", memBudget: 1000, memModel: "openai/text-embedding-3-small", bgModel: "auto", fallbackModel: "", budgetDay: 0, budgetMonth: 0, providerIgnore: ["alibaba"], showCosts: false, liveText: false, avatars: true, scrollStart: true, fastProvider: false, echoRetry: true
 };
 let settings = Object.assign({}, DEFAULT_SETTINGS, LS.get("lan.settings", {}));
 
@@ -1012,8 +1012,16 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "9.3";
+const APP_VERSION = "9.5";
 const CHANGELOG = [
+  { v: "9.5", fr: [
+      "Nouveau bouton « ↺ Nouvelle partie avec tout l'actuel » (menu de l’aventure → onglet Aventure → Recommencer) : crée une copie qui repart de l'ouverture en gardant toutes les cartes (même celles ajoutées en cours de partie), les images des persos, les essentiels, les instructions, les scripts et ton perso. Les esprits des personnages (relations, souvenirs), la mémoire et le résumé repartent à zéro. Ta partie actuelle n'est pas touchée"],
+    en: [
+      "New “↺ New game with everything current” button (adventure menu → Adventure tab → Restart): creates a copy that starts again from the opening while keeping every card (even those added during play), character pictures, essentials, instructions, scripts and your character. Character minds (relationships, memories), memory and summary start from zero. Your current game isn't touched"] },
+  { v: "9.4", fr: [
+      "À la fin de chaque tour, l'écran se place au début du nouveau passage au lieu de tout en bas : tu lis dans l'ordre sans remonter. En texte en direct, le défilement suit l'écriture mais s'arrête quand le début du passage atteint le haut de l'écran. Désactivable dans Réglages → Apparence"],
+    en: [
+      "At the end of each turn, the screen goes to the start of the new passage instead of the very bottom: you read in order without scrolling back up. With live text, scrolling follows the writing but stops when the start of the passage reaches the top of the screen. Can be turned off in Settings → Appearance"] },
   { v: "9.3", fr: [
       "Bulles des personnages : dans la carte d'un perso, « Ajouter une image », puis cadre-la (glisse pour déplacer, pince ou barre pour zoomer : pratique pour garder juste la tête d'une image en pied). En jeu, une petite bulle ronde apparaît sous le dernier passage pour chaque perso qui y est nommé ; touche-la pour voir l'image entière en grand. L'image apparaît aussi dans la liste des Story Cards, dans la barre « en scène » et dans la liste des personnages",
       "Si un perso a plusieurs cartes (par exemple une pour l'apparence et une pour le caractère), elles partagent la même image, et les branches d'une aventure aussi",
@@ -1742,6 +1750,24 @@ function restartAdventure(a){
   if(a.hasCover) o.cover = getCover(a.id);
   closeSheet(); playScenario(o, null, { scenarioId: a.scenarioId });
 }
+// nouvelle partie qui garde tout le matériel actuel (cartes ajoutées, essentiels, instructions, scripts, images, perso du joueur)
+// mais repart de l'ouverture, avec esprits, relations, mémoire et résumé à zéro. La partie d'origine n'est pas touchée.
+function restartKeepAll(a){
+  if(a.multi) return restartAdventure(a);
+  if(!confirm(L(`Nouvelle partie de « ${a.title} » depuis l'ouverture, avec toutes les cartes, images, essentiels et instructions d'aujourd'hui ?\n\nLes esprits (relations, souvenirs), la mémoire et le résumé repartent de zéro. Ta partie actuelle est gardée telle quelle.`, `New game of “${a.title}” from the opening, with all of today's cards, pictures, essentials and instructions?\n\nMinds (relationships, memories), memory and summary start from zero. Your current game is kept as is.`))) return;
+  const opening = a.actions.find(x => x.type === "ai" && !x.hidden);
+  const b = blankAdventure();
+  Object.assign(b, { title: a.title + L(" (nouvelle partie)", " (new game)"), essentials: a.essentials, authorsNote: a.authorsNote, instructions: a.instructions,
+    cards: a.cards.filter(c => !isBrain(c) && !isSystem(c)).map(c => { const x = clone(c); x.id = uid(); delete x.recent; return x; }),
+    scripts: clone(a.scripts), style: clone(a.style), coverPos: a.coverPos, origin: clone(a.origin || originOf(a)) });
+  ["scenarioId", "publishedFrom", "model", "bgModel", "lang"].forEach(k => { if(a[k] !== undefined) b[k] = clone(a[k]); });
+  if(opening) b.actions.push({ id: uid(), type: "ai", text: visible(opening.text) });
+  if(a.hasCover){ const c = getCover(a.id); b.hasCover = !!(c && LS.set("lan.cover." + b.id, c)); }
+  const from = "lan.img." + imgOwner(a) + ".";
+  if(idb) KV.keys().filter(k => k && k.startsWith(from)).forEach(k => { const v = LS.get(k, null); if(v) LS.set("lan.img." + b.id + "." + k.slice(from.length), v); });
+  closeSheet(); adv = b; saveAdv(); openAdventure(b.id); renderStory(true);
+  toast(L("Nouvelle partie créée", "New game created"));
+}
 function scenarioFromAdventure(a){
   openSheet(L("Créer un scénario", "Create a scenario"), null, (_, b) => {
     hint(b, L("Le scénario est rangé dans Mes scénarios, en privé. Ta partie n'est pas modifiée.", "The scenario goes to My scenarios, privately. Your game isn't changed."));
@@ -2344,7 +2370,8 @@ async function generate(input, opts = {}){
             if(!started){ delta = delta.replace(/^\s+/, ""); if(!delta) return; started = true; ph.el.innerHTML = ""; }
             const stick = view.scrollHeight - view.scrollTop - view.clientHeight < 80;
             const sp = el("span", "fi"); sp.textContent = delta; ph.el.appendChild(sp);
-            if(stick) view.scrollTop = view.scrollHeight;
+            // on suit le texte qui s'écrit, mais (option) sans jamais faire sortir le début du passage par le haut
+            if(stick) view.scrollTop = settings.scrollStart !== false ? Math.min(view.scrollHeight, view.scrollTop + ph.el.getBoundingClientRect().top - view.getBoundingClientRect().top - 12) : view.scrollHeight;
           } });
         }catch(e){
           if(e.name === "AbortError") r = { text: partial, cost: 0 };
@@ -2441,7 +2468,10 @@ async function generate(input, opts = {}){
   }
   if(errMsg && adv?.multi) toast("⚠ " + errMsg);
   else if(errMsg){ const d = el("div", "err"); d.textContent = "⚠ " + errMsg; $("#story").insertBefore(d, $("#story .meta")); }
-  const v = $("#storyView"); if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
+  const v = $("#storyView");
+  const newEl = final && settings.scrollStart !== false ? [...$("#story").querySelectorAll(".act.ai")].pop() : null;
+  if(newEl) v.scrollTop += newEl.getBoundingClientRect().top - v.getBoundingClientRect().top - 12; // le début du nouveau passage en haut de l'écran
+  else if(v.scrollHeight - v.scrollTop - v.clientHeight < 300) v.scrollTop = v.scrollHeight;
   if(final && settings.ttsAuto) speak(final);
   const bg = errMsg ? Promise.resolve() : Promise.allSettled([maybeSummarize(), maybeSmartCards(), maybeMinds(), maybeMemorize(), maybeClock()]);
   return { final, finalAction, errMsg, bg };
@@ -5116,6 +5146,7 @@ function renderMiscTab(body){
   sec(body, L("Recommencer", "Restart"));
   const rr = el("div", "row"); rr.style.flexWrap = "wrap"; body.appendChild(rr);
   btn(rr, L("↺ Recommencer depuis le début", "↺ Restart from the beginning"), "", () => restartAdventure(adv));
+  btn(rr, L("↺ Nouvelle partie avec tout l'actuel", "↺ New game with everything current"), "ghost", () => restartKeepAll(adv));
   btn(rr, L("Créer un scénario", "Create a scenario"), "ghost", () => scenarioFromAdventure(adv));
   hint(body, (adv.origin?.late ? L("Le départ de cette partie a été enregistré lors de la mise à jour 8 : les cartes et essentiels sont ceux de ce moment-là. ", "This game's start was saved with update 8: cards and essentials are those from that moment. ") : "") + L("Le matériel de départ (ouverture, essentiels, cartes, instructions) est gardé à part : ce qui change pendant la partie ne le touche pas.", "The starting material (opening, essentials, cards, instructions) is kept aside: what changes during play never touches it."));
   sec(body, "Gestion");
@@ -5525,6 +5556,7 @@ function openSettings(start){
       const st = globalStyle();
       styleEditor(body, st, () => { settings.style = { theme: st.theme, font: st.font, size: st.size }; saveSettings(); applyStyle(adv ? styleOf(adv) : globalStyle()); }, () => openSettings("look"));
       settingToggle(body, L("Bulles des personnages", "Character bubbles"), L("Sous chaque passage, une petite bulle avec l'image des persos qui y apparaissent (ajoute une image dans la carte du perso). Touche une bulle pour voir l'image en grand.", "Under each passage, small bubbles with the pictures of the characters in it (add a picture in the character's card). Tap a bubble to see it large."), "avatars");
+      settingToggle(body, L("Aller au début du nouveau passage", "Jump to the start of the new passage"), L("À la fin de chaque tour, l'écran se place au début du texte que l'IA vient d'écrire, au lieu de tout en bas. Tu lis dans l'ordre, sans remonter.", "At the end of each turn, the screen goes to the start of the text the AI just wrote, instead of the very bottom. You read in order, without scrolling back up."), "scrollStart");
     }
     if(k === "voice") renderVoiceTab(body);
     if(k === "model"){

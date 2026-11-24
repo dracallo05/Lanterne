@@ -1012,8 +1012,14 @@ function setHeaderTitle(text, withLogo){
   $("#title").innerHTML = (withLogo ? LOGO : "") + `<span>${esc(text)}</span>` + (withLogo ? `<button class="ver${localStorage.getItem("lan.seenVer") !== APP_VERSION ? " new" : ""}" id="verBtn" aria-label="${L("Nouveautés", "What's new")}">v${APP_VERSION}</button>` : "");
   const v = $("#verBtn"); if(v) v.onclick = openChangelog;
 }
-const APP_VERSION = "9.5";
+const APP_VERSION = "9.6";
 const CHANGELOG = [
+  { v: "9.6", fr: [
+      "Les bulles montrent aussi les persos marqués « en scène » (esprits des personnages), même quand le passage ne dit pas leur nom (« she… »). Elles se mettent à jour quand la scène change",
+      "Bulles des personnages plus précises : un mot-clé écrit avec une majuscule (un nom) doit apparaître tel quel dans le passage. Un mot courant en minuscule (« darkness », « witch », « scarlet »…) ne fait plus apparaître la bulle d'un perso qui porte ce nom"],
+    en: [
+      "Bubbles also show the characters marked “in scene” (character minds), even when the passage doesn't say their name (“she…”). They update when the scene changes",
+      "More accurate character bubbles: a keyword written with a capital letter (a name) must appear as such in the passage. A common lowercase word (“darkness”, “witch”, “scarlet”…) no longer shows the bubble of a character with that name"] },
   { v: "9.5", fr: [
       "Nouveau bouton « ↺ Nouvelle partie avec tout l'actuel » (menu de l’aventure → onglet Aventure → Recommencer) : crée une copie qui repart de l'ouverture en gardant toutes les cartes (même celles ajoutées en cours de partie), les images des persos, les essentiels, les instructions, les scripts et ton perso. Les esprits des personnages (relations, souvenirs), la mémoire et le résumé repartent à zéro. Ta partie actuelle n'est pas touchée"],
     en: [
@@ -1864,7 +1870,6 @@ function renderStory(scroll){
     };
     s.appendChild(more);
   }
-  const avs = avatarList(), lastAiShown = [...shown].reverse().find(x => x.type === "ai");
   shown.forEach(a => {
     const d = el("div", "act " + (a.type === "ai" ? "ai" : a.type === "story" ? "story-act" : "player") + (a === newest ? " newest" : ""));
     d.dataset.id = a.id;
@@ -1872,14 +1877,6 @@ function renderStory(scroll){
     if(a.roll && a.type !== "ai"){ const n = a.roll; d.appendChild(el("span", "roll" + (n >= 20 ? " crit" : n <= 1 ? " fumble" : n <= 7 ? " fail" : ""), `d20 · ${n} · ${rollLabel(n)}`)); }
     d.addEventListener("click", ev => actionMenu(a, ev));
     s.appendChild(d);
-    if(avs.length && a === lastAiShown){
-      const txt = visible(a.text), hit = avs.filter(v => v.keys.some(k => keyHit(txt, k))).slice(0, 10);
-      if(hit.length){
-        const row = el("div", "avs");
-        hit.forEach(v => { const b = el("button", "av"); b.title = v.name; b.innerHTML = `<img alt="" src="${v.img.thumb}">`; b.onclick = ev => { ev.stopPropagation(); showCharImage(v.name, v.img.full); }; row.appendChild(b); });
-        s.appendChild(row);
-      }
-    }
     if(a.rpgDelta?.length && adv.scripts.rpg) s.appendChild(el("div", "rpgd", a.rpgDelta.map(x => `<span class="${x.s > 0 ? "pos" : "neg"}">${esc(x.t)}</span>`).join("")));
     if(a.redo?.length) s.appendChild(el("div", "rpgd mind", `<span title="${esc(L("Lanterne a refait cette réponse automatiquement (chaque relance coûte un appel)", "Lanterne redid this reply automatically (each retry costs a call)"))}">↻ ${esc(L("refait", "redone"))} : ${esc(a.redo.join(", "))}</span>`));
     if(a.recalled?.length && memOn(adv) && adv.scripts.mindChips !== false){
@@ -1905,9 +1902,26 @@ function renderStory(scroll){
   s.appendChild(m);
   if(adv.multi && mp.liveText[adv.multi.view] && mp.busySid === adv.multi.view && adv.multi.active !== adv.multi.view){ const lv = el("div", "act ai" + (settings.liveText ? " live" : "")); if(settings.liveText) lv.textContent = mp.liveText[adv.multi.view]; else { lv.innerHTML = SPIN; lv.querySelector(".wstat").textContent = L("✍️ écriture…", "✍️ writing…"); } s.insertBefore(lv, m); }
   updateTools(); refreshSmartBar(); mpUI();
+  updateBubbles();
   if(scroll) requestAnimationFrame(() => { const v = $("#storyView"); v.scrollTop = v.scrollHeight; });
 }
 // persos de l'aventure qui ont une image : [{ name, keys, img }], un par personnage (cartes regroupées par nom)
+// bulles sous le dernier passage de l'IA : persos en scène + persos nommés dedans (recalculé aussi quand la scène change)
+function updateBubbles(){
+  const st = $("#story"); if(!st) return;
+  st.querySelectorAll(".avs").forEach(x => x.remove());
+  const avs = avatarList(); if(!avs.length) return;
+  const els = st.querySelectorAll(".act.ai"), elA = els[els.length - 1];
+  const a = [...(adv.actions || [])].reverse().find(x => x.type === "ai" && !x.hidden);
+  if(!elA || !a) return;
+  const txt = visible(a.text);
+  const here = new Set(); try{ presentNow().forEach(m => { const c = mindCard(adv, m); if(c) here.add(charBase(c)); }); }catch(e){}
+  const hit = [...avs.filter(v => here.has(v.base)), ...avs.filter(v => !here.has(v.base) && v.keys.some(k => keyHitName(txt, k)))].slice(0, 10);
+  if(!hit.length) return;
+  const row = el("div", "avs");
+  hit.forEach(v => { const b = el("button", "av"); b.title = v.name; b.innerHTML = `<img alt="" src="${v.img.thumb}">`; b.onclick = ev => { ev.stopPropagation(); showCharImage(v.name, v.img.full); }; row.appendChild(b); });
+  elA.after(row);
+}
 function avatarList(){
   if(!adv || settings.avatars === false || !idb) return [];
   const by = new Map();
@@ -1915,7 +1929,7 @@ function avatarList(){
     if(c.enabled === false || c.type !== "personnage") continue;
     const base = charBase(c); if(!base) continue;
     let v = by.get(base);
-    if(!v){ const img = charImg(adv, base); if(!img) { by.set(base, null); continue; } v = { name: cardName(c).replace(/\s+[—–-]\s+.*$/, ""), keys: [], img }; by.set(base, v); }
+    if(!v){ const img = charImg(adv, base); if(!img) { by.set(base, null); continue; } v = { base, name: cardName(c).replace(/\s+[—–-]\s+.*$/, ""), keys: [], img }; by.set(base, v); }
     if(v) String(c.keys || c.title || "").split(",").map(k => k.trim()).filter(k => k.length > 1).forEach(k => v.keys.includes(k) || v.keys.push(k));
   }
   return [...by.values()].filter(Boolean);
@@ -2101,6 +2115,19 @@ function triggeredCards(){
 }
 /* Un mot-clé doit commencer un mot (« Cana » ne se déclenche pas sur « canaux ») ; les mots-clés courts (moins de 5 lettres) doivent être un mot entier. */
 const keyRe = new Map();
+// pour les bulles : un mot-clé écrit avec une majuscule (un nom) doit apparaître avec sa majuscule dans le texte,
+// pour qu'un mot courant (« darkness », « witch », « scarlet ») ne fasse pas apparaître la bulle d'un perso
+const keyReName = new Map();
+function keyHitName(text, k){
+  if(!/^\p{Lu}/u.test(k)) return keyHit(text, k);
+  let re = keyReName.get(k);
+  if(re === undefined){
+    const e = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    try{ re = new RegExp("(^|[^\\p{L}\\p{N}_])" + e + "(?![\\p{L}\\p{N}_])", "u"); }catch(err){ re = null; }
+    keyReName.set(k, re);
+  }
+  return re ? re.test(text) : false;
+}
 function keyHit(text, k){
   let re = keyRe.get(k);
   if(!re){
@@ -3660,6 +3687,7 @@ function openClock(){
   });
 }
 function refreshSmartBar(){
+  if(!generating) try{ updateBubbles(); }catch(e){}
   const s = $("#sbar"); if(!s) return;
   s.innerHTML = "";
   if(!adv){ s.classList.add("hidden"); return; }
